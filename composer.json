@@ -1,0 +1,27 @@
+{
+	"name": "beer-slurper",
+	"description": "Slurp data from Untappd into your site!",
+	"version": "0.0.1",
+	"type": "wordpress-plugin",
+	"keywords": [],
+	"homepage": "https://kraft.im/",
+	"license": "GPLv2.0+",
+	"authors": [
+		{
+			"name": "Brandon Kraft",
+			"email": "public@brandonkraft.com",
+		"homepage": "https://kraft.im/",
+			"role": "Developer"
+		}
+	],
+    "minimum-stability": "dev",
+	"require": {
+		"php": ">=5.4"
+	},
+    "require-dev": {
+	    "antecedent/patchwork": "1.2.*",
+        "phpunit/phpunit"     : "*@stable",
+	    "brianium/paratest"   : "dev-master",
+        "10up/wp_mock"        : "dev-master"
+    }
+}
