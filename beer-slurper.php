@@ -49,6 +49,8 @@ if ( ! defined('UNTAPPD_KEY') ) {
 	return ; // config.php not set, so let's just bail out of here now.
 }
 
+require_once BEER_SLURPER_INC . 'functions/api.php';
+
 
 // Activation/Deactivation
 register_activation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\activate' );
