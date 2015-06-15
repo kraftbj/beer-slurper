@@ -43,8 +43,8 @@ module.exports = function( grunt ) {
 				}
 			}
 		},
-		
-		
+
+
 		cssmin: {
 			options: {
 				banner: '/*! <%= pkg.title %> - v<%= pkg.version %>\n' +
@@ -71,7 +71,7 @@ module.exports = function( grunt ) {
 					livereload: true
 				}
 			},
-			styles: { 
+			styles: {
 				files: ['assets/css/*.css', '!assets/css/*.min.css'],
 				tasks: ['cssmin'],
 				options: {
@@ -147,16 +147,28 @@ module.exports = function( grunt ) {
 		},
 		qunit: {
 			all: ['tests/qunit/**/*.html']
+		},
+		addtextdomain: {
+			files: {
+				src: [
+				'*.php',
+				'**/*.php',
+				'!node_modules/**',
+				'!tests/**',
+				'!vendor/**'
+				]
+			}
 		}
 	} );
 
 	// Load tasks
 	require('load-grunt-tasks')(grunt);
+	grunt.loadNpmTasks('grunt-wp-i18n');
 
 	// Register tasks
-	
+
 	grunt.registerTask( 'default', ['jshint', 'concat', 'uglify', 'cssmin', 'wp_readme_to_markdown' ] );
-	
+
 
 	grunt.registerTask( 'build', ['default', 'clean', 'copy', 'compress'] );
 
