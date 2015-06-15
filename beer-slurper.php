@@ -50,6 +50,7 @@ if ( ! defined('UNTAPPD_KEY') ) {
 }
 
 require_once BEER_SLURPER_INC . 'functions/api.php';
+require_once BEER_SLURPER_INC . 'functions/post.php';
 
 
 // Activation/Deactivation
