@@ -43,7 +43,7 @@ define( 'BEER_SLURPER_INC',     BEER_SLURPER_PATH . 'includes/' );
 
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
-include_once BEER_SLURPER_INC . 'config.php';
+include_once BEER_SLURPER_PATH . 'config.php';
 
 if ( ! defined('UNTAPPD_KEY') ) {
 	return ; // config.php not set, so let's just bail out of here now.
