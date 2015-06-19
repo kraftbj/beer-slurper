@@ -43,7 +43,15 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 
 	$untappd_url = $untappd_url . $endpoint . '/' . $parameter;
 
-	$response = wp_safe_remote_get( add_query_arg( $args, $untappd_url ) );
+	$request_hash = md5( $untappd_url );
+
+	$response = get_transient( 'beer_slurper_' . $request_hash ); // Just got under the 45 character limit!
+
+	if ( $response === false ) {
+
+		$response = wp_safe_remote_get( add_query_arg( $args, $untappd_url ) );
+		set_transient( 'beer_slurper_' . $request_hash, $response, HOUR_IN_SECONDS );
+	}
 
 	if ( is_wp_error( $response ) ) {
 		return;
