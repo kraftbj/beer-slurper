@@ -64,6 +64,40 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	return $response;
 }
 
+function get_untappd_data( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
+	$response = get_untappd_data_raw( $endpoint, $parameter, $args, $ver );
+	$response = $response['response'];
+	return $response;
+}
+
+function get_latest_checkin( $user ){
+	$args    = array(
+		'limit' => 1,
+		);
+	$checkin = get_untappd_data( 'user/checkins', $user );
+	$checkin = $checkin['checkins']['items'][0];
+	return $checkin;
+}
+
+function get_beer_info( $bid, $compact = true, $section = 'beer' ){
+	$args    = array(
+		'compact' => $compact,
+		);
+	$info = get_untappd_data( 'beer/info', $bid );
+
+	if ($section == 'brewery' ){
+		return $info['beer']['brewery'];
+	}
+	else {
+		return $info['beer'];
+	}
+}
+
+function get_brewery_info_by_beer( $bid ){
+	$brewery = get_beer_info( $bid, true, 'brewery' );
+	return $brewery;
+}
+
 /**
  * Ensures that the specified endpoint is supported by our code.
  *
