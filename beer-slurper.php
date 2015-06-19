@@ -43,14 +43,20 @@ define( 'BEER_SLURPER_INC',     BEER_SLURPER_PATH . 'includes/' );
 
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
-include_once BEER_SLURPER_PATH . 'config.php';
+include_once BEER_SLURPER_PATH . 'config.php'; // @todo temporary
 
 if ( ! defined('UNTAPPD_KEY') ) {
-	return ; // config.php not set, so let's just bail out of here now.
+	return ; // config.php not set, so let's just bail out of here now. Temporary.
 }
 
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
+require_once BEER_SLURPER_INC . 'functions/temp.php'; // @todo temporary
+
+function bs_test_insert(){
+	$checkin = \Kraft\Beer_Slurper\API\get_latest_checkin( 'kraft' );
+	\Kraft\Beer_Slurper\Post\insert_beer( $checkin );
+}
 
 
 // Activation/Deactivation

@@ -16,11 +16,14 @@ namespace Kraft\Beer_Slurper\API;
  * @param string $parameter Optional. Personalized endpoint parameter. E.g. "USER" in "checkins/USER" endpoint.
  * @param array  $args      Optional. Query string additions to the API call.
  * @param string $ver       Optional. API version number. v4 by default.
+ *
  * @return array Complete Untappd response. Useful data is in the 'response' key.
  **/
 
-function get_untappd_data( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
-	$untappd_url = 'https://api.untappd.com/' . $ver . '/';
+function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
+	$untappd_url    = 'https://api.untappd.com/' . $ver . '/';
+	$untappd_key    = get_option( 'beer-slurper-key' );
+	$untappd_secret = get_option( 'beer-slurper-secret' );
 
 	$endpoint = validate_endpoint( $endpoint, $paramteter, $ver );
 	if ( is_wp_error( $endpoint ) {
@@ -31,12 +34,12 @@ function get_untappd_data( $endpoint, $parameter = null, array $args = null, $ve
 		return new \WP_Error( 'poor_form', __( "The args must be in an array.", "beer_slurper" ) );
 	}
 
-	if (! defined( "UNTAPPD_KEY" ) || ! defined( "UNTAPPD_SECRET" ) ){
+	if (! $untappd_key || ! $untappd_secret ){
 		return new \WP_Error( 'lacking_creds', __( "Somehow, you got to this point without API creds.", "beer_slurper" ) );
 	}
 
-	$args['client_id']     = UNTAPPD_KEY;
-	$args['client_secret'] = UNTAPPD_SECRET;
+	$args['client_id']     = $untappd_key;
+	$args['client_secret'] = $untappd_secret;
 
 	$untappd_url = $untappd_url . $endpoint . '/' . $parameter;
 
