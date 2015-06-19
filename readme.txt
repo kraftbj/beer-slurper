@@ -1,7 +1,7 @@
 === Beer Slurper ===
 Contributors:      Brandon Kraft
 Donate link:       https://kraft.im/
-Tags: 
+Tags:
 Requires at least: 4.2.2
 Tested up to:      4.2.2
 Stable tag:        0.1.0
