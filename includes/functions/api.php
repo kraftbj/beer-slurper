@@ -25,10 +25,10 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	$untappd_key    = get_option( 'beer-slurper-key' );
 	$untappd_secret = get_option( 'beer-slurper-secret' );
 
-	$endpoint = validate_endpoint( $endpoint, $paramteter, $ver );
+	/* $endpoint = validate_endpoint( $endpoint, $paramteter, $ver ); // @todo reenable when validation does something.
 	if ( is_wp_error( $endpoint ) {
 		return $endpoint;
-	}
+	} */
 
 	if ( $args && ! is_array( $args ) ) {
 		return new \WP_Error( 'poor_form', __( "The args must be in an array.", "beer_slurper" ) );
@@ -75,7 +75,7 @@ function validate_endpoint( $endpoint, $parameter, $ver ){
 	}
 	$valid_endpoints = array( // @todo - Add version to the array and if parameter required/optional?
 		'checkin/recent',              // Activity Feed
-		'user/checkins'                // Also valid without user name when authenticated
+		'user/checkins',                // Also valid without user name when authenticated
 		'thepub/local',                // The Pub (Local)
 		'venue/checkins',              // Venue Activity Feed
 		'beer/checkins',               // Beer Activity Feed
@@ -100,7 +100,7 @@ function validate_endpoint( $endpoint, $parameter, $ver ){
 		'checkin/addcomment',
 		'user/wishlist/add',
 		'user/wishlist/delete',
-		'venue/foursquare_lookup'
+		'venue/foursquare_lookup',
 		);
 	if ( ! in_array( $valid_endpoints, $endpoint) ) { // @todo verify this is the right function to use.
 		$endpoint = new \WP_Error( 'invalid_endpoint', __( 'The specified endpoint is not on the shortlist.', 'beer_slurper' ) );
