@@ -79,6 +79,33 @@ function get_latest_checkin( $user ){
 	return $checkin;
 }
 
+/**
+ * Get part of the user's activity stream.
+ *
+ * @param string $user   Untappd user name.
+ * @param int    $max_id The checking ID that you want the results to start with (e.g. the newest in the returned set).
+ * @param int    $min_id Returns only checkins newer than this value.
+ * @param int    $number Number of checkins. Default 25. Max 50.
+ *
+ * @return array User's feed. Checkins contained within ['items'];
+ **/
+function get_checkins( $user, $max_id = null, $min_id = null, $number = null ){
+	$args = null;
+
+	if ( intval( $max_id ) != 0 ) {
+		$args['max_id'] = intval( $max_id );
+	}
+	if ( intval( $min_id ) !=0 ) {
+		$args['min_id'] = intval( $min_id );
+	}
+	if ( intval( $number ) != 0 && $number < 50 ){
+		$args['number'] = intval( $number );
+	}
+	$checkin = get_untappd_data( 'user/checkins', $user, $args );
+	$checkin = $checkin['checkins'];
+	return $checkin;
+}
+
 function get_beer_info( $bid, $compact = true, $section = 'beer' ){
 	$args    = array(
 		'compact' => $compact,
