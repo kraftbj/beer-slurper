@@ -69,7 +69,7 @@ function setup_post( $checkin ){
 	}
 
 	$beer     = $checkin['beer'];
-	$beer_all = \Kraft\Beer_Slurper\API\get_untappd_data( 'beer/info', $beer['bid'], array( 'compact' => 'true' ) );
+	$beer_all = \Kraft\Beer_Slurper\API\get_beer_info( $beer['bid'] );
 	$brewery   = $beer_all['beer']['brewery']; // \Kraft\Beer_Slurper\API\get_brewery_info_by_beer( $beer['bid'] );
 	$post_info = array(
 		'title'   => $brewery['brewery_name'] . ' ' . $beer['beer_name'],
