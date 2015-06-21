@@ -74,7 +74,7 @@ function get_latest_checkin( $user ){
 	$args    = array(
 		'limit' => 1,
 		);
-	$checkin = get_untappd_data( 'user/checkins', $user );
+	$checkin = get_untappd_data( 'user/checkins', $user, $args );
 	$checkin = $checkin['checkins']['items'][0];
 	return $checkin;
 }
