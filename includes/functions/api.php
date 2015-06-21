@@ -110,7 +110,7 @@ function get_beer_info( $bid, $compact = true, $section = 'beer' ){
 	$args    = array(
 		'compact' => $compact,
 		);
-	$info = get_untappd_data( 'beer/info', $bid );
+	$info = get_untappd_data( 'beer/info', $bid, $args );
 
 	if ($section == 'brewery' ){
 		return $info['beer']['brewery'];
