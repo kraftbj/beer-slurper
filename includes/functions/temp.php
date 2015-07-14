@@ -16,3 +16,5 @@ function default_settings() {
 }
 
 add_action( 'beer_slurper_init', '\Kraft\Beer_Slurper\Temp\default_settings' );
+
+define( 'UNTAPPD_DEV_MODE', false ); // true to kill Untappd API calls and use the sample responses in /dev/

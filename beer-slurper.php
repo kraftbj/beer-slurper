@@ -40,6 +40,7 @@ define( 'BEER_SLURPER_VERSION', '0.1.0' );
 define( 'BEER_SLURPER_URL',     plugin_dir_url( __FILE__ ) );
 define( 'BEER_SLURPER_PATH',    dirname( __FILE__ ) . '/' );
 define( 'BEER_SLURPER_INC',     BEER_SLURPER_PATH . 'includes/' );
+define( 'BEER_SLURPER_DEV',     BEER_SLURPER_PATH . 'dev/' ); // Location of sample responses of Untappd API calls.
 
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
@@ -51,13 +52,43 @@ if ( ! defined('UNTAPPD_KEY') ) {
 
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
+require_once BEER_SLURPER_INC . 'functions/walker.php';
 require_once BEER_SLURPER_INC . 'functions/temp.php'; // @todo temporary
 
-function bs_test_insert(){
-	$checkin = \Kraft\Beer_Slurper\API\get_latest_checkin( 'kraft' );
+function bs_test_insert( $user = 'kraft' ){
+	// add validation
+	$checkin = \Kraft\Beer_Slurper\API\get_latest_checkin( $user );
 	\Kraft\Beer_Slurper\Post\insert_beer( $checkin );
 }
 
+function bs_start_import( $user = null ){
+	if ( ! $user ){
+		return "No user indicated.";
+	}
+
+	update_option( 'beer_slurper_' . $user . '_import', true, false );
+	if (! wp_next_scheduled( 'bs_hourly_importer', array( $user ) ) ) {
+		wp_schedule_event( time(), 'hourly', 'bs_hourly_importer', array( $user ) );
+	}
+}
+
+function bs_import( $user = null ){ // used to start backflow imports. need to add checks for new beer too and/or split.
+	if ( ! $user ){
+		return "No user indicated.";
+	}
+
+	if ( get_option( 'beer_slurper_' . $user . '_import' ) ) {
+		\Kraft\Beer_Slurper\Walker\import_old( $user );
+		echo "Importing next 25";
+	}
+	if ( get_option( 'beer_slurper_' . $user . '_since' ) ) {
+		\Kraft\Beer_Slurper\Walker\import_new( $user );
+	}
+
+	return "All done.";
+}
+
+add_action('bs_hourly_importer', 'bs_import', 10, 2 );
 
 // Activation/Deactivation
 register_activation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\activate' );

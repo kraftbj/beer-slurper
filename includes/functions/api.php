@@ -42,14 +42,14 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	$args['client_secret'] = $untappd_secret;
 
 	$untappd_url = $untappd_url . $endpoint . '/' . $parameter;
-
+	$untappd_url = add_query_arg( $args, $untappd_url );
 	$request_hash = md5( $untappd_url );
 
 	$response = get_transient( 'beer_slurper_' . $request_hash ); // Just got under the 45 character limit!
 
 	if ( $response === false ) {
 
-		$response = wp_safe_remote_get( add_query_arg( $args, $untappd_url ) );
+		$response = wp_safe_remote_get( $untappd_url );
 		set_transient( 'beer_slurper_' . $request_hash, $response, HOUR_IN_SECONDS );
 	}
 
@@ -102,7 +102,7 @@ function get_checkins( $user, $max_id = null, $min_id = null, $number = null ){
 		$args['number'] = intval( $number );
 	}
 	$checkin = get_untappd_data( 'user/checkins', $user, $args );
-	$checkin = $checkin['checkins'];
+	// $checkin = $checkin['checkins']; // @todo add isset check for private accts
 	return $checkin;
 }
 
