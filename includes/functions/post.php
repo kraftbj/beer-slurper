@@ -11,11 +11,11 @@ define( 'BEER_SLURPER_CPT', 'beerlog_beer');
 function insert_beer( $checkin, $nodup = true ){ // @todo do this better with more.
 	$post_id = null;
 	if (! $checkin ) {
-		return new \WP_Error( 'no_checkin', __( "No information provided." ) );
+		return new \WP_Error( 'no_checkin', __( "No information provided.", 'beer_slurper' ) );
 	}
 
 	if ( ! isset( $checkin['beer'] ) ) {
-		return new \WP_Error( 'no_beer', __( "Checkin did not provide a beer!" ) );
+		return new \WP_Error( 'no_beer', __( "Checkin did not provide a beer!", 'beer_slurper' ) );
 	}
 
 	$beer_id = $checkin['beer']['bid'];
@@ -29,7 +29,7 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 
 			// Now, check to ensure we haven't added that specific post before.
 			if ( in_array( $checkin['checkin_id'], get_post_meta( $post_id, '_beer_slurper_untappd_id') ) ) {
-				return new \WP_Error( 'already_done', __( "We've already added this exact checkin!" ) );
+				return new \WP_Error( 'already_done', __( "We've already added this exact checkin!", 'beer_slurper' ) );
 			}
 		}
 	}
@@ -93,7 +93,7 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 
 function setup_post( $checkin ){
 	if ( ! $checkin ) {
-		return new \WP_Error( 'no_checkin', __( "No information provided." ) );
+		return new \WP_Error( 'no_checkin', __( "No information provided.", 'beer_slurper' ) );
 	}
 
 	$beer     = $checkin['beer'];

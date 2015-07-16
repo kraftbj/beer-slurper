@@ -43,7 +43,6 @@ define( 'BEER_SLURPER_INC',     BEER_SLURPER_PATH . 'includes/' );
 
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
-require_once BEER_SLURPER_INC . 'functions/temp.php'; // @todo temporary
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';
