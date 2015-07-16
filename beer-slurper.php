@@ -40,20 +40,13 @@ define( 'BEER_SLURPER_VERSION', '0.1.0' );
 define( 'BEER_SLURPER_URL',     plugin_dir_url( __FILE__ ) );
 define( 'BEER_SLURPER_PATH',    dirname( __FILE__ ) . '/' );
 define( 'BEER_SLURPER_INC',     BEER_SLURPER_PATH . 'includes/' );
-define( 'BEER_SLURPER_DEV',     BEER_SLURPER_PATH . 'dev/' ); // Location of sample responses of Untappd API calls.
 
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
-include_once BEER_SLURPER_PATH . 'config.php'; // @todo temporary
-
-if ( ! defined('UNTAPPD_KEY') ) {
-	return ; // config.php not set, so let's just bail out of here now. Temporary.
-}
-
+require_once BEER_SLURPER_INC . 'functions/temp.php'; // @todo temporary
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';
-require_once BEER_SLURPER_INC . 'functions/temp.php'; // @todo temporary
 
 function bs_test_insert( $user = 'kraft' ){
 	// add validation
@@ -65,7 +58,7 @@ function bs_start_import( $user = null ){
 	if ( ! $user ){
 		return "No user indicated.";
 	}
-
+	// @todo check for other user options. No need to restart the import if options suggest it has been done.
 	update_option( 'beer_slurper_' . $user . '_import', true, false );
 	if (! wp_next_scheduled( 'bs_hourly_importer', array( $user ) ) ) {
 		wp_schedule_event( time(), 'hourly', 'bs_hourly_importer', array( $user ) );
@@ -78,10 +71,11 @@ function bs_import( $user = null ){ // used to start backflow imports. need to a
 	}
 
 	if ( get_option( 'beer_slurper_' . $user . '_import' ) ) {
+		// If we are still backfilling, call in the next batch of 25 checkins.
 		\Kraft\Beer_Slurper\Walker\import_old( $user );
-		echo "Importing next 25";
 	}
 	if ( get_option( 'beer_slurper_' . $user . '_since' ) ) {
+		// If we have pulled in at least one batch of old checkins, check for ones newer than the most recent.
 		\Kraft\Beer_Slurper\Walker\import_new( $user );
 	}
 

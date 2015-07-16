@@ -102,13 +102,17 @@ function get_checkins( $user, $max_id = null, $min_id = null, $number = null ){
 		$args['number'] = intval( $number );
 	}
 	$checkin = get_untappd_data( 'user/checkins', $user, $args );
-	// $checkin = $checkin['checkins']; // @todo add isset check for private accts
+	/*
+	 * Fair warning. Sometimes Untappd API returns checkins within an 'checkins' away, sometimes not.
+	 * So far, if using the min_id arg, it will NOT use an extra checkins array.
+	 * Using the max_id arg or no arg specified, it will use an extra checkins away.
+	 */
 	return $checkin;
 }
 
 function get_beer_info( $bid, $compact = true, $section = 'beer' ){
 	$args    = array(
-		'compact' => $compact,
+		'compact' => $compact, // This limits the response to exclude public media, checkins, etc.
 		);
 	$info = get_untappd_data( 'beer/info', $bid, $args );
 

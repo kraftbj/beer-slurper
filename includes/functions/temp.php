@@ -3,6 +3,8 @@ namespace Kraft\Beer_Slurper\Temp;
 
 /* Temporary functions to prop up parts of the plugin until everything is fleshed out. */
 
+include_once BEER_SLURPER_PATH . 'config.php'; // Requires setting API key via code for now.
+
 /**
  * Sets up the settings that will eventually be added.
  *
@@ -16,5 +18,3 @@ function default_settings() {
 }
 
 add_action( 'beer_slurper_init', '\Kraft\Beer_Slurper\Temp\default_settings' );
-
-define( 'UNTAPPD_DEV_MODE', false ); // true to kill Untappd API calls and use the sample responses in /dev/

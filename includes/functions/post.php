@@ -77,6 +77,8 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 	 	add_post_meta( $post_id, $meta_key, $meta_value, false );
 	 }
 
+	 // Badges, then picture so the picture will persist as thumbnail, while storing all attached to the beer post.
+
 	 if ( isset( $post_info['badges'] ) ) {
 	 	foreach ( $post_info['badges'] as $badge ) {
 	 		insert_thumbnail( $badge['badge_image'], $post_id, sanitize_title( $badge['badge_name']) );
@@ -90,7 +92,7 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 }
 
 function setup_post( $checkin ){
-	if (! $checkin ) {
+	if ( ! $checkin ) {
 		return new \WP_Error( 'no_checkin', __( "No information provided." ) );
 	}
 
@@ -192,7 +194,6 @@ function insert_thumbnail( $img_src, $post_id, $name ) {
 		// If error storing temporarily, return the error.
 		if ( ! is_wp_error( $file_array['tmp_name'] ) ) {
 			$thumbnail_id = media_handle_sideload( $file_array, $post_id, null );
-			var_dump($thumbnail_id);
 		}
 
 		if ( is_wp_error( $thumbnail_id ) ) {
