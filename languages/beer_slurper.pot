@@ -1,16 +1,74 @@
+# Copyright (C) 2015 Brandon Kraft
+# This file is distributed under the GPLv2+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Beer Slurper\n"
-"POT-Creation-Date: 2015-06-12T04:54:42.241Z\n"
-"PO-Revision-Date: 2015-06-12T04:54:42.242Z\n"
-"Last-Translator: 10up <info@10up.com>\n"
-"Language-Team: \n"
+"Project-Id-Version: Beer Slurper 0.1.0\n"
+"Report-Msgid-Bugs-To: http://wordpress.org/support/plugin/beer-slurper\n"
+"POT-Creation-Date: 2015-07-17 14:18:04+00:00\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Poedit-KeywordsList: __;_e;__ngettext:1,2;_n:1,2;__ngettext_noop:1,2;"
-"_n_noop:1,2;_x:1,2c;_nx:4c,1,2;_nx_noop:4c,1,2;_ex:1,2c;"
-"esc_attr__;esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c\n"
-"X-Poedit-Basepath: .\n"
-"X-Poedit-SearchPath-0: ..\n"
+"PO-Revision-Date: 2015-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"X-Generator: grunt-wp-i18n 0.5.2\n"
 
+#: includes/functions/api.php:34
+msgid "The args must be in an array."
+msgstr ""
+
+#: includes/functions/api.php:38
+msgid "Somehow, you got to this point without API creds."
+msgstr ""
+
+#: includes/functions/api.php:143
+msgid "You've indiated no endpoint. I'm not going to guess."
+msgstr ""
+
+#: includes/functions/api.php:179
+msgid "The specified endpoint is not on the shortlist."
+msgstr ""
+
+#: includes/functions/core.php:91
+msgid "Untappd Key"
+msgstr ""
+
+#: includes/functions/core.php:94
+msgid "Untappd Secret"
+msgstr ""
+
+#: includes/functions/core.php:133
+msgid "Beer Slurper Settings"
+msgstr ""
+
+#: includes/functions/core.php:150 includes/functions/core.php:166
+msgid "This setting has been set via code and must be changed there."
+msgstr ""
+
+#: includes/functions/post.php:14 includes/functions/post.php:96
+msgid "No information provided."
+msgstr ""
+
+#: includes/functions/post.php:18
+msgid "Checkin did not provide a beer!"
+msgstr ""
+
+#: includes/functions/post.php:32
+msgid "We've already added this exact checkin!"
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "Beer Slurper"
+msgstr ""
+
+#. Author URI of the plugin/theme
+msgid "https://kraft.im/"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid "Slurp data from Untappd into your site!"
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Brandon Kraft"
+msgstr ""

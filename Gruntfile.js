@@ -158,7 +158,21 @@ module.exports = function( grunt ) {
 				'!vendor/**'
 				]
 			}
-		}
+		},
+		makepot: {
+        target: {
+            options: {
+            	domainPath: 'languages/',
+				exclude: [
+				'node_modules/',
+				'tests/',
+				'vendor/'
+				],
+				mainFile: 'beer-slurper.php',
+            	type: 'wp-plugin'
+            }
+        }
+    }
 	} );
 
 	// Load tasks
@@ -167,7 +181,7 @@ module.exports = function( grunt ) {
 
 	// Register tasks
 
-	grunt.registerTask( 'default', ['jshint', 'concat', 'uglify', 'cssmin', 'wp_readme_to_markdown' ] );
+	grunt.registerTask( 'default', ['jshint', 'concat', 'uglify', 'cssmin', 'wp_readme_to_markdown', 'makepot' ] );
 
 
 	grunt.registerTask( 'build', ['default', 'clean', 'copy', 'compress'] );
