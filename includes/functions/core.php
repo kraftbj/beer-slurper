@@ -93,6 +93,9 @@ function setting_init() {
 
 	add_settings_field( 'beer-slurper-secret', __( 'Untappd Secret', 'beer_slurper' ), $n( 'setting_secret' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-secret' ) );
 	register_setting( 'beer-slurper-settings', 'beer-slurper-secret', 'strip_tags' );
+
+	add_settings_field( 'beer-slurper-user', __( 'User to Import', 'beer_slurper' ), $n( 'setting_user' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-user' ) );
+	register_setting( 'beer-slurper-settings', 'beer-slurper-user', 'sanitize_user' );
 }
 
 /**
@@ -167,6 +170,23 @@ function setting_secret(){
 	}
 	else {
 		$html = '<input type="text" id="beer-slurper-secret" name="beer-slurper-secret" value="' . get_option( 'beer-slurper-secret' ) . '" size="40" />';
+		echo $html;
+	}
+}
+
+/**
+ * Echos the Untappd User wrapper setting form field
+ *
+ * @return void
+ * @since 1.0.0
+ **/
+function setting_user(){
+	if ( defined( 'UNTAPPD_USER' ) ) {
+		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
+	}
+	else {
+		$html = '<input type="text" id="beer-slurper-user" name="beer-slurper-user" value="' . get_option( 'beer-slurper-user' ) . '" size="40" />';
+		$html .= '<br />Note: This doesn\'t actually do anything right now. Need to build out cron activation/deactivation based on this setting.';
 		echo $html;
 	}
 }
