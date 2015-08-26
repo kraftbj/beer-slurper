@@ -46,7 +46,7 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 		'post_name'    => $post_info['slug'],
 		'post_title'   => $post_info['title'],
 		'post_excerpt' => $post_info['excerpt'],
-		'post_type'    => BEER_SLURPER_CPT, // @todo Breakout beerlog into 3rd party file, set so works imports into post by default.
+		'post_type'    => apply_filters( 'beer_slurper_cpt', BEER_SLURPER_CPT ), // @todo Breakout beerlog into 3rd party file, set so works imports into post by default.
 		'post_status'  => 'publish',
 		);
 
@@ -73,7 +73,7 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 		wp_update_post( $post );
 	}
 
-	wp_set_post_terms( $post_id, $post_info['term_id'], BEER_SLURPER_TAX_STYLE, true);
+	wp_set_post_terms( $post_id, $post_info['term_id'], apply_filters( 'beer_slurper_tax_style', BEER_SLURPER_TAX_STYLE ) , true);
 
 	foreach ( $post_info['meta'] as $meta_key => $meta_value ) {
 	 	update_post_meta( $post_id, $meta_key, $meta_value );
@@ -146,12 +146,12 @@ function setup_post( $checkin ){
 		$post_info['meta']['_beer_slurper_count'] = $beer['stats']['user_count'];
 	}
 
-	$maybe_term_id = get_term_by( 'name', $style, BEER_SLURPER_TAX_STYLE);
+	$maybe_term_id = get_term_by( 'name', $style, apply_filters( 'beer_slurper_tax_style', BEER_SLURPER_TAX_STYLE ));
 	if ( $maybe_term_id ) {
 		$term_id = $maybe_term_id->term_id;
 	}
 	else {
-		$term = wp_insert_term( $style , BEER_SLURPER_TAX_STYLE );
+		$term = wp_insert_term( $style , apply_filters( 'beer_slurper_tax_style', BEER_SLURPER_TAX_STYLE ) );
 		$term_id = $term['term_id'];
 	}
 	if ( isset( $term_id ) && ! is_wp_error( $term_id ) ) {
@@ -166,7 +166,7 @@ function setup_post( $checkin ){
 
 function find_existing_post( $beer_id ){
 	$args = array(
-		'post_type'      => BEER_SLURPER_CPT,
+		'post_type'      => apply_filters( 'beer_slurper_cpt', BEER_SLURPER_CPT ),
 		'posts_per_page' => 1,
 		'meta_key'       => '_beer_slurper_id',
 		'meta_value'     => $beer_id,
