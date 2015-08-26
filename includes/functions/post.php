@@ -6,7 +6,7 @@ namespace Kraft\Beer_Slurper\Post;
  */
 
 // temporary constants
-if ( ! defined( 'BEER_SLURPER_CPT' ) {
+if ( ! defined( 'BEER_SLURPER_CPT' ) ) {
 	define( 'BEER_SLURPER_CPT', 'beerlog_beer');
 }
 
@@ -45,7 +45,6 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 	$post = array(
 		'post_name'    => $post_info['slug'],
 		'post_title'   => $post_info['title'],
-		'post_content' => $post_info['content'],
 		'post_excerpt' => $post_info['excerpt'],
 		'post_type'    => BEER_SLURPER_CPT, // @todo Breakout beerlog into 3rd party file, set so works imports into post by default.
 		'post_status'  => 'publish',
@@ -54,6 +53,7 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 	if ( ! $post_id ) { // create a new post for us.
 		$post['post_date_gmt'] = $post_info['date'];
 		$post['post_date']     = get_date_from_gmt( $post_info['date'] );
+		$post['post_content']  = $post_info['content'];
 
 		$post_id = wp_insert_post( $post );
 
@@ -116,6 +116,7 @@ function setup_post( $checkin ){
 			'_beer_slurper_id'   => $beer['bid'],
 			'_beerlog_meta_abv'  => $beer['beer_abv'],
 			'_beerlog_meta_ibu'  => $beer_all['beer_ibu'],
+			'_beer_slurper_desc' => $beer_all['beer_description'],
 			),
 		'meta_multiple' => array(
 			'_beer_slurper_date'       => date( "Y-m-d H:i:s", strtotime( $checkin['created_at'] ) ),

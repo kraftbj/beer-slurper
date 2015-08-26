@@ -1,9 +1,9 @@
 # Beer Slurper #
 **Contributors:**      Brandon Kraft  
 **Donate link:**       https://kraft.im/  
-Tags:
-**Requires at least:** 4.2.2  
-**Tested up to:**      4.2.2  
+**Tags:**              beer, untappd  
+**Requires at least:** 4.3.0  
+**Tested up to:**      4.3.0  
 **Stable tag:**        0.1.0  
 **License:**           GPLv2 or later  
 **License URI:**       http://www.gnu.org/licenses/gpl-2.0.html  
@@ -15,6 +15,8 @@ Slurp data from Untappd into your site!
 
 
 ## Installation ##
+For now, to start the whole shebang, need to run bs_start_import( $user ) somehow. This sets up a cron job that will backfill all old checkins for that user and import all new ones.
+
 
 ### Manual Installation ###
 
@@ -35,9 +37,9 @@ This will also hide those settings from the Setting screen for situations where 
 ## Changelog ##
 
 ### 0.1.0 ###
-* First release
+* First development release
 
 ## Upgrade Notice ##
 
 ### 0.1.0 ###
-First Release
+First development release

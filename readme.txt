@@ -15,6 +15,8 @@ Slurp data from Untappd into your site!
 
 
 == Installation ==
+For now, to start the whole shebang, need to run bs_start_import( $user ) somehow. This sets up a cron job that will backfill all old checkins for that user and import all new ones.
+
 
 = Manual Installation =
 
