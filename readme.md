@@ -1,12 +1,12 @@
 # Beer Slurper #
-**Contributors:**      Brandon Kraft  
-**Donate link:**       https://kraft.im/  
-**Tags:**              beer, untappd  
-**Requires at least:** 4.3.0  
-**Tested up to:**      4.3.0  
-**Stable tag:**        0.1.0  
-**License:**           GPLv2 or later  
-**License URI:**       http://www.gnu.org/licenses/gpl-2.0.html  
+**Contributors:**      Brandon Kraft
+**Donate link:**       https://kraft.im/
+**Tags:**              beer, untappd
+**Requires at least:** 4.3.0
+**Tested up to:**      4.3.0
+**Stable tag:**        0.1.0
+**License:**           GPLv2 or later
+**License URI:**       http://www.gnu.org/licenses/gpl-2.0.html
 
 Slurp data from Untappd into your site!
 
