@@ -41,6 +41,15 @@ define( 'BEER_SLURPER_URL',     plugin_dir_url( __FILE__ ) );
 define( 'BEER_SLURPER_PATH',    dirname( __FILE__ ) . '/' );
 define( 'BEER_SLURPER_INC',     BEER_SLURPER_PATH . 'includes/' );
 
+// temporary constants
+if ( ! defined( 'BEER_SLURPER_CPT' ) ) {
+	define( 'BEER_SLURPER_CPT', 'beerlog_beer');
+}
+
+if ( ! defined( 'BEER_SLURPER_TAX_STYLE') ) {
+	define( 'BEER_SLURPER_TAX_STYLE', 'beerlog_style' );
+}
+
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';
@@ -86,6 +95,14 @@ add_action('bs_hourly_importer', 'bs_import', 10, 2 );
 // Activation/Deactivation
 register_activation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\activate' );
 register_deactivation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\deactivate' );
+
+// Temporary function to add [gallery] to each beer post. Will be migrated once the beer CPT code is merged in.
+add_filter( 'the_content', function( $content ){
+	if ( is_singular( BEER_SLURPER_CPT ) ) {
+		$content .= "[gallery]";
+	}
+	return $content;
+} );
 
 // Bootstrap
 Kraft\Beer_Slurper\Core\setup();

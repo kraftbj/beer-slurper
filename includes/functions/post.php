@@ -5,15 +5,6 @@ namespace Kraft\Beer_Slurper\Post;
  * This file provides functions to check if a beer is already posted, inserting a new post, updating an existing post ( maybe ? ), etc.
  */
 
-// temporary constants
-if ( ! defined( 'BEER_SLURPER_CPT' ) ) {
-	define( 'BEER_SLURPER_CPT', 'beerlog_beer');
-}
-
-if ( ! defined( 'BEER_SLURPER_TAX_STYLE') ) {
-	define( 'BEER_SLURPER_TAX_STYLE', 'beerlog_style' );
-}
-
 function insert_beer( $checkin, $nodup = true ){ // @todo do this better with more.
 	$post_id = null;
 	if (! $checkin ) {
