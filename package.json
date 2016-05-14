@@ -4,6 +4,7 @@
   "description": "Slurp data from Untappd into your site!",
   "version": "0.1.0",
   "homepage": "https://kraft.im/",
+  "license": "GPL-2.0+",
   "repository": {
     "type": "git",
     "url": ""
