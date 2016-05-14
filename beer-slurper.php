@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Beer Slurper
- * Plugin URI:  https://kraft.im/
+ * Plugin URI:  https://kraft.im/beer-slurper/
  * Description: Slurp data from Untappd into your site!
  * Version:     0.1.0
  * Author:      Brandon Kraft

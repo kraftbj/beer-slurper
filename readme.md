@@ -1,27 +1,27 @@
 # Beer Slurper #
-**Contributors:**      Brandon Kraft
-**Donate link:**       https://kraft.im/
-**Tags:**              beer, untappd
-**Requires at least:** 4.3.0
-**Tested up to:**      4.3.0
-**Stable tag:**        0.1.0
-**License:**           GPLv2 or later
-**License URI:**       http://www.gnu.org/licenses/gpl-2.0.html
+**Contributors:**      kraftbj  
+**Donate link:**       https://kraft.im/donate/  
+**Tags:**              beer, untappd  
+**Requires at least:** 4.3.0  
+**Tested up to:**      4.3.0  
+**Stable tag:**        0.1.0  
+**License:**           GPLv2 or later  
+**License URI:**       http://www.gnu.org/licenses/gpl-2.0.html  
 
 Slurp data from Untappd into your site!
 
 ## Description ##
 This plugin will slurp in all of your old checkins from Untappd (in small batches to keep their API folks happy). It'll also check hourly for any new checkins. New checkins will either add a new "Beer" post or update an existing one, if you've already had that beer.
 
-**Upcoming:** Breweries.
+**Upcoming:** Breweries.  
 
-I really want to use taxonomy meta, lightly slated for 4.4, and want to wait for Core. With that in place, be able to better use breweries and add collaboration breweries.
+This is in progress now and the next addition. Add unique breweries to each beer (and collaborating breweries!) all tied together using the relatively new Term Meta.
 
-**Upcoming:** UI!
+**Upcoming:** UI!  
 Amazingly, I don't want to have to use the command line to install this. I need to add UI to indicate user name,
 to start the import, to stop an existing import (less important, frankly).
 
-**Upcoming:** New Beer Failsafe
+**Upcoming:** New Beer Failsafe  
 Right now, if you have more than 25 checkins within an hour, you'll lose checkins 26+. Not a big deal normally, but if you deactivate the plugin for any length of time...
 
 

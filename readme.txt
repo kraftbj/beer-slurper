@@ -1,6 +1,6 @@
 === Beer Slurper ===
-Contributors:      Brandon Kraft
-Donate link:       https://kraft.im/
+Contributors:      kraftbj
+Donate link:       https://kraft.im/donate/
 Tags:              beer, untappd
 Requires at least: 4.3.0
 Tested up to:      4.3.0
@@ -15,7 +15,7 @@ This plugin will slurp in all of your old checkins from Untappd (in small batche
 
 Upcoming: Breweries.
 
-I really want to use taxonomy meta, lightly slated for 4.4, and want to wait for Core. With that in place, be able to better use breweries and add collaboration breweries.
+This is in progress now and the next addition. Add unique breweries to each beer (and collaborating breweries!) all tied together using the relatively new Term Meta.
 
 Upcoming: UI!
 Amazingly, I don't want to have to use the command line to install this. I need to add UI to indicate user name,
