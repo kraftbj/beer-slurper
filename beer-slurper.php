@@ -50,6 +50,10 @@ if ( ! defined( 'BEER_SLURPER_TAX_STYLE') ) {
 	define( 'BEER_SLURPER_TAX_STYLE', 'beerlog_style' );
 }
 
+if ( ! defined( 'BEER_SLURPER_TAX_BREWERY') ) {
+	define( 'BEER_SLURPER_TAX_BREWERY', 'beerlog_brewery' );
+}
+
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';
