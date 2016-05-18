@@ -129,6 +129,15 @@ function get_brewery_info_by_beer( $bid ){
 	return $brewery;
 }
 
+function get_brewery_info( $breweryid, $compact = true ){
+	$args = array(
+		'compact' => $compact,
+		);
+	$info = get_untappd_data( 'brewery/info', $breweryid, $args);
+
+	return $info['brewery'];
+}
+
 /**
  * Ensures that the specified endpoint is supported by our code.
  *

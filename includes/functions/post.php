@@ -64,7 +64,10 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 		wp_update_post( $post );
 	}
 
-	wp_set_post_terms( $post_id, $post_info['term_id'], apply_filters( 'beer_slurper_tax_style', BEER_SLURPER_TAX_STYLE ) , true);
+	wp_set_object_terms( $post_id, (int)$post_info['term_id'], apply_filters( 'beer_slurper_tax_style', BEER_SLURPER_TAX_STYLE ) , true);
+
+	attach_brewery( $post_id, $post_info['brewery'] );
+	attach_collaborations( $post_id, $post_info['collabs'] );
 
 	foreach ( $post_info['meta'] as $meta_key => $meta_value ) {
 	 	update_post_meta( $post_id, $meta_key, $meta_value );
@@ -97,6 +100,7 @@ function setup_post( $checkin ){
 	$beer_all = \Kraft\Beer_Slurper\API\get_beer_info( $beer['bid'] );
 	$brewery  = $beer_all['brewery']; // \Kraft\Beer_Slurper\API\get_brewery_info_by_beer( $beer['bid'] );
 	$style    = $beer_all['beer_style'];
+	$collabs  = $beer_all['collaborations_with'];
 	$post_info = array(
 		'title'         => $beer['beer_name'],
 		'slug'          => $beer_all['beer_slug'],
@@ -108,11 +112,11 @@ function setup_post( $checkin ){
 			'_beerlog_meta_abv'  => $beer['beer_abv'],
 			'_beerlog_meta_ibu'  => $beer_all['beer_ibu'],
 			'_beer_slurper_desc' => $beer_all['beer_description'],
+			'_beer_slurper_brew' => $brewery['brewery_id'],
 			),
 		'meta_multiple' => array(
 			'_beer_slurper_date'       => date( "Y-m-d H:i:s", strtotime( $checkin['created_at'] ) ),
 			'_beer_slurper_untappd_id' => $checkin['checkin_id'],
-			'_beer_slurper_brew'       => $brewery['brewery_id'],
 			),
 		);
 	if ( isset( $checkin['media']['items'][0]['photo']['photo_img_og'] ) ) {
@@ -150,6 +154,14 @@ function setup_post( $checkin ){
 	}
 	else {
 		$post_info['term_id'] = null;
+	}
+
+	$post_info['brewery'] = $brewery['brewery_id'];
+	$post_info['collabs'] = array();
+	if ( $collabs['count'] > 0 ) { // We have some collaborators!
+		foreach ( $collabs['items'] as $collab ) {
+			$post_info['collabs'][] = $collab['brewery']['brewery_id'];
+		}
 	}
 
 	return $post_info;
@@ -200,4 +212,20 @@ function insert_thumbnail( $img_src, $post_id, $name ) {
 		else {
 			set_post_thumbnail( $post_id, $thumbnail_id );
 		}
+}
+
+function attach_brewery( $post_id, $brewery_id = null ){ // uses Untappd Brewery ID.
+	if ( empty( $brewery_id ) ){
+		return;
+	}
+
+	$term_id = \Kraft\Beer_Slurper\Brewery\get_brewery_term_id( $brewery_id );
+	wp_set_object_terms( $post_id, (int)$term_id, apply_filters( 'beer_slurper_tax_brewery', BEER_SLURPER_TAX_BREWERY ) , true);
+}
+
+function attach_collaborations( $post_id, $collabs = array() ){
+	foreach ( $collabs as $collab ) {
+		attach_brewery( $post_id, $collab );
+	}
+
 }
