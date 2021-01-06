@@ -45,7 +45,7 @@ function init_cpt() {
 		'label'                 => __( 'Beer', 'beer_slurper' ),
 		'description'           => __( 'Individual beers', 'beer_slurper' ),
 		'labels'                => $labels,
-		//'supports'              => array( 'title', 'editor', 'thumbnail', 'comments', 'revisions', ),
+		'supports'              => array( 'title', 'editor', 'thumbnail', 'comments', 'revisions', ),
 		'taxonomies'            => array(),
 		'hierarchical'          => false,
 		'public'                => true,
