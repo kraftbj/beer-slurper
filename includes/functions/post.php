@@ -208,7 +208,7 @@ function insert_thumbnail( $img_src, $post_id, $name ) {
 		}
 
 		if ( is_wp_error( $thumbnail_id ) ) {
-			@unlink( $file_array['tmp_name'] );
+			wp_delete_file( $file_array['tmp_name'] );
 		}
 		else {
 			set_post_thumbnail( $post_id, $thumbnail_id );

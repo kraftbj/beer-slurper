@@ -9,6 +9,8 @@
  * License:     GPLv2+
  * Text Domain: beer_slurper
  * Domain Path: /languages
+ * Requires at least: 6.0
+ * Requires PHP: 7.4
  */
 
 /**
@@ -104,7 +106,7 @@ register_deactivation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\deactivate' );
 
 // Temporary function to add [gallery] to each beer post. Will be migrated once the beer CPT code is merged in.
 add_filter( 'the_content', function( $content ){
-	if ( is_singular( BEER_SLURPER_CPT ) ) {
+	if ( is_singular( BEER_SLURPER_CPT ) && get_option( 'beer-slurper-gallery', true ) ) {
 		$content .= "[gallery]";
 	}
 	return $content;

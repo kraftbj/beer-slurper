@@ -96,6 +96,9 @@ function setting_init() {
 
 	add_settings_field( 'beer-slurper-user', __( 'User to Import', 'beer_slurper' ), $n( 'setting_user' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-user' ) );
 	register_setting( 'beer-slurper-settings', 'beer-slurper-user', 'sanitize_user' );
+
+	add_settings_field( 'beer-slurper-gallery', __( 'Auto-append Gallery', 'beer_slurper' ), $n( 'setting_gallery' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-gallery' ) );
+	register_setting( 'beer-slurper-settings', 'beer-slurper-gallery', 'boolval' );
 }
 
 /**
@@ -189,4 +192,16 @@ function setting_user(){
 		$html .= '<br />Note: This doesn\'t actually do anything right now. Need to build out cron activation/deactivation based on this setting.';
 		echo $html;
 	}
+}
+
+/**
+ * Echos the Gallery auto-append setting form field
+ *
+ * @return void
+ */
+function setting_gallery() {
+	$checked = get_option( 'beer-slurper-gallery', true );
+	$html = '<input type="checkbox" id="beer-slurper-gallery" name="beer-slurper-gallery" value="1" ' . checked( $checked, true, false ) . ' />';
+	$html .= '<label for="beer-slurper-gallery">' . __( 'Automatically append [gallery] shortcode to beer posts', 'beer_slurper' ) . '</label>';
+	echo $html;
 }

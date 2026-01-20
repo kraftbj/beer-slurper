@@ -6,6 +6,11 @@ namespace Kraft\Beer_Slurper\Walker;
 function import_new( $user ) {
 
 	$user = sanitize_user( $user ); // Just to be safe. Not sure what Untappd uses, but ¯\_(ツ)_/¯
+
+	if ( empty( $user ) ) {
+		return new \WP_Error( 'invalid_user', __( 'Invalid or empty username provided.', 'beer_slurper' ) );
+	}
+
 	// check for an option of the since_id for the $user indicated.
 	$since_id = get_option( 'beer_slurper_' . $user . '_since' ); // @todo use an array instead of seperate options?
 
@@ -49,6 +54,11 @@ function import_new( $user ) {
  **/
 function import_old( $user ) {
 	$user = sanitize_user( $user );
+
+	if ( empty( $user ) ) {
+		return new \WP_Error( 'invalid_user', __( 'Invalid or empty username provided.', 'beer_slurper' ) );
+	}
+
 	$args = array();
 	$max_id = get_option( 'beer_slurper_' . $user . '_max' );
 
