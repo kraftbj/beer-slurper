@@ -102,17 +102,18 @@ function setup_post( $checkin ){
 	$brewery  = $beer_all['brewery']; // \Kraft\Beer_Slurper\API\get_brewery_info_by_beer( $beer['bid'] );
 	$style    = $beer_all['beer_style'];
 	$collabs  = $beer_all['collaborations_with'];
+	$description = isset( $beer_all['beer_description'] ) ? $beer_all['beer_description'] : '';
 	$post_info = array(
 		'title'         => $beer['beer_name'],
 		'slug'          => $beer_all['beer_slug'],
-		'content'       => $beer_all['beer_description'],
-		'excerpt'       => '', // @todo Update this.
+		'content'       => $description,
+		'excerpt'       => $description ? wp_trim_words( wp_strip_all_tags( $description ), 55 ) : '',
 		'date'          => date( "Y-m-d H:i:s", strtotime( $checkin['created_at'] ) ), // Untappd returns UTC.
 		'meta'          => array(
 			'_beer_slurper_id'   => $beer['bid'],
 			'_beerlog_meta_abv'  => $beer['beer_abv'],
 			'_beerlog_meta_ibu'  => $beer_all['beer_ibu'],
-			'_beer_slurper_desc' => $beer_all['beer_description'],
+			'_beer_slurper_desc' => $description,
 			'_beer_slurper_brew' => $brewery['brewery_id'],
 			),
 		'meta_multiple' => array(

@@ -3,47 +3,12 @@ module.exports = function( grunt ) {
 	// Project configuration
 	grunt.initConfig( {
 		pkg:    grunt.file.readJSON( 'package.json' ),
-		concat: {
-			options: {
-				stripBanners: true,
-				banner: '/*! <%= pkg.title %> - v<%= pkg.version %>\n' +
-					' * <%= pkg.homepage %>\n' +
-					' * Copyright (c) <%= grunt.template.today("yyyy") %>;' +
-					' * Licensed GPLv2+' +
-					' */\n'
-			},
-			main: {
-				src: [
-					'assets/js/src/beer-slurper.js'
-				],
-				dest: 'assets/js/beer-slurper.js'
-			}
-		},
 		jshint: {
 			all: [
 				'Gruntfile.js',
-				'assets/js/src/**/*.js',
 				'assets/js/test/**/*.js'
 			]
 		},
-		uglify: {
-			all: {
-				files: {
-					'assets/js/beer-slurper.min.js': ['assets/js/beer-slurper.js']
-				},
-				options: {
-					banner: '/*! <%= pkg.title %> - v<%= pkg.version %>\n' +
-						' * <%= pkg.homepage %>\n' +
-						' * Copyright (c) <%= grunt.template.today("yyyy") %>;' +
-						' * Licensed GPLv2+' +
-						' */\n',
-					mangle: {
-						except: ['jQuery']
-					}
-				}
-			}
-		},
-
 
 		cssmin: {
 			options: {
@@ -77,13 +42,6 @@ module.exports = function( grunt ) {
 				options: {
 					debounceDelay: 500
 				}
-			},
-			scripts: {
-				files: ['assets/js/src/**/*.js', 'assets/js/vendor/**/*.js'],
-				tasks: ['jshint', 'concat', 'uglify'],
-				options: {
-					debounceDelay: 500
-				}
 			}
 		},
 		clean: {
@@ -100,9 +58,7 @@ module.exports = function( grunt ) {
 					'!vendor/**',
 					'!tests/**',
 					'!release/**',
-					'!assets/css/sass/**',
 					'!assets/css/src/**',
-					'!assetsjs/src/**',
 					'!images/src/**',
 					'!bootstrap.php',
 					'!bower.json',
@@ -181,7 +137,7 @@ module.exports = function( grunt ) {
 
 	// Register tasks
 
-	grunt.registerTask( 'default', ['jshint', 'concat', 'uglify', 'cssmin', 'wp_readme_to_markdown', 'makepot' ] );
+	grunt.registerTask( 'default', ['jshint', 'cssmin', 'wp_readme_to_markdown', 'makepot' ] );
 
 
 	grunt.registerTask( 'build', ['default', 'clean', 'copy', 'compress'] );

@@ -25,10 +25,10 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	$untappd_key    = get_option( 'beer-slurper-key' );
 	$untappd_secret = get_option( 'beer-slurper-secret' );
 
-	/* $endpoint = validate_endpoint( $endpoint, $parameter, $ver ); // @todo reenable when validation does something.
-	if ( is_wp_error( $endpoint ) {
+	$endpoint = validate_endpoint( $endpoint, $parameter, $ver );
+	if ( is_wp_error( $endpoint ) ) {
 		return $endpoint;
-	} */
+	}
 
 	if ( $args && ! is_array( $args ) ) {
 		return new \WP_Error( 'poor_form', __( "The args must be in an array.", "beer_slurper" ) );
@@ -172,7 +172,7 @@ function validate_endpoint( $endpoint, $parameter, $ver ){
 	if ( $ver != 'v4') {
 		return $endpoint; // We aren't validating other versions at this time. Just look the other way.
 	}
-	$valid_endpoints = array( // @todo - Add version to the array and if parameter required/optional?
+	$valid_endpoints = array(
 		'checkin/recent',              // Activity Feed
 		'user/checkins',                // Also valid without user name when authenticated
 		'thepub/local',                // The Pub (Local)
@@ -201,8 +201,8 @@ function validate_endpoint( $endpoint, $parameter, $ver ){
 		'user/wishlist/delete',
 		'venue/foursquare_lookup',
 		);
-	if ( ! in_array( $endpoint, $valid_endpoints, true ) ) { // @todo verify this is the right function to use.
+	if ( ! in_array( $endpoint, $valid_endpoints, true ) ) {
 		$endpoint = new \WP_Error( 'invalid_endpoint', __( 'The specified endpoint is not on the shortlist.', 'beer_slurper' ) );
 	}
-	return $endpoint; // @todo Make this do something.
+	return $endpoint;
 }
