@@ -63,6 +63,7 @@ require_once BEER_SLURPER_INC . 'functions/brewery.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';
+require_once BEER_SLURPER_INC . 'functions/sync-status.php';
 
 function bs_test_insert( $user = 'kraft' ){
 	// add validation
@@ -81,18 +82,36 @@ function bs_start_import( $user = null ){
 	}
 }
 
-function bs_import( $user = null ){ // used to start backflow imports. need to add checks for new beer too and/or split.
+function bs_import( $user = null ){
 	if ( ! $user ){
 		return "No user indicated.";
 	}
 
+	// Clear any previous error state at the start of a new sync
+	\Kraft\Beer_Slurper\Sync_Status\clear_sync_error();
+
+	$has_error = false;
+
 	if ( get_option( 'beer_slurper_' . $user . '_import' ) ) {
 		// If we are still backfilling, call in the next batch of 25 checkins.
-		\Kraft\Beer_Slurper\Walker\import_old( $user );
+		$result = \Kraft\Beer_Slurper\Walker\import_old( $user );
+		if ( is_wp_error( $result ) ) {
+			\Kraft\Beer_Slurper\Sync_Status\record_sync_error( $result );
+			$has_error = true;
+		}
 	}
 	if ( get_option( 'beer_slurper_' . $user . '_since' ) ) {
 		// If we have pulled in at least one batch of old checkins, check for ones newer than the most recent.
-		\Kraft\Beer_Slurper\Walker\import_new( $user );
+		$result = \Kraft\Beer_Slurper\Walker\import_new( $user );
+		if ( is_wp_error( $result ) ) {
+			\Kraft\Beer_Slurper\Sync_Status\record_sync_error( $result );
+			$has_error = true;
+		}
+	}
+
+	// Record success only if no errors occurred
+	if ( ! $has_error ) {
+		\Kraft\Beer_Slurper\Sync_Status\record_sync_success( time() );
 	}
 
 	return "All done.";

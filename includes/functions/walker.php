@@ -5,7 +5,7 @@ namespace Kraft\Beer_Slurper\Walker;
 
 function import_new( $user ) {
 
-	$user = sanitize_user( $user ); // Just to be safe. Not sure what Untappd uses, but ¯\_(ツ)_/¯
+	$user = sanitize_user( $user ); // Just to be safe. Not sure what Untappd uses, but \_(ツ)_/¯
 
 	if ( empty( $user ) ) {
 		return new \WP_Error( 'invalid_user', __( 'Invalid or empty username provided.', 'beer_slurper' ) );
@@ -16,11 +16,14 @@ function import_new( $user ) {
 
 	if ( ! $since_id ) {
 		// this means we have never pulled in data for this user. Let's kick off the import process?
-		import_old( $user );
-		return;
+		return import_old( $user );
 	}
 
 	$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, null, $since_id, '25' );
+
+	if ( is_wp_error( $checkins ) ) {
+		return $checkins;
+	}
 
 	if ( ! isset( $checkins['count'] ) || $checkins['count'] == 0 ) {
 		return "No new beers here!";
@@ -63,6 +66,14 @@ function import_old( $user ) {
 	$max_id = get_option( 'beer_slurper_' . $user . '_max' );
 
 	$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, $max_id, null, '25' ); // set 25 for the cron check.
+
+	if ( is_wp_error( $checkins ) ) {
+		return $checkins;
+	}
+
+	if ( ! is_array( $checkins ) || ! isset( $checkins['checkins']['items'] ) ) {
+		return new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
+	}
 
 	foreach ( $checkins['checkins']['items'] as $checkin ){
 		\Kraft\Beer_Slurper\Post\insert_beer( $checkin );

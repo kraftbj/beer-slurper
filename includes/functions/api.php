@@ -73,18 +73,31 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 		return $response;
 	}
 
-	$response = json_decode( wp_remote_retrieve_body( $response ), true );
-	if ( ! is_array( $response ) ){
+	$status_code = wp_remote_retrieve_response_code( $response );
+	$body = wp_remote_retrieve_body( $response );
+	$decoded = json_decode( $body, true );
+
+	if ( ! is_array( $decoded ) ){
 		error_log( 'Beer Slurper: Invalid JSON response from API' );
+		error_log( 'Beer Slurper: HTTP Status: ' . $status_code );
+		error_log( 'Beer Slurper: Response body (first 500 chars): ' . substr( $body, 0, 500 ) );
 		return false;
 	}
-	return $response;
+
+	// Check for API-level errors in the response
+	if ( isset( $decoded['meta']['error_type'] ) ) {
+		error_log( 'Beer Slurper: API error - ' . $decoded['meta']['error_type'] . ': ' . ( $decoded['meta']['error_detail'] ?? 'no detail' ) );
+	}
+
+	return $decoded;
 }
 
 function get_untappd_data( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
 	$response = get_untappd_data_raw( $endpoint, $parameter, $args, $ver );
-	$response = $response['response'];
-	return $response;
+	if ( is_wp_error( $response ) || ! is_array( $response ) || ! isset( $response['response'] ) ) {
+		return $response;
+	}
+	return $response['response'];
 }
 
 function get_latest_checkin( $user ){
@@ -133,8 +146,12 @@ function get_beer_info( $bid, $compact = true, $section = 'beer' ){
 		);
 	$info = get_untappd_data( 'beer/info', $bid, $args );
 
+	if ( is_wp_error( $info ) || ! is_array( $info ) || ! isset( $info['beer'] ) ) {
+		return is_wp_error( $info ) ? $info : new \WP_Error( 'invalid_beer_response', __( 'Invalid beer response from API.', 'beer_slurper' ) );
+	}
+
 	if ($section == 'brewery' ){
-		return $info['beer']['brewery'];
+		return isset( $info['beer']['brewery'] ) ? $info['beer']['brewery'] : new \WP_Error( 'no_brewery', __( 'No brewery data in response.', 'beer_slurper' ) );
 	}
 	else {
 		return $info['beer'];
@@ -151,6 +168,10 @@ function get_brewery_info( $breweryid, $compact = true ){
 		'compact' => $compact,
 		);
 	$info = get_untappd_data( 'brewery/info', $breweryid, $args);
+
+	if ( is_wp_error( $info ) || ! is_array( $info ) || ! isset( $info['brewery'] ) ) {
+		return is_wp_error( $info ) ? $info : new \WP_Error( 'invalid_brewery_response', __( 'Invalid brewery response from API.', 'beer_slurper' ) );
+	}
 
 	return $info['brewery'];
 }

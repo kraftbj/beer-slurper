@@ -1,11 +1,10 @@
 {
-	"name": "beer-slurper",
+	"name": "kraftbj/beer-slurper",
 	"description": "Slurp data from Untappd into your site!",
-	"version": "0.0.1",
 	"type": "wordpress-plugin",
 	"keywords": [],
 	"homepage": "https://kraft.im/",
-	"license": "GPLv2.0+",
+	"license": "GPL-2.0-or-later",
 	"authors": [
 		{
 			"name": "Brandon Kraft",
