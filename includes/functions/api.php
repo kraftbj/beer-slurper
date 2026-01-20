@@ -25,7 +25,7 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	$untappd_key    = get_option( 'beer-slurper-key' );
 	$untappd_secret = get_option( 'beer-slurper-secret' );
 
-	/* $endpoint = validate_endpoint( $endpoint, $paramteter, $ver ); // @todo reenable when validation does something.
+	/* $endpoint = validate_endpoint( $endpoint, $parameter, $ver ); // @todo reenable when validation does something.
 	if ( is_wp_error( $endpoint ) {
 		return $endpoint;
 	} */
@@ -35,6 +35,7 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	}
 
 	if (! $untappd_key || ! $untappd_secret ){
+		error_log( 'Beer Slurper: API credentials missing' );
 		return new \WP_Error( 'lacking_creds', __( "Somehow, you got to this point without API creds.", "beer_slurper" ) );
 	}
 
@@ -49,16 +50,32 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 
 	if ( $response === false ) {
 
+		// Rate limiting check - only applies to actual API calls, not cache hits.
+		$api_calls = get_transient( 'beer_slurper_api_calls' );
+		if ( $api_calls === false ) {
+			$api_calls = 0;
+		}
+		if ( $api_calls >= 90 ) {
+			error_log( 'Beer Slurper: API rate limit exceeded' );
+			return new \WP_Error( 'rate_limited', __( 'API rate limit exceeded. Please try again later.', 'beer_slurper' ) );
+		}
+
 		$response = wp_safe_remote_get( $untappd_url );
+
+		// Increment rate limit counter after API call.
+		set_transient( 'beer_slurper_api_calls', $api_calls + 1, HOUR_IN_SECONDS );
+
 		set_transient( 'beer_slurper_' . $request_hash, $response, HOUR_IN_SECONDS );
 	}
 
 	if ( is_wp_error( $response ) ) {
+		error_log( 'Beer Slurper: API request failed - ' . $response->get_error_message() );
 		return $response;
 	}
 
 	$response = json_decode( wp_remote_retrieve_body( $response ), true );
 	if ( ! is_array( $response ) ){
+		error_log( 'Beer Slurper: Invalid JSON response from API' );
 		return false;
 	}
 	return $response;

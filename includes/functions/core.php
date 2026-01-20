@@ -73,7 +73,7 @@ function activate() {
  * @return void
  */
 function deactivate() {
-
+	wp_clear_scheduled_hook( 'bs_hourly_importer' );
 }
 
 /**

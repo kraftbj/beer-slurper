@@ -1,0 +1,24 @@
+task_groups:
+  - name: API Error Handling and Validation
+    claude_code_subagent: implementer
+    standards:
+      - global/error-handling.md
+      - global/coding-style.md
+      - global/validation.md
+
+  - name: Post Insertion Logic
+    claude_code_subagent: implementer
+    standards:
+      - global/error-handling.md
+      - global/coding-style.md
+
+  - name: XSS Prevention in Settings Page
+    claude_code_subagent: implementer
+    standards:
+      - global/validation.md
+      - global/coding-style.md
+
+  - name: Final Verification
+    claude_code_subagent: implementer
+    standards:
+      - global/coding-style.md
