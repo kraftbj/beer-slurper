@@ -52,7 +52,7 @@ This will hide those settings from the Settings screen for situations where you 
 ## Frequently Asked Questions ##
 
 ### How do I get Untappd API credentials? ###
-You'll need to register for API access at [Untappd for Developers](https://untappd.com/api/).
+You'll need to register for API access at [Untappd for Developers](https://untappd.com/api/). As of 2026, they said their API is now closed except when there's a commericial agreement and existing keys may stop working. Mine hasn't but I think this isn't really going to be a helpful plugin to anyone else unless you have an old API key.
 
 ### Can I set my Untappd credentials by code? ###
 Yes! See the Configuration section above.
