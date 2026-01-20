@@ -4,76 +4,93 @@ A prioritized list of improvements for the Beer Slurper WordPress plugin.
 
 ---
 
-## Critical (Security & Bugs)
+## Critical (Security & Bugs) - ALL COMPLETE
 
-- [ ] **Fix missing return statement in `insert_beer()`** - `includes/functions/post.php:92` - Function returns void when successful, should return post ID
-- [ ] **Fix `in_array()` parameter order** - `includes/functions/api.php:187` - Arguments are reversed: `in_array($valid_endpoints, $endpoint)` should be `in_array($endpoint, $valid_endpoints)`
-- [ ] **Escape output in settings page** - `includes/functions/core.php:156-190` - Form fields use `echo $html` with unescaped option values (potential stored XSS)
-- [ ] **Fix duplicate detection logic** - `includes/functions/post.php:28` - `get_post_meta()` returns single values, not arrays; `in_array()` comparison won't work correctly
-- [ ] **Return WP_Error instead of null** - `includes/functions/api.php:56-57` - Silent failures make debugging impossible; propagate error objects to callers
-
----
-
-## High Priority
-
-- [ ] **Implement cron deactivation** - `includes/functions/core.php:75-77` - `deactivate()` function is empty; orphaned cron jobs remain after deactivation
-- [ ] **Add comprehensive test coverage** - Only 4 tests exist in `Core_Tests.php`; API, post insertion, brewery, and walker functions are untested
-- [ ] **Add rate limiting for API calls** - No protection against hitting Untappd API limits; implement exponential backoff and retry logic
-- [ ] **Fix typo in validate_endpoint parameter** - `includes/functions/api.php:28` - `$paramteter` should be `$parameter`
-- [ ] **Add error logging** - No logging mechanism exists; API failures and import errors are silent
+- [x] **Fix missing return statement in `insert_beer()`** - Added `return $post_id;`
+- [x] **Fix `in_array()` parameter order** - Fixed and added strict type checking
+- [x] **Escape output in settings page** - Added `esc_attr()` to all settings callbacks
+- [x] **Fix duplicate detection logic** - Verified as correct (get_post_meta returns array)
+- [x] **Return WP_Error instead of null** - API errors now propagate properly
 
 ---
 
-## Medium Priority
+## High Priority - 4/5 COMPLETE
 
-- [ ] **Update WordPress compatibility** - Plugin targets WordPress 4.3.0 (2015); update to WordPress 6.0+
-- [ ] **Update PHP minimum version** - PHP 5.4 is EOL since 2014; require PHP 7.4+ minimum
-- [ ] **Make gallery shortcode configurable** - `beer-slurper.php:105-111` - Gallery is always appended to beer posts with no user control
-- [ ] **Remove error suppression** - `includes/functions/post.php:210` - Replace `@unlink()` with proper error handling
-- [ ] **Add input validation for Untappd user** - `includes/functions/walker.php` - User input is sanitized but not validated
-- [ ] **Implement async image processing** - `download_url()` calls are blocking; consider background processing for image imports
-- [ ] **Complete batch handling for high-volume imports** - @todo exists for handling >25 checkins/hour
+- [x] **Implement cron deactivation** - Added `wp_clear_scheduled_hook()` to deactivate()
+- [ ] **Add comprehensive test coverage** - Deferred (only 4 tests exist)
+- [x] **Add rate limiting for API calls** - Implemented with transients (90 calls/hour)
+- [x] **Fix typo in validate_endpoint parameter** - Fixed `$paramteter` to `$parameter`
+- [x] **Add error logging** - Added `error_log()` to API failure points
 
 ---
 
-## Low Priority
+## Medium Priority - 5/7 COMPLETE
 
-- [ ] **Add inline documentation** - Most functions lack docblocks; add PHPDoc comments
-- [ ] **Implement excerpt generation** - @todo exists in `includes/functions/post.php`
-- [ ] **Use array storage for related options** - @todo in `core.php` suggests consolidating options
-- [ ] **Complete endpoint validation** - @todo in `api.php`; validation function is disabled
-- [ ] **Create admin UI for import control** - @todo mentions UI for starting/stopping imports
-- [ ] **Add CLI commands** - WP-CLI commands for manual import management
-- [ ] **Implement JavaScript tests** - QUnit test file is a placeholder with only "hello test"
-- [ ] **Add CI/CD pipeline** - No GitHub Actions or Travis CI configuration exists
-- [ ] **Consider webhook support** - Replace polling cron with Untappd webhooks if available
+- [x] **Update WordPress compatibility** - Updated to WordPress 6.0+
+- [x] **Update PHP minimum version** - Updated to PHP 7.4+
+- [x] **Make gallery shortcode configurable** - Added settings checkbox
+- [x] **Remove error suppression** - Replaced `@unlink()` with `wp_delete_file()`
+- [x] **Add input validation for Untappd user** - Added validation in walker functions
+- [ ] **Implement async image processing** - Deferred (requires architecture changes)
+- [ ] **Complete batch handling for high-volume imports** - Deferred (requires design work)
 
 ---
 
-## Code Quality
+## Low Priority - 2/9 COMPLETE
 
-- [ ] **Modernize JavaScript** - `assets/js/src/beer-slurper.js` is mostly empty; complete or remove
-- [ ] **Remove unused SASS configuration** - Grunt is configured for SASS but no `.scss` files exist
+- [ ] **Add inline documentation** - Most functions lack PHPDoc docblocks
+- [x] **Implement excerpt generation** - Added using `wp_trim_words()`
+- [ ] **Use array storage for related options** - Deferred (requires migration strategy)
+- [x] **Complete endpoint validation** - Enabled and fixed syntax error
+- [ ] **Create admin UI for import control** - Deferred (requires UI design)
+- [ ] **Add CLI commands** - Deferred (requires WP-CLI integration design)
+- [x] ~~**Implement JavaScript tests**~~ - Removed (JS build removed)
+- [ ] **Add CI/CD pipeline** - Deferred (requires infrastructure decisions)
+- [ ] **Consider webhook support** - Deferred (depends on Untappd API capabilities)
+
+---
+
+## Code Quality - 3/4 COMPLETE
+
+- [x] **Modernize JavaScript** - Removed unused JS files and build pipeline
+- [x] **Remove unused SASS configuration** - Removed from Gruntfile
 - [ ] **Update npm dependencies** - `package.json` dependencies may be outdated
 - [ ] **Update Composer dependencies** - Development dependencies may have newer versions
 
 ---
 
-## Documentation
+## Documentation - 2/4 COMPLETE
 
-- [ ] **Update README.md** - Document current features, installation, and configuration
-- [ ] **Add CHANGELOG.md** - Track version history and changes
-- [ ] **Document API integration** - Explain Untappd API setup and credentials
+- [x] **Update README.md** - Updated with current features, requirements, configuration
+- [x] **Add CHANGELOG.md** - Created with Keep a Changelog format
+- [x] **Document API integration** - Added to README FAQ section
 - [ ] **Add contributing guidelines** - If accepting contributions
+
+---
+
+## Summary
+
+**Completed:** 22 items
+**Remaining:** 10 items (mostly deferred for design/architecture reasons)
+
+### Remaining Items (Quick Wins)
+- Update npm dependencies
+- Update Composer dependencies
+
+### Remaining Items (Substantial Effort)
+- Add comprehensive test coverage
+- Add inline PHPDoc documentation
+- Implement async image processing
+- Complete batch handling for high-volume imports
+- Create admin UI for import control
+- Add CLI commands
+- Add CI/CD pipeline
+- Consider webhook support
+- Add contributing guidelines
 
 ---
 
 ## Notes
 
 **Current Version**: 0.1.0 (Early Development)
-**Status**: Not production-ready due to critical bugs and security issues
-
-### Files with Most Issues
-1. `includes/functions/api.php` - Validation bugs, silent errors
-2. `includes/functions/post.php` - Missing return, broken duplicate detection
-3. `includes/functions/core.php` - XSS vulnerability, empty deactivation
+**Status**: Production-ready for basic use after critical security fixes
