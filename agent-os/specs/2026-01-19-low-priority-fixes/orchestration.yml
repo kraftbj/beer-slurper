@@ -1,0 +1,21 @@
+task_groups:
+  - name: Code Fixes
+    claude_code_subagent: implementer
+    standards:
+      - global/coding-style.md
+      - global/error-handling.md
+
+  - name: Cleanup
+    claude_code_subagent: implementer
+    standards:
+      - global/coding-style.md
+
+  - name: Documentation
+    claude_code_subagent: implementer
+    standards:
+      - global/conventions.md
+
+  - name: Verification
+    claude_code_subagent: implementer
+    standards:
+      - global/coding-style.md
