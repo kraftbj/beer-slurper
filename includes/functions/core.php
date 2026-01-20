@@ -153,7 +153,7 @@ function setting_key(){
 		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
 	}
 	else {
-		$html = '<input type="text" id="beer-slurper-key" name="beer-slurper-key" value="' . get_option( 'beer-slurper-key' ) . '" size="40" />';
+		$html = '<input type="text" id="beer-slurper-key" name="beer-slurper-key" value="' . esc_attr( get_option( 'beer-slurper-key' ) ) . '" size="40" />';
 		echo $html;
 	}
 }
@@ -169,7 +169,7 @@ function setting_secret(){
 		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
 	}
 	else {
-		$html = '<input type="text" id="beer-slurper-secret" name="beer-slurper-secret" value="' . get_option( 'beer-slurper-secret' ) . '" size="40" />';
+		$html = '<input type="text" id="beer-slurper-secret" name="beer-slurper-secret" value="' . esc_attr( get_option( 'beer-slurper-secret' ) ) . '" size="40" />';
 		echo $html;
 	}
 }
@@ -185,7 +185,7 @@ function setting_user(){
 		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
 	}
 	else {
-		$html = '<input type="text" id="beer-slurper-user" name="beer-slurper-user" value="' . get_option( 'beer-slurper-user' ) . '" size="40" />';
+		$html = '<input type="text" id="beer-slurper-user" name="beer-slurper-user" value="' . esc_attr( get_option( 'beer-slurper-user' ) ) . '" size="40" />';
 		$html .= '<br />Note: This doesn\'t actually do anything right now. Need to build out cron activation/deactivation based on this setting.';
 		echo $html;
 	}

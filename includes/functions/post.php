@@ -89,6 +89,7 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 	 	insert_thumbnail( $post_info['img_src'], $post_id, basename( get_permalink( $post_id ) ) );
 	 }
 
+	 return $post_id;
 }
 
 function setup_post( $checkin ){

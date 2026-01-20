@@ -54,7 +54,7 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	}
 
 	if ( is_wp_error( $response ) ) {
-		return;
+		return $response;
 	}
 
 	$response = json_decode( wp_remote_retrieve_body( $response ), true );
@@ -184,7 +184,7 @@ function validate_endpoint( $endpoint, $parameter, $ver ){
 		'user/wishlist/delete',
 		'venue/foursquare_lookup',
 		);
-	if ( ! in_array( $valid_endpoints, $endpoint) ) { // @todo verify this is the right function to use.
+	if ( ! in_array( $endpoint, $valid_endpoints, true ) ) { // @todo verify this is the right function to use.
 		$endpoint = new \WP_Error( 'invalid_endpoint', __( 'The specified endpoint is not on the shortlist.', 'beer_slurper' ) );
 	}
 	return $endpoint; // @todo Make this do something.
