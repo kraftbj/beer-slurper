@@ -1,11 +1,21 @@
 <?php
+/**
+ * Core Tests for Beer Slurper
+ *
+ * Tests for the core plugin functionality including setup, initialization,
+ * internationalization, activation, and deactivation routines.
+ *
+ * @package Kraft\Beer_Slurper\Core
+ */
+
 namespace Kraft\Beer_Slurper\Core;
 
 /**
- * This is a very basic test case to get things started. You should probably rename this and make
- * it work for your project. You can use all the tools provided by WP Mock and Mockery to create
- * your tests. Coverage is calculated against your includes/ folder, so try to keep all of your
- * functional code self contained in there.
+ * Tests for the core plugin functions.
+ *
+ * Validates the plugin's core lifecycle methods including setup hooks,
+ * internationalization loading, initialization actions, and activation/
+ * deactivation routines.
  *
  * References:
  *   - http://phpunit.de/manual/current/en/index.html
@@ -21,8 +31,11 @@ class Core_Tests extends Base\TestCase {
 		'functions/core.php'
 	];
 
-	/** 
-	 * Test load method.
+	/**
+	 * Tests setup() registers all required WordPress hooks.
+	 *
+	 * Verifies that the setup function correctly adds init hooks for
+	 * internationalization and initialization, and fires the beer_slurper_loaded action.
 	 */
 	public function test_setup() {
 		// Setup
@@ -38,7 +51,11 @@ class Core_Tests extends Base\TestCase {
 	}
 
 	/**
-	 * Test internationalization integration.
+	 * Tests i18n() loads text domain for translations.
+	 *
+	 * Verifies that the internationalization function correctly loads the
+	 * plugin's text domain from both the global languages directory and
+	 * the plugin's languages folder.
 	 */
 	public function test_i18n() {
 		// Setup
@@ -69,8 +86,11 @@ class Core_Tests extends Base\TestCase {
 		$this->assertConditionsMet();
 	}
 
-	/** 
-	 * Test initialization method.
+	/**
+	 * Tests init() fires the beer_slurper_init action.
+	 *
+	 * Verifies that the initialization function correctly triggers the
+	 * beer_slurper_init action hook for other components to hook into.
 	 */
 	public function test_init() {
 		// Setup
@@ -83,8 +103,11 @@ class Core_Tests extends Base\TestCase {
 		$this->assertConditionsMet();
 	}
 
-	/** 
-	 * Test activation routine.
+	/**
+	 * Tests activate() flushes rewrite rules on plugin activation.
+	 *
+	 * Verifies that the activation function correctly flushes WordPress
+	 * rewrite rules to register the custom post type permalinks.
 	 */
 	public function test_activate() {
 		// Setup
@@ -99,8 +122,11 @@ class Core_Tests extends Base\TestCase {
 		$this->assertConditionsMet();
 	}
 
-	/** 
-	 * Test deactivation routine.
+	/**
+	 * Tests deactivate() performs cleanup on plugin deactivation.
+	 *
+	 * Verifies that the deactivation function executes without errors.
+	 * Currently a placeholder for future cleanup operations.
 	 */
 	public function test_deactivate() {
 		// Setup

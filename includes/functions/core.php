@@ -1,8 +1,22 @@
 <?php
+/**
+ * Core Plugin Functions
+ *
+ * This file provides the core setup, initialization, and settings management
+ * functions for the Beer Slurper plugin.
+ *
+ * @package Kraft\Beer_Slurper\Core
+ */
 namespace Kraft\Beer_Slurper\Core;
 
 /**
- * Default setup routine
+ * Default setup routine.
+ *
+ * Registers all necessary action hooks for plugin initialization,
+ * admin settings, and AJAX handlers.
+ *
+ * The anonymous function `$n` is a namespace helper that prefixes function
+ * names with the current namespace for use in hook callbacks.
  *
  * @uses add_action()
  * @uses do_action()
@@ -79,7 +93,15 @@ function deactivate() {
 }
 
 /**
- * Register the settings and whatnot.
+ * Registers the plugin settings, sections, and fields.
+ *
+ * The anonymous function `$n` is a namespace helper that prefixes function
+ * names with the current namespace for use in settings field callbacks.
+ *
+ * @uses add_settings_section()
+ * @uses add_settings_field()
+ * @uses register_setting()
+ * @uses __()
  *
  * @return void
  */
@@ -107,9 +129,18 @@ function setting_init() {
 }
 
 /**
- * Setup override of db settings.
+ * Sets up override of database settings with PHP constants.
  *
- **/
+ * When UNTAPPD_KEY and UNTAPPD_SECRET constants are defined, this function
+ * registers filters that return those constant values instead of database options.
+ *
+ * The anonymous functions registered as filters simply return the constant values,
+ * effectively making the settings read-only when constants are defined.
+ *
+ * @uses add_filter()
+ *
+ * @return void
+ */
 function default_settings() {
 
 	if ( defined( 'UNTAPPD_KEY' ) && defined( 'UNTAPPD_SECRET' ) ) {
@@ -119,7 +150,9 @@ function default_settings() {
 }
 
 /**
- * Adds Beer settings page to menu
+ * Adds Beer settings page to the admin menu.
+ *
+ * @uses add_options_page()
  *
  * @return void
  */
@@ -134,7 +167,12 @@ function setting_menu() {
 
 
 /**
- * Create settings page
+ * Renders the settings page HTML.
+ *
+ * @uses _e()
+ * @uses settings_fields()
+ * @uses do_settings_sections()
+ * @uses submit_button()
  *
  * @return void
  */
@@ -151,11 +189,19 @@ function setting_page(){
 }
 
 /**
- * Echos the Untappd Key wrapper setting form field
+ * Renders the Untappd Key setting form field.
+ *
+ * Displays a message if the key is defined via constant, otherwise
+ * renders a text input field.
+ *
+ * @since 1.0.0
+ *
+ * @uses _e()
+ * @uses esc_attr()
+ * @uses get_option()
  *
  * @return void
- * @since 1.0.0
- **/
+ */
 function setting_key(){
 	if ( defined( 'UNTAPPD_KEY' ) ) {
 		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
@@ -167,11 +213,19 @@ function setting_key(){
 }
 
 /**
- * Echos the Untappd Secret wrapper setting form field
+ * Renders the Untappd Secret setting form field.
+ *
+ * Displays a message if the secret is defined via constant, otherwise
+ * renders a text input field.
+ *
+ * @since 1.0.0
+ *
+ * @uses _e()
+ * @uses esc_attr()
+ * @uses get_option()
  *
  * @return void
- * @since 1.0.0
- **/
+ */
 function setting_secret(){
 	if ( defined( 'UNTAPPD_SECRET' ) ) {
 		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
@@ -183,11 +237,19 @@ function setting_secret(){
 }
 
 /**
- * Echos the Untappd User wrapper setting form field
+ * Renders the Untappd User setting form field.
+ *
+ * Displays a message if the user is defined via constant, otherwise
+ * renders a text input field with a note about current functionality.
+ *
+ * @since 1.0.0
+ *
+ * @uses _e()
+ * @uses esc_attr()
+ * @uses get_option()
  *
  * @return void
- * @since 1.0.0
- **/
+ */
 function setting_user(){
 	if ( defined( 'UNTAPPD_USER' ) ) {
 		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
@@ -200,7 +262,14 @@ function setting_user(){
 }
 
 /**
- * Echos the Gallery auto-append setting form field
+ * Renders the Gallery auto-append setting form field.
+ *
+ * Displays a checkbox to enable automatic gallery shortcode appending
+ * to beer posts.
+ *
+ * @uses get_option()
+ * @uses checked()
+ * @uses __()
  *
  * @return void
  */
@@ -213,6 +282,19 @@ function setting_gallery() {
 
 /**
  * Renders the Sync Status section content.
+ *
+ * Displays sync status information including configured user, sync state,
+ * last sync time, errors, next scheduled sync, and statistics (total beers,
+ * pictures, and breweries). Also provides a "Sync Now" button for manual sync.
+ *
+ * @uses _e()
+ * @uses esc_html()
+ * @uses get_option()
+ * @uses date_i18n()
+ * @uses number_format_i18n()
+ * @uses printf()
+ * @uses __()
+ * @uses wp_nonce_field()
  *
  * @return void
  */
@@ -355,7 +437,17 @@ function sync_status_section_callback() {
 /**
  * Enqueues admin JavaScript and CSS for the settings page.
  *
+ * Only loads assets on the Beer Slurper settings page. Localizes the script
+ * with AJAX URL, nonce, and translatable strings.
+ *
  * @param string $hook The current admin page hook.
+ *
+ * @uses wp_enqueue_script()
+ * @uses wp_localize_script()
+ * @uses admin_url()
+ * @uses wp_create_nonce()
+ * @uses __()
+ *
  * @return void
  */
 function enqueue_admin_assets( $hook ) {
@@ -387,7 +479,16 @@ function enqueue_admin_assets( $hook ) {
 }
 
 /**
- * AJAX handler for the Sync Now button.
+ * Handles the AJAX request for the Sync Now button.
+ *
+ * Verifies the nonce, checks user capabilities, triggers the import,
+ * and returns a JSON response indicating success or failure.
+ *
+ * @uses check_ajax_referer()
+ * @uses current_user_can()
+ * @uses wp_send_json_error()
+ * @uses wp_send_json_success()
+ * @uses __()
  *
  * @return void
  */

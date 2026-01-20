@@ -1,8 +1,34 @@
 <?php
 namespace Kraft\Beer_Slurper\Walker;
 
-/* This file contains the "walkers" to walk through old data or new data after last check-in. */
+/**
+ * Import Walker Functions
+ *
+ * Contains functions to walk through Untappd checkin history,
+ * importing both new checkins and historical backfill data.
+ *
+ * @package Kraft\Beer_Slurper
+ */
 
+/**
+ * Imports new checkins since the last sync.
+ *
+ * Fetches and imports checkins that occurred after the last recorded
+ * checkin ID. If no previous sync exists, initiates historical import.
+ *
+ * @since 1.0.0
+ *
+ * @uses sanitize_user()                        Sanitizes the username.
+ * @uses get_option()                           Retrieves last sync position.
+ * @uses is_wp_error()                          Checks for API errors.
+ * @uses update_option()                        Saves new sync position.
+ * @uses \Kraft\Beer_Slurper\API\get_checkins() Fetches checkin data from API.
+ * @uses \Kraft\Beer_Slurper\Post\insert_beer() Creates beer posts from checkins.
+ *
+ * @param string $user The Untappd username.
+ *
+ * @return string|WP_Error Success message with count, or WP_Error on failure.
+ */
 function import_new( $user ) {
 
 	$user = sanitize_user( $user ); // Just to be safe. Not sure what Untappd uses, but \_(ツ)_/¯
@@ -48,13 +74,30 @@ function import_new( $user ) {
 
 
 /**
- * Incredible function to import all old Untappd data!
+ * Imports historical checkin data in batches.
  *
- * The idea is to grab the latest 25 checkins, set the since_id (see import_new())
- * Then, walk through those 25 to import those. Set the max_id, wait for the next cron to keep going.
- * @param $user Untappd user name
- * @return void
- **/
+ * Walks backwards through a user's checkin history, importing 25 checkins
+ * at a time. Designed to be called repeatedly via cron until all historical
+ * data has been imported.
+ *
+ * @since 1.0.0
+ *
+ * @uses sanitize_user()                        Sanitizes the username.
+ * @uses get_option()                           Retrieves import progress markers.
+ * @uses is_wp_error()                          Checks for API errors.
+ * @uses is_array()                             Validates response structure.
+ * @uses update_option()                        Saves import progress.
+ * @uses wp_parse_args()                        Parses URL query parameters.
+ * @uses parse_url()                            Extracts query string from pagination URL.
+ * @uses intval()                               Sanitizes since_id value.
+ * @uses delete_option()                        Clears import flag when complete.
+ * @uses \Kraft\Beer_Slurper\API\get_checkins() Fetches checkin data from API.
+ * @uses \Kraft\Beer_Slurper\Post\insert_beer() Creates beer posts from checkins.
+ *
+ * @param string $user The Untappd username.
+ *
+ * @return WP_Error|void WP_Error on failure, void on success.
+ */
 function import_old( $user ) {
 	$user = sanitize_user( $user );
 

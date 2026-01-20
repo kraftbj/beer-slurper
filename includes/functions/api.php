@@ -2,24 +2,41 @@
 namespace Kraft\Beer_Slurper\API;
 
 /**
- * This file does all of the dirty work of the API retrival.
+ * Untappd API Functions
+ *
+ * Handles all API communication with the Untappd service, including
+ * data retrieval, caching, and rate limiting.
+ *
+ * @package Kraft\Beer_Slurper
  */
 
 /**
- * Actually queries Untappd.
+ * Queries the Untappd API directly.
+ *
+ * Performs raw HTTP requests to Untappd endpoints with built-in rate limiting
+ * and response caching. Handles authentication, error checking, and response parsing.
  *
  * @since 1.0.0
  *
  * @uses \Kraft\Beer_Slurper\API\validate_endpoint() Confirms $endpoint variable is valid.
+ * @uses get_option()                                Retrieves API credentials.
+ * @uses is_wp_error()                               Checks for WP_Error instances.
+ * @uses add_query_arg()                             Builds query string for API URL.
+ * @uses get_transient()                             Retrieves cached API responses.
+ * @uses set_transient()                             Caches API responses and rate limit counter.
+ * @uses wp_safe_remote_get()                        Performs the HTTP request.
+ * @uses wp_remote_retrieve_response_code()          Gets HTTP status code.
+ * @uses wp_remote_retrieve_body()                   Gets response body.
+ * @uses error_log()                                 Logs errors for debugging.
  *
- * @param string $endpoint  Required. The Untappd API endpoint to hit, sans a personalized end parameter
+ * @param string $endpoint  Required. The Untappd API endpoint to hit, sans a personalized end parameter.
  * @param string $parameter Optional. Personalized endpoint parameter. E.g. "USER" in "checkins/USER" endpoint.
  * @param array  $args      Optional. Query string additions to the API call.
- * @param string $ver       Optional. API version number. v4 by default.
+ * @param string $ver       Optional. API version number. Default 'v4'.
  *
- * @return array Complete Untappd response. Useful data is in the 'response' key.
- **/
-
+ * @return array|false|WP_Error Complete Untappd response with useful data in 'response' key,
+ *                              false on invalid JSON, or WP_Error on failure.
+ */
 function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
 	$untappd_url    = 'https://api.untappd.com/' . $ver . '/';
 	$untappd_key    = get_option( 'beer-slurper-key' );
@@ -92,6 +109,26 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 	return $decoded;
 }
 
+/**
+ * Retrieves the response data from an Untappd API call.
+ *
+ * Wrapper around get_untappd_data_raw() that extracts only the 'response'
+ * portion of the API response, simplifying access to the actual data.
+ *
+ * @since 1.0.0
+ *
+ * @uses \Kraft\Beer_Slurper\API\get_untappd_data_raw() Performs the actual API request.
+ * @uses is_wp_error()                                  Checks for WP_Error instances.
+ * @uses is_array()                                     Validates response structure.
+ *
+ * @param string $endpoint  Required. The Untappd API endpoint to hit.
+ * @param string $parameter Optional. Personalized endpoint parameter.
+ * @param array  $args      Optional. Query string additions to the API call.
+ * @param string $ver       Optional. API version number. Default 'v4'.
+ *
+ * @return array|false|WP_Error The response data array, false on invalid response,
+ *                              or WP_Error on failure.
+ */
 function get_untappd_data( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
 	$response = get_untappd_data_raw( $endpoint, $parameter, $args, $ver );
 	if ( is_wp_error( $response ) || ! is_array( $response ) || ! isset( $response['response'] ) ) {
@@ -100,6 +137,19 @@ function get_untappd_data( $endpoint, $parameter = null, array $args = null, $ve
 	return $response['response'];
 }
 
+/**
+ * Retrieves the most recent checkin for a user.
+ *
+ * Fetches the single most recent checkin from a user's activity feed.
+ *
+ * @since 1.0.0
+ *
+ * @uses \Kraft\Beer_Slurper\API\get_untappd_data() Retrieves checkin data from API.
+ *
+ * @param string $user The Untappd username.
+ *
+ * @return array The latest checkin data array.
+ */
 function get_latest_checkin( $user ){
 	$args    = array(
 		'limit' => 1,
@@ -110,15 +160,24 @@ function get_latest_checkin( $user ){
 }
 
 /**
- * Get part of the user's activity stream.
+ * Retrieves part of a user's activity stream.
  *
- * @param string $user   Untappd user name.
- * @param int    $max_id The checking ID that you want the results to start with (e.g. the newest in the returned set).
- * @param int    $min_id Returns only checkins newer than this value.
- * @param int    $number Number of checkins. Default 25. Max 50.
+ * Fetches checkins from a user's activity feed with optional pagination
+ * parameters to control which checkins are returned.
  *
- * @return array User's feed. Checkins contained within ['items'];
- **/
+ * @since 1.0.0
+ *
+ * @uses \Kraft\Beer_Slurper\API\get_untappd_data() Retrieves checkin data from API.
+ * @uses intval()                                   Sanitizes integer parameters.
+ *
+ * @param string $user   Untappd username.
+ * @param int    $max_id Optional. The checkin ID that you want results to start with (newest in returned set).
+ * @param int    $min_id Optional. Returns only checkins newer than this value.
+ * @param int    $number Optional. Number of checkins. Default 25. Max 50.
+ *
+ * @return array User's feed data. Checkins contained within ['items'] key.
+ *               Note: Response structure varies based on parameters used.
+ */
 function get_checkins( $user, $max_id = null, $min_id = null, $number = null ){
 	$args = null;
 
@@ -140,6 +199,25 @@ function get_checkins( $user, $max_id = null, $min_id = null, $number = null ){
 	return $checkin;
 }
 
+/**
+ * Retrieves detailed information about a specific beer.
+ *
+ * Fetches beer data from Untappd by beer ID, with options to limit
+ * response size and extract specific sections.
+ *
+ * @since 1.0.0
+ *
+ * @uses \Kraft\Beer_Slurper\API\get_untappd_data() Retrieves beer data from API.
+ * @uses is_wp_error()                              Checks for WP_Error instances.
+ * @uses is_array()                                 Validates response structure.
+ *
+ * @param int    $bid     The Untappd beer ID.
+ * @param bool   $compact Optional. Limits response to exclude public media, checkins, etc. Default true.
+ * @param string $section Optional. Section to return ('beer' or 'brewery'). Default 'beer'.
+ *
+ * @return array|WP_Error Beer data array, brewery data array if section is 'brewery',
+ *                        or WP_Error on failure.
+ */
 function get_beer_info( $bid, $compact = true, $section = 'beer' ){
 	$args    = array(
 		'compact' => $compact, // This limits the response to exclude public media, checkins, etc.
@@ -158,11 +236,40 @@ function get_beer_info( $bid, $compact = true, $section = 'beer' ){
 	}
 }
 
+/**
+ * Retrieves brewery information using a beer ID.
+ *
+ * Convenience wrapper that extracts brewery data from a beer info request.
+ *
+ * @since 1.0.0
+ *
+ * @uses \Kraft\Beer_Slurper\API\get_beer_info() Retrieves beer data with brewery section.
+ *
+ * @param int $bid The Untappd beer ID.
+ *
+ * @return array|WP_Error Brewery data array or WP_Error on failure.
+ */
 function get_brewery_info_by_beer( $bid ){
 	$brewery = get_beer_info( $bid, true, 'brewery' );
 	return $brewery;
 }
 
+/**
+ * Retrieves detailed information about a specific brewery.
+ *
+ * Fetches brewery data directly from Untappd by brewery ID.
+ *
+ * @since 1.0.0
+ *
+ * @uses \Kraft\Beer_Slurper\API\get_untappd_data() Retrieves brewery data from API.
+ * @uses is_wp_error()                              Checks for WP_Error instances.
+ * @uses is_array()                                 Validates response structure.
+ *
+ * @param int  $breweryid The Untappd brewery ID.
+ * @param bool $compact   Optional. Limits response size. Default true.
+ *
+ * @return array|WP_Error Brewery data array or WP_Error on failure.
+ */
 function get_brewery_info( $breweryid, $compact = true ){
 	$args = array(
 		'compact' => $compact,
@@ -177,13 +284,21 @@ function get_brewery_info( $breweryid, $compact = true ){
 }
 
 /**
- * Ensures that the specified endpoint is supported by our code.
+ * Validates that an API endpoint is supported.
  *
- * @param string $endpoint  Required. The Untappd API endpoint to hit, sans a personalized end parameter
- * @param string $parameter Optional. Personalized endpoint parameter. E.g. "USER" in "checkins/USER" endpoint.
- * @param string $ver       Optional. API version number. v4 by default.
- * @return string|WP_Error $endpoint The endpoint is returned if valid. WP_Error object if not.
- **/
+ * Ensures the specified endpoint is in the list of known valid Untappd API
+ * endpoints to prevent invalid API requests.
+ *
+ * @since 1.0.0
+ *
+ * @uses in_array() Checks endpoint against valid endpoints list.
+ *
+ * @param string $endpoint  Required. The Untappd API endpoint to validate.
+ * @param string $parameter Optional. Personalized endpoint parameter.
+ * @param string $ver       Optional. API version number. Default 'v4'.
+ *
+ * @return string|WP_Error The validated endpoint string or WP_Error if invalid.
+ */
 function validate_endpoint( $endpoint, $parameter, $ver ){
 
 	if ( ! $endpoint ){

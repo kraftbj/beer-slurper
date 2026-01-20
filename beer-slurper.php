@@ -37,6 +37,16 @@
  * https://github.com/10up/generator-wp-make
  */
 
+/**
+ * Beer Slurper Main Plugin File
+ *
+ * This file serves as the main entry point for the Beer Slurper plugin.
+ * It defines global constants, includes required files, and sets up
+ * activation/deactivation hooks.
+ *
+ * @package Kraft\Beer_Slurper
+ */
+
 // Useful global constants
 define( 'BEER_SLURPER_VERSION', '0.1.0' );
 define( 'BEER_SLURPER_URL',     plugin_dir_url( __FILE__ ) );
@@ -65,12 +75,37 @@ require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';
 require_once BEER_SLURPER_INC . 'functions/sync-status.php';
 
+/**
+ * Inserts the latest check-in for a user as a test.
+ *
+ * Retrieves the most recent check-in from Untappd for the specified user
+ * and inserts it as a beer post. Primarily used for testing purposes.
+ *
+ * @param string $user The Untappd username. Defaults to 'kraft'.
+ * @return void
+ *
+ * @uses \Kraft\Beer_Slurper\API\get_latest_checkin()
+ * @uses \Kraft\Beer_Slurper\Post\insert_beer()
+ */
 function bs_test_insert( $user = 'kraft' ){
 	// add validation
 	$checkin = \Kraft\Beer_Slurper\API\get_latest_checkin( $user );
 	\Kraft\Beer_Slurper\Post\insert_beer( $checkin );
 }
 
+/**
+ * Initiates the import process for a user.
+ *
+ * Sets up the import option flag and schedules an hourly cron event
+ * to perform the import if one is not already scheduled.
+ *
+ * @param string|null $user The Untappd username. Defaults to null.
+ * @return string|void Error message if no user provided, void otherwise.
+ *
+ * @uses update_option()
+ * @uses wp_next_scheduled()
+ * @uses wp_schedule_event()
+ */
 function bs_start_import( $user = null ){
 	if ( ! $user ){
 		return "No user indicated.";
@@ -82,6 +117,24 @@ function bs_start_import( $user = null ){
 	}
 }
 
+/**
+ * Performs the import of check-ins for a user.
+ *
+ * Handles both backfilling historical check-ins and importing new check-ins.
+ * Clears any previous error state, then processes both old and new check-ins
+ * based on the current import state. Records success or error status.
+ *
+ * @param string|null $user The Untappd username. Defaults to null.
+ * @return string Error message if no user provided, or "All done." on completion.
+ *
+ * @uses get_option()
+ * @uses is_wp_error()
+ * @uses \Kraft\Beer_Slurper\Sync_Status\clear_sync_error()
+ * @uses \Kraft\Beer_Slurper\Sync_Status\record_sync_error()
+ * @uses \Kraft\Beer_Slurper\Sync_Status\record_sync_success()
+ * @uses \Kraft\Beer_Slurper\Walker\import_old()
+ * @uses \Kraft\Beer_Slurper\Walker\import_new()
+ */
 function bs_import( $user = null ){
 	if ( ! $user ){
 		return "No user indicated.";
@@ -123,7 +176,19 @@ add_action('bs_hourly_importer', 'bs_import', 10, 2 );
 register_activation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\activate' );
 register_deactivation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\deactivate' );
 
-// Temporary function to add [gallery] to each beer post. Will be migrated once the beer CPT code is merged in.
+/**
+ * Appends a gallery shortcode to beer post content.
+ *
+ * Filters the content of singular beer posts to append a [gallery] shortcode
+ * when the gallery option is enabled. This is a temporary function that will
+ * be migrated once the beer CPT code is merged in.
+ *
+ * @param string $content The post content.
+ * @return string The modified post content with gallery shortcode appended.
+ *
+ * @uses is_singular()
+ * @uses get_option()
+ */
 add_filter( 'the_content', function( $content ){
 	if ( is_singular( BEER_SLURPER_CPT ) && get_option( 'beer-slurper-gallery', true ) ) {
 		$content .= "[gallery]";

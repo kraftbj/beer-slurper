@@ -1,11 +1,31 @@
 <?php
+/**
+ * Custom Post Type and Taxonomy Registration
+ *
+ * This file registers the Beer custom post type and associated taxonomies
+ * (Brewery and Style) used by the Beer Slurper plugin.
+ *
+ * @package Kraft\Beer_Slurper\CPT
+ */
 namespace Kraft\Beer_Slurper\CPT;
 
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_cpt', 0 );
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_brewery', 0 );
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_style', 0 );
 
-// Register Custom Post Type
+/**
+ * Registers the Beer custom post type.
+ *
+ * Creates the 'beer' post type with support for title, editor, thumbnail,
+ * comments, and revisions. The post type is publicly accessible with
+ * archive and single views enabled.
+ *
+ * @uses _x()
+ * @uses __()
+ * @uses register_post_type()
+ *
+ * @return void
+ */
 function init_cpt() {
 
 	$labels = array(
@@ -65,6 +85,19 @@ function init_cpt() {
 
 }
 
+/**
+ * Registers the Brewery taxonomy.
+ *
+ * Creates a hierarchical taxonomy for organizing beers by brewery.
+ * The taxonomy is publicly accessible with admin column visibility enabled.
+ *
+ * @uses _x()
+ * @uses __()
+ * @uses register_taxonomy()
+ * @uses register_taxonomy_for_object_type()
+ *
+ * @return void
+ */
 function init_tax_brewery(){
 	$labels = array(
 		'name'                       => _x( 'Breweries', 'Taxonomy General Name', 'beer_slurper' ),
@@ -107,7 +140,20 @@ function init_tax_brewery(){
 	register_taxonomy_for_object_type( BEER_SLURPER_TAX_BREWERY, BEER_SLURPER_CPT );
 }
 
-// BEER_SLURPER_TAX_STYLE
+/**
+ * Registers the Style taxonomy.
+ *
+ * Creates a non-hierarchical taxonomy for organizing beers by style
+ * (e.g., IPA, Stout, Lager). The taxonomy is publicly accessible
+ * with admin column visibility enabled.
+ *
+ * @uses _x()
+ * @uses __()
+ * @uses register_taxonomy()
+ * @uses register_taxonomy_for_object_type()
+ *
+ * @return void
+ */
 function init_tax_style(){
 $labels = array(
 		'name'                       => _x( 'Styles', 'Taxonomy General Name', 'beer_slurper' ),

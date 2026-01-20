@@ -2,9 +2,40 @@
 namespace Kraft\Beer_Slurper\Post;
 
 /**
- * This file provides functions to check if a beer is already posted, inserting a new post, updating an existing post ( maybe ? ), etc.
+ * Post Management Functions
+ *
+ * Handles creating, updating, and managing beer posts in WordPress,
+ * including thumbnail attachments, brewery associations, and metadata.
+ *
+ * @package Kraft\Beer_Slurper
  */
 
+/**
+ * Inserts or updates a beer post from checkin data.
+ *
+ * Creates a new beer post or updates an existing one based on checkin data.
+ * Handles duplicate detection, post metadata, taxonomy terms, thumbnails,
+ * and brewery attachments.
+ *
+ * @since 1.0.0
+ *
+ * @uses is_wp_error()                       Checks for WP_Error instances.
+ * @uses apply_filters()                     Applies beer_slurper_cpt and beer_slurper_tax_style filters.
+ * @uses wp_insert_post()                    Creates new beer posts.
+ * @uses get_date_from_gmt()                 Converts GMT date to local time.
+ * @uses wp_update_post()                    Updates existing beer posts.
+ * @uses wp_set_object_terms()               Assigns style taxonomy terms.
+ * @uses update_post_meta()                  Saves post metadata.
+ * @uses add_post_meta()                     Adds multiple metadata values.
+ * @uses sanitize_title()                    Sanitizes badge names for file naming.
+ * @uses get_permalink()                     Gets post permalink for thumbnail naming.
+ * @uses basename()                          Extracts filename from permalink.
+ *
+ * @param array $checkin Checkin data array from Untappd API.
+ * @param bool  $nodup   Optional. Whether to check for duplicates. Default true.
+ *
+ * @return int|WP_Error Post ID on success, WP_Error on failure.
+ */
 function insert_beer( $checkin, $nodup = true ){ // @todo do this better with more.
 	$post_id = null;
 	if (! $checkin ) {
@@ -98,6 +129,29 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 	 return $post_id;
 }
 
+/**
+ * Prepares post data from checkin information.
+ *
+ * Processes raw checkin data from Untappd and structures it for WordPress
+ * post creation, including title, content, metadata, and taxonomy terms.
+ *
+ * @since 1.0.0
+ *
+ * @uses is_wp_error()       Checks for WP_Error instances.
+ * @uses is_array()          Validates data structures.
+ * @uses sanitize_title()    Generates slug from beer name.
+ * @uses wp_trim_words()     Trims description for excerpt.
+ * @uses wp_strip_all_tags() Removes HTML from description.
+ * @uses date()              Formats checkin date.
+ * @uses strtotime()         Parses checkin timestamp.
+ * @uses get_term_by()       Looks up existing style terms.
+ * @uses apply_filters()     Applies beer_slurper_tax_style filter.
+ * @uses wp_insert_term()    Creates new style terms.
+ *
+ * @param array $checkin Checkin data array from Untappd API.
+ *
+ * @return array|WP_Error Structured post data array or WP_Error on failure.
+ */
 function setup_post( $checkin ){
 	if ( ! $checkin ) {
 		return new \WP_Error( 'no_checkin', __( "No information provided.", 'beer_slurper' ) );
@@ -187,6 +241,21 @@ function setup_post( $checkin ){
 	return $post_info;
 }
 
+/**
+ * Finds an existing post for a given beer ID.
+ *
+ * Searches for a previously imported beer post using the Untappd beer ID
+ * stored in post metadata.
+ *
+ * @since 1.0.0
+ *
+ * @uses apply_filters() Applies beer_slurper_cpt filter.
+ * @uses get_posts()     Queries for existing posts.
+ *
+ * @param int $beer_id The Untappd beer ID to search for.
+ *
+ * @return array|false Array with 'id' and 'date' keys if found, false otherwise.
+ */
 function find_existing_post( $beer_id ){
 	$args = array(
 		'post_type'      => apply_filters( 'beer_slurper_cpt', BEER_SLURPER_CPT ),
@@ -207,6 +276,21 @@ function find_existing_post( $beer_id ){
 	return $args;
 }
 
+/**
+ * Checks if a checkin has already been imported.
+ *
+ * Searches for a post with the given Untappd checkin ID to prevent
+ * duplicate imports.
+ *
+ * @since 1.0.0
+ *
+ * @uses apply_filters() Applies beer_slurper_cpt filter.
+ * @uses get_posts()     Queries for existing posts.
+ *
+ * @param int $checkin_id The Untappd checkin ID to search for.
+ *
+ * @return bool True if checkin exists, false otherwise.
+ */
 function find_existing_checkin( $checkin_id ){
 	$args = array(
 		'post_type'      => apply_filters( 'beer_slurper_cpt', BEER_SLURPER_CPT ),
@@ -219,6 +303,30 @@ function find_existing_checkin( $checkin_id ){
 	return ! empty( $query );
 }
 
+/**
+ * Downloads and attaches an image as a post thumbnail.
+ *
+ * Downloads an image from a remote URL and sets it as the featured image
+ * for the specified post.
+ *
+ * @since 1.0.0
+ *
+ * @uses require_once()          Loads WordPress media handling files.
+ * @uses preg_match()            Extracts image extension from URL.
+ * @uses pathinfo()              Parses filename components.
+ * @uses basename()              Gets filename from path.
+ * @uses download_url()          Downloads image to temp location.
+ * @uses media_handle_sideload() Processes and attaches the image.
+ * @uses is_wp_error()           Checks for download errors.
+ * @uses wp_delete_file()        Cleans up temp file on error.
+ * @uses set_post_thumbnail()    Sets the featured image.
+ *
+ * @param string $img_src The URL of the image to download.
+ * @param int    $post_id The post ID to attach the thumbnail to.
+ * @param string $name    The name to use for the image file (without extension).
+ *
+ * @return void
+ */
 function insert_thumbnail( $img_src, $post_id, $name ) {
 		require_once(ABSPATH . 'wp-admin/includes/media.php');
 		require_once(ABSPATH . 'wp-admin/includes/file.php');
@@ -246,6 +354,25 @@ function insert_thumbnail( $img_src, $post_id, $name ) {
 		}
 }
 
+/**
+ * Attaches a brewery to a beer post.
+ *
+ * Associates a beer post with a brewery taxonomy term, creating the term
+ * if it does not exist.
+ *
+ * @since 1.0.0
+ *
+ * @uses is_wp_error()                                     Checks for errors.
+ * @uses wp_set_object_terms()                             Assigns brewery term to post.
+ * @uses apply_filters()                                   Applies beer_slurper_tax_brewery filter.
+ * @uses \Kraft\Beer_Slurper\Brewery\get_brewery_term_id() Gets or creates brewery term.
+ *
+ * @param int        $post_id      The post ID to attach the brewery to.
+ * @param int|null   $brewery_id   Optional. The Untappd brewery ID.
+ * @param array|null $brewery_data Optional. Brewery data array for term creation.
+ *
+ * @return void
+ */
 function attach_brewery( $post_id, $brewery_id = null, $brewery_data = null ){ // uses Untappd Brewery ID.
 	if ( empty( $brewery_id ) ){
 		return;
@@ -257,6 +384,20 @@ function attach_brewery( $post_id, $brewery_id = null, $brewery_data = null ){ /
 	}
 }
 
+/**
+ * Attaches collaboration breweries to a beer post.
+ *
+ * Associates multiple breweries with a beer post for collaboration beers.
+ *
+ * @since 1.0.0
+ *
+ * @uses \Kraft\Beer_Slurper\Post\attach_brewery() Attaches each collaboration brewery.
+ *
+ * @param int   $post_id The post ID to attach breweries to.
+ * @param array $collabs Optional. Array of Untappd brewery IDs. Default empty array.
+ *
+ * @return void
+ */
 function attach_collaborations( $post_id, $collabs = array() ){
 	foreach ( $collabs as $collab ) {
 		attach_brewery( $post_id, $collab );
