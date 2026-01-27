@@ -225,10 +225,11 @@ function setup_post( $checkin ){
 	if ( isset( $checkin['badges']['items'] ) && ! empty( $checkin['badges']['items'] ) ) {
 		foreach ($checkin['badges']['items'] as $badges ) {
 			$post_info['badges'][] = array(
-				'badge_id' => $badges['badge_id'],
-				'badge_name' => $badges['badge_name'],
-				'badge_image' => isset( $badges['badge_image'] ) ? $badges['badge_image'] : array(),
-				);
+				'badge_id'          => $badges['badge_id'],
+				'badge_name'        => $badges['badge_name'],
+				'badge_description' => isset( $badges['badge_description'] ) ? $badges['badge_description'] : '',
+				'badge_image'       => isset( $badges['badge_image'] ) ? $badges['badge_image'] : array(),
+			);
 		}
 	}
 

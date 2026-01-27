@@ -7,11 +7,46 @@ namespace Kraft\Beer_Slurper\Badge;
  * Handles creating and managing badge taxonomy terms from
  * Untappd checkin badge data.
  *
+ * Badges with multiple levels (e.g. "Brewery Pioneer (Level 5)")
+ * are stored as a single term using the base name. The highest
+ * level earned is tracked as term meta.
+ *
  * @package Kraft\Beer_Slurper
  */
 
 /**
+ * Parses a badge name into its base name and level.
+ *
+ * Untappd badge names include the level in parentheses,
+ * e.g. "Cheers to Independent U.S. Craft Breweries (Level 5)".
+ * This extracts the base name and the numeric level.
+ *
+ * @param string $badge_name The full badge name from the API.
+ * @return array {
+ *     @type string $base_name The badge name without the level suffix.
+ *     @type int    $level     The level number, or 0 if not a leveled badge.
+ * }
+ */
+function parse_badge_name( $badge_name ) {
+	if ( preg_match( '/^(.+?)\s*\(Level\s+(\d+)\)\s*$/i', $badge_name, $matches ) ) {
+		return array(
+			'base_name' => trim( $matches[1] ),
+			'level'     => (int) $matches[2],
+		);
+	}
+
+	return array(
+		'base_name' => trim( $badge_name ),
+		'level'     => 0,
+	);
+}
+
+/**
  * Retrieves the term ID for a badge, creating it if it does not exist.
+ *
+ * Looks up badges by the base name slug so that all levels of the same
+ * badge map to a single term. If the badge already exists and the
+ * incoming level is higher, the term meta is updated.
  *
  * @param int   $badge_id The Untappd badge ID.
  * @param array $badge    Optional. Badge data from the checkin.
@@ -19,57 +54,60 @@ namespace Kraft\Beer_Slurper\Badge;
  * @return int|false The badge term ID, or false on failure.
  */
 function get_badge_term_id( $badge_id, $badge = null ) {
-	if ( empty( $badge_id ) ) {
+	if ( empty( $badge_id ) || ! is_array( $badge ) || empty( $badge['badge_name'] ) ) {
 		return false;
 	}
 
-	$args = array(
-		'taxonomy'   => BEER_SLURPER_TAX_BADGE,
-		'hide_empty' => false,
-		'number'     => 1,
-		'meta_key'   => 'untappd_id',
-		'meta_value' => $badge_id,
-	);
-	$term = get_terms( $args );
+	$parsed    = parse_badge_name( $badge['badge_name'] );
+	$base_slug = sanitize_title( $parsed['base_name'] );
 
-	if ( empty( $term ) || is_wp_error( $term ) ) {
-		if ( ! is_array( $badge ) ) {
-			return false;
-		}
-		$term_id = add_badge( $badge );
-		if ( is_wp_error( $term_id ) ) {
-			return false;
-		}
-		return $term_id;
+	// Look up by slug derived from the base name.
+	$existing = get_term_by( 'slug', $base_slug, BEER_SLURPER_TAX_BADGE );
+
+	if ( $existing ) {
+		maybe_update_level( $existing->term_id, $badge, $parsed['level'] );
+		return $existing->term_id;
 	}
 
-	return $term[0]->term_id;
+	// Term doesn't exist yet — create it.
+	$term_id = add_badge( $badge, $parsed );
+	if ( is_wp_error( $term_id ) ) {
+		return false;
+	}
+
+	return $term_id;
 }
 
 /**
  * Adds a new badge term to the taxonomy.
  *
- * @param array $badge Badge data from the Untappd API.
+ * @param array $badge  Badge data from the Untappd API.
+ * @param array $parsed Pre-parsed badge name with base_name and level keys.
  *
  * @return int|\WP_Error The term ID on success, or WP_Error on failure.
  */
-function add_badge( $badge ) {
+function add_badge( $badge, $parsed = null ) {
 	if ( ! is_array( $badge ) || empty( $badge['badge_name'] ) ) {
 		return new \WP_Error( 'invalid_badge', __( 'Invalid badge data.', 'beer_slurper' ) );
 	}
 
-	$badge_slug = sanitize_title( $badge['badge_name'] );
+	if ( null === $parsed ) {
+		$parsed = parse_badge_name( $badge['badge_name'] );
+	}
+
+	$base_slug = sanitize_title( $parsed['base_name'] );
 
 	$term = wp_insert_term(
-		$badge['badge_name'],
+		$parsed['base_name'],
 		BEER_SLURPER_TAX_BADGE,
-		array( 'slug' => $badge_slug )
+		array( 'slug' => $base_slug )
 	);
 
 	if ( is_wp_error( $term ) ) {
 		if ( $term->get_error_code() === 'term_exists' ) {
-			$existing_term = get_term_by( 'slug', $badge_slug, BEER_SLURPER_TAX_BADGE );
+			$existing_term = get_term_by( 'slug', $base_slug, BEER_SLURPER_TAX_BADGE );
 			if ( $existing_term ) {
+				maybe_update_level( $existing_term->term_id, $badge, $parsed['level'] );
 				return $existing_term->term_id;
 			}
 		}
@@ -78,7 +116,22 @@ function add_badge( $badge ) {
 
 	$term_id = $term['term_id'];
 
+	save_badge_meta( $term_id, $badge, $parsed['level'] );
+
+	return $term_id;
+}
+
+/**
+ * Saves badge metadata to a term.
+ *
+ * @param int   $term_id The term ID.
+ * @param array $badge   The badge data array.
+ * @param int   $level   The badge level.
+ * @return void
+ */
+function save_badge_meta( $term_id, $badge, $level ) {
 	update_term_meta( $term_id, 'untappd_id', $badge['badge_id'] );
+	update_term_meta( $term_id, 'badge_level', $level );
 
 	if ( isset( $badge['badge_image']['sm'] ) ) {
 		update_term_meta( $term_id, 'badge_image_sm', $badge['badge_image']['sm'] );
@@ -92,6 +145,23 @@ function add_badge( $badge ) {
 	if ( ! empty( $badge['badge_description'] ) ) {
 		update_term_meta( $term_id, 'badge_description', $badge['badge_description'] );
 	}
+}
 
-	return $term_id;
+/**
+ * Updates badge meta if the incoming level is higher than the stored level.
+ *
+ * @param int   $term_id The term ID.
+ * @param array $badge   The badge data array.
+ * @param int   $level   The incoming badge level.
+ * @return void
+ */
+function maybe_update_level( $term_id, $badge, $level ) {
+	$stored_level = (int) get_term_meta( $term_id, 'badge_level', true );
+
+	if ( $level > $stored_level ) {
+		save_badge_meta( $term_id, $badge, $level );
+	} elseif ( empty( get_term_meta( $term_id, 'badge_description', true ) ) && ! empty( $badge['badge_description'] ) ) {
+		// Backfill description if we didn't have one before.
+		update_term_meta( $term_id, 'badge_description', $badge['badge_description'] );
+	}
 }

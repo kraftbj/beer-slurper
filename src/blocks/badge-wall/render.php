@@ -40,7 +40,8 @@ if ( is_wp_error( $badges ) || empty( $badges ) ) {
 			if ( empty( $image_url ) ) {
 				$image_url = get_term_meta( $badge->term_id, 'badge_image_sm', true );
 			}
-			$badge_link = get_term_link( $badge );
+			$badge_link  = get_term_link( $badge );
+			$badge_level = (int) get_term_meta( $badge->term_id, 'badge_level', true );
 			?>
 			<div class="badge-wall-item" style="text-align: center;">
 				<?php if ( $image_url ) : ?>
@@ -57,6 +58,9 @@ if ( is_wp_error( $badges ) || empty( $badges ) ) {
 						<a href="<?php echo esc_url( $badge_link ); ?>"><?php echo esc_html( $badge->name ); ?></a>
 					<?php else : ?>
 						<?php echo esc_html( $badge->name ); ?>
+					<?php endif; ?>
+					<?php if ( $badge_level > 0 ) : ?>
+						<span class="badge-wall-level"><?php printf( esc_html__( 'Level %d', 'beer_slurper' ), $badge_level ); ?></span>
 					<?php endif; ?>
 				</p>
 			</div>
