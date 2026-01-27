@@ -47,6 +47,16 @@ function import_new( $user ) {
 
 	$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, null, $since_id, '25' );
 
+	// If the API call failed (e.g. the since_id checkin was deleted on Untappd),
+	// try to recover by using the latest checkin ID from local data.
+	if ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) {
+		$recovered_id = get_latest_local_checkin_id();
+		if ( $recovered_id && (string) $recovered_id !== (string) $since_id ) {
+			update_option( 'beer_slurper_' . $user . '_since', $recovered_id, false );
+			$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, null, $recovered_id, '25' );
+		}
+	}
+
 	if ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) {
 		return is_wp_error( $checkins ) ? $checkins : new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
 	}
@@ -135,4 +145,26 @@ function import_old( $user ) {
 		delete_option( 'beer_slurper_' . $user . '_import' );
 	}
 
+}
+
+/**
+ * Finds the most recent checkin ID stored in local post meta.
+ *
+ * Queries the postmeta table for the highest _beer_slurper_untappd_id value.
+ * Used to recover the since_id when the previously stored checkin has been
+ * deleted on Untappd.
+ *
+ * @since 1.0.0
+ *
+ * @return string|null The latest checkin ID, or null if none found.
+ */
+function get_latest_local_checkin_id() {
+	global $wpdb;
+
+	return $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s ORDER BY CAST(meta_value AS UNSIGNED) DESC LIMIT 1",
+			'_beer_slurper_untappd_id'
+		)
+	);
 }
