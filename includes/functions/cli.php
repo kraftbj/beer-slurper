@@ -414,6 +414,94 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	}
 
 	/**
+	 * Spread pending checkin actions evenly across hourly windows.
+	 *
+	 * Reschedules all pending bs_process_checkin actions so they are
+	 * staggered to respect the API budget. Does not cancel or remove
+	 * any actions — only adjusts their scheduled times.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp beer-slurper spread-queue
+	 *
+	 * @subcommand spread-queue
+	 */
+	public function spread_queue( $args, $assoc_args ) {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'actionscheduler_actions';
+		$group_table = $wpdb->prefix . 'actionscheduler_groups';
+
+		// Resolve the group ID for our AS group.
+		$group_id = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT group_id FROM {$group_table} WHERE slug = %s",
+			\Kraft\Beer_Slurper\Queue\AS_GROUP
+		) );
+
+		if ( ! $group_id ) {
+			\WP_CLI::error( 'Action Scheduler group not found.' );
+		}
+
+		// Fetch all pending checkin action IDs, ordered by scheduled date.
+		$action_ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT action_id FROM {$table}
+			WHERE hook = %s AND status = %s AND group_id = %d
+			ORDER BY scheduled_date_gmt ASC",
+			'bs_process_checkin',
+			'pending',
+			$group_id
+		) );
+
+		$total = count( $action_ids );
+
+		if ( 0 === $total ) {
+			\WP_CLI::warning( 'No pending bs_process_checkin actions found.' );
+			return;
+		}
+
+		// Calculate spread parameters.
+		$per_hour   = (int) floor( \Kraft\Beer_Slurper\Queue\API_BUDGET_PER_HOUR / 5 );
+		$interval   = (int) floor( 3600 / $per_hour );
+		$hours      = (int) ceil( $total / $per_hour );
+
+		$now = time();
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Spreading actions', $total );
+
+		foreach ( $action_ids as $index => $action_id ) {
+			$hour_offset   = (int) floor( $index / $per_hour );
+			$slot_in_hour  = $index % $per_hour;
+			$target_time   = $now + ( $hour_offset * 3600 ) + ( $slot_in_hour * $interval );
+
+			$gmt_date   = gmdate( 'Y-m-d H:i:s', $target_time );
+			$local_date = get_date_from_gmt( $gmt_date );
+
+			$wpdb->update(
+				$table,
+				array(
+					'scheduled_date_gmt'   => $gmt_date,
+					'scheduled_date_local' => $local_date,
+				),
+				array( 'action_id' => $action_id ),
+				array( '%s', '%s' ),
+				array( '%d' )
+			);
+
+			$progress->tick();
+		}
+
+		$progress->finish();
+
+		$completion = $now + ( $hours * 3600 );
+
+		\WP_CLI::log( '' );
+		\WP_CLI::log( sprintf( 'Total actions:   %d', $total ) );
+		\WP_CLI::log( sprintf( 'Per hour:        %d (every %ds)', $per_hour, $interval ) );
+		\WP_CLI::log( sprintf( 'Hours needed:    %d', $hours ) );
+		\WP_CLI::log( sprintf( 'Est. completion: %s', date_i18n( 'Y-m-d H:i:s', $completion ) ) );
+		\WP_CLI::success( 'Queue spread complete.' );
+	}
+
+	/**
 	 * Trigger a sync immediately.
 	 *
 	 * ## EXAMPLES

@@ -122,6 +122,11 @@ function import_old( $user ) {
 		return new \WP_Error( 'invalid_user', __( 'Invalid or empty username provided.', 'beer_slurper' ) );
 	}
 
+	// Don't spend API budget if the queue is already full.
+	if ( \Kraft\Beer_Slurper\Queue\get_pending_checkin_count() >= \Kraft\Beer_Slurper\Queue\MAX_PENDING_CHECKINS ) {
+		return;
+	}
+
 	$args = array();
 	$max_id = get_option( 'beer_slurper_' . $user . '_max' );
 

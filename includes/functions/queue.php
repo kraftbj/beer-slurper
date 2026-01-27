@@ -23,6 +23,42 @@ const API_BUDGET_PER_HOUR = 90;
 const AS_GROUP = 'beer-slurper';
 
 /**
+ * Max actions AS claims per batch (default 25).
+ */
+const AS_BATCH_SIZE = 5;
+
+/**
+ * Max seconds per AS queue run (default 30).
+ */
+const AS_TIME_LIMIT = 15;
+
+/**
+ * Max concurrent bs_process_checkin handlers.
+ */
+const MAX_CONCURRENT_CHECKINS = 2;
+
+/**
+ * TTL for a single checkin lock slot (seconds).
+ */
+const CHECKIN_LOCK_TTL = 60;
+
+/**
+ * Max pending bs_process_checkin actions allowed in the queue.
+ */
+const MAX_PENDING_CHECKINS = 50;
+
+// Throttle Action Scheduler to avoid exhausting PHP-FPM workers.
+add_filter( 'action_scheduler_queue_runner_batch_size', function () {
+	return AS_BATCH_SIZE;
+} );
+add_filter( 'action_scheduler_queue_runner_time_limit', function () {
+	return AS_TIME_LIMIT;
+} );
+add_filter( 'action_scheduler_queue_runner_concurrent_batches', function () {
+	return 1;
+} );
+
+/**
  * Returns the number of API calls remaining in the current hour.
  *
  * @return int Remaining API budget.
@@ -147,6 +183,26 @@ function cancel_all( $hook ) {
 }
 
 /**
+ * Returns the number of pending bs_process_checkin actions.
+ *
+ * @return int
+ */
+function get_pending_checkin_count() {
+	if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
+		return 0;
+	}
+
+	$actions = as_get_scheduled_actions( array(
+		'hook'     => 'bs_process_checkin',
+		'status'   => \ActionScheduler_Store::STATUS_PENDING,
+		'group'    => AS_GROUP,
+		'per_page' => -1,
+	), 'ids' );
+
+	return count( $actions );
+}
+
+/**
  * Queues a batch of checkins for processing.
  *
  * Each checkin is scheduled as its own action so that if one fails,
@@ -172,7 +228,17 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 	// Reserve a small buffer so other work (daily maintenance, etc.) can proceed.
 	$usable = max( 0, $budget - 2 );
 
+	// Respect the pending-action cap.
+	$room = MAX_PENDING_CHECKINS - get_pending_checkin_count();
+	if ( $room <= 0 ) {
+		return 0;
+	}
+
 	foreach ( $checkins as $checkin ) {
+		if ( $queued >= $room ) {
+			break;
+		}
+
 		if ( ! isset( $checkin['checkin_id'] ) ) {
 			continue;
 		}
@@ -213,6 +279,37 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 }
 
 /**
+ * Attempts to acquire one of the concurrency lock slots.
+ *
+ * Uses numbered transients (bs_checkin_lock_0 … _N-1) as a simple
+ * semaphore. Returns the slot index on success, or false if all slots
+ * are occupied.
+ *
+ * @return int|false Slot index, or false if lock is full.
+ */
+function acquire_checkin_lock() {
+	for ( $i = 0; $i < MAX_CONCURRENT_CHECKINS; $i++ ) {
+		$key = 'bs_checkin_lock_' . $i;
+		if ( false === get_transient( $key ) ) {
+			set_transient( $key, time(), CHECKIN_LOCK_TTL );
+			return $i;
+		}
+	}
+	return false;
+}
+
+/**
+ * Releases a previously acquired concurrency lock slot.
+ *
+ * @param int $slot The slot index returned by acquire_checkin_lock().
+ *
+ * @return void
+ */
+function release_checkin_lock( $slot ) {
+	delete_transient( 'bs_checkin_lock_' . $slot );
+}
+
+/**
  * Processes a single queued checkin.
  *
  * Accepts either a checkin ID (current format) or a full checkin array
@@ -225,16 +322,55 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
  * @return void
  */
 function process_checkin( $checkin_or_id, $source = 'import' ) {
-	// Handle legacy actions that stored the full checkin payload.
-	if ( is_array( $checkin_or_id ) ) {
-		$checkin    = $checkin_or_id;
-		$checkin_id = $checkin['checkin_id'];
+	$slot = acquire_checkin_lock();
+	if ( false === $slot ) {
+		// All slots occupied — re-queue with a short delay.
+		$checkin_id = is_array( $checkin_or_id ) ? $checkin_or_id['checkin_id'] : (int) $checkin_or_id;
+		schedule_action(
+			'bs_process_checkin',
+			array(
+				'checkin_id' => (int) $checkin_id,
+				'source'     => $source,
+			),
+			30
+		);
+		return;
+	}
 
-		if ( ! has_budget( 4 ) ) {
+	try {
+		// Handle legacy actions that stored the full checkin payload.
+		if ( is_array( $checkin_or_id ) ) {
+			$checkin    = $checkin_or_id;
+			$checkin_id = $checkin['checkin_id'];
+
+			if ( ! has_budget( 4 ) ) {
+				schedule_action(
+					'bs_process_checkin',
+					array(
+						'checkin_id' => (int) $checkin_id,
+						'source'     => $source,
+					),
+					HOUR_IN_SECONDS
+				);
+				return;
+			}
+
+			$result = \Kraft\Beer_Slurper\Post\insert_beer( $checkin );
+
+			if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
+				error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
+			}
+			return;
+		}
+
+		// Current format: just the checkin ID.
+		$checkin_id = (int) $checkin_or_id;
+
+		if ( ! has_budget( 5 ) ) {
 			schedule_action(
 				'bs_process_checkin',
 				array(
-					'checkin_id' => (int) $checkin_id,
+					'checkin_id' => $checkin_id,
 					'source'     => $source,
 				),
 				HOUR_IN_SECONDS
@@ -242,41 +378,21 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 			return;
 		}
 
-		$result = \Kraft\Beer_Slurper\Post\insert_beer( $checkin );
+		$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $checkin_id );
+
+		if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
+			$msg = is_wp_error( $response ) ? $response->get_error_message() : 'Empty response';
+			error_log( 'Beer Slurper Queue: Failed to fetch checkin ' . $checkin_id . ' - ' . $msg );
+			return;
+		}
+
+		$result = \Kraft\Beer_Slurper\Post\insert_beer( $response['checkin'] );
 
 		if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
 			error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
 		}
-		return;
-	}
-
-	// Current format: just the checkin ID.
-	$checkin_id = (int) $checkin_or_id;
-
-	if ( ! has_budget( 5 ) ) {
-		schedule_action(
-			'bs_process_checkin',
-			array(
-				'checkin_id' => $checkin_id,
-				'source'     => $source,
-			),
-			HOUR_IN_SECONDS
-		);
-		return;
-	}
-
-	$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $checkin_id );
-
-	if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
-		$msg = is_wp_error( $response ) ? $response->get_error_message() : 'Empty response';
-		error_log( 'Beer Slurper Queue: Failed to fetch checkin ' . $checkin_id . ' - ' . $msg );
-		return;
-	}
-
-	$result = \Kraft\Beer_Slurper\Post\insert_beer( $response['checkin'] );
-
-	if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
-		error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
+	} finally {
+		release_checkin_lock( $slot );
 	}
 }
 add_action( 'bs_process_checkin', __NAMESPACE__ . '\process_checkin', 10, 2 );
