@@ -20,28 +20,39 @@
 	<!-- wp:post-terms {"term":"beerlog_venue","prefix":"Venues: "} /-->
 	<!-- wp:post-terms {"term":"beerlog_badge","prefix":"Badges: "} /-->
 
-	<!-- wp:comments-query-loop -->
-		<!-- wp:comments-title /-->
-		<!-- wp:comment-template -->
-			<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"top"}} -->
-			<div class="wp-block-group">
-				<!-- wp:avatar {"size":40} /-->
-				<!-- wp:group {"layout":{"type":"default"}} -->
+	<!-- wp:pint/checkin-list /-->
+
+	<!-- wp:group {"className":"pint-user-comments","style":{"spacing":{"margin":{"top":"2rem"}}},"layout":{"type":"default"}} -->
+	<div class="wp-block-group pint-user-comments" style="margin-top:2rem">
+		<!-- wp:heading {"level":3} -->
+		<h3 class="wp-block-heading">Comments</h3>
+		<!-- /wp:heading -->
+
+		<!-- wp:comments-query-loop -->
+			<!-- wp:comment-template -->
+				<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"top"}} -->
 				<div class="wp-block-group">
-					<!-- wp:comment-author-name /-->
-					<!-- wp:comment-date /-->
-					<!-- wp:comment-content /-->
+					<!-- wp:avatar {"size":40} /-->
+					<!-- wp:group {"layout":{"type":"default"}} -->
+					<div class="wp-block-group">
+						<!-- wp:comment-author-name /-->
+						<!-- wp:comment-date /-->
+						<!-- wp:comment-content /-->
+					</div>
+					<!-- /wp:group -->
 				</div>
 				<!-- /wp:group -->
-			</div>
-			<!-- /wp:group -->
-		<!-- /wp:comment-template -->
-		<!-- wp:comments-pagination -->
-			<!-- wp:comments-pagination-previous /-->
-			<!-- wp:comments-pagination-numbers /-->
-			<!-- wp:comments-pagination-next /-->
-		<!-- /wp:comments-pagination -->
-	<!-- /wp:comments-query-loop -->
+			<!-- /wp:comment-template -->
+			<!-- wp:comments-pagination -->
+				<!-- wp:comments-pagination-previous /-->
+				<!-- wp:comments-pagination-numbers /-->
+				<!-- wp:comments-pagination-next /-->
+			<!-- /wp:comments-pagination -->
+		<!-- /wp:comments-query-loop -->
+
+		<!-- wp:post-comments-form /-->
+	</div>
+	<!-- /wp:group -->
 </div>
 <!-- /wp:group -->
 

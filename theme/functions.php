@@ -69,6 +69,181 @@ function pint_register_beer_meta_block() {
 add_action( 'init', 'pint_register_beer_meta_block' );
 
 /**
+ * Register a stopgap venue-header block for the venue taxonomy template.
+ *
+ * Displays venue address and a Leaflet map from term meta.
+ */
+function pint_register_venue_header_block() {
+	register_block_type( 'pint/venue-header', array(
+		'render_callback' => 'pint_render_venue_header_block',
+	) );
+}
+add_action( 'init', 'pint_register_venue_header_block' );
+
+/**
+ * Render callback for the pint/venue-header block.
+ *
+ * @return string Block HTML.
+ */
+function pint_render_venue_header_block() {
+	$term = get_queried_object();
+	if ( ! $term instanceof \WP_Term || BEER_SLURPER_TAX_VENUE !== $term->taxonomy ) {
+		return '';
+	}
+
+	$term_id = $term->term_id;
+	$address = get_term_meta( $term_id, 'venue_address', true );
+	$city    = get_term_meta( $term_id, 'venue_city', true );
+	$state   = get_term_meta( $term_id, 'venue_state', true );
+	$country = get_term_meta( $term_id, 'venue_country', true );
+	$lat     = get_term_meta( $term_id, 'venue_lat', true );
+	$lng     = get_term_meta( $term_id, 'venue_lng', true );
+	$url     = get_term_meta( $term_id, 'venue_url', true );
+
+	$location_parts = array_filter( array( $city, $state, $country ) );
+	$has_address     = $address || $location_parts;
+	$has_coords      = $lat && $lng;
+
+	if ( ! $has_address && ! $has_coords ) {
+		return '';
+	}
+
+	$output = '<div class="pint-venue-details">';
+
+	if ( $has_address ) {
+		$output .= '<div class="pint-venue-address">';
+		if ( $address ) {
+			$output .= '<span class="pint-venue-street">' . esc_html( $address ) . '</span><br>';
+		}
+		if ( $location_parts ) {
+			$output .= '<span class="pint-venue-location">' . esc_html( implode( ', ', $location_parts ) ) . '</span>';
+		}
+		if ( $url ) {
+			$output .= '<br><a href="' . esc_url( $url ) . '" class="pint-venue-url" rel="noopener">' . esc_html( $url ) . '</a>';
+		}
+		$output .= '</div>';
+	}
+
+	if ( $has_coords ) {
+		wp_enqueue_style( 'leaflet', 'https://unpkg.com/leaflet@1/dist/leaflet.css', array(), '1' );
+		wp_enqueue_script( 'leaflet', 'https://unpkg.com/leaflet@1/dist/leaflet.js', array(), '1', true );
+
+		$map_id  = 'pint-venue-map-' . $term_id;
+		$output .= '<div id="' . esc_attr( $map_id ) . '" class="pint-venue-map"'
+			. ' data-lat="' . esc_attr( $lat ) . '"'
+			. ' data-lng="' . esc_attr( $lng ) . '"'
+			. ' data-name="' . esc_attr( $term->name ) . '"'
+			. '></div>';
+		$output .= '<script>'
+			. 'document.addEventListener("DOMContentLoaded",function(){'
+			. 'if(typeof L==="undefined")return;'
+			. 'var el=document.getElementById(' . wp_json_encode( $map_id ) . ');'
+			. 'if(!el)return;'
+			. 'var lat=parseFloat(el.dataset.lat),lng=parseFloat(el.dataset.lng);'
+			. 'var map=L.map(el.id).setView([lat,lng],14);'
+			. 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{'
+			. 'attribution:"&copy; OpenStreetMap contributors"}).addTo(map);'
+			. 'L.marker([lat,lng]).addTo(map).bindPopup(el.dataset.name).openPopup();'
+			. '});'
+			. '</script>';
+	}
+
+	$output .= '</div>';
+
+	return $output;
+}
+
+/**
+ * Register a stopgap checkin-list block for the single beer template.
+ *
+ * Displays beer_checkin comments separately from regular comments.
+ */
+function pint_register_checkin_list_block() {
+	register_block_type( 'pint/checkin-list', array(
+		'render_callback' => 'pint_render_checkin_list_block',
+	) );
+}
+add_action( 'init', 'pint_register_checkin_list_block' );
+
+/**
+ * Render callback for the pint/checkin-list block.
+ *
+ * @return string Block HTML.
+ */
+function pint_render_checkin_list_block() {
+	$post_id = get_the_ID();
+	if ( ! $post_id ) {
+		return '';
+	}
+
+	$checkins = get_comments( array(
+		'post_id' => $post_id,
+		'type'    => 'beer_checkin',
+		'status'  => 'approve',
+		'orderby' => 'comment_date',
+		'order'   => 'DESC',
+	) );
+
+	$count = count( $checkins );
+	if ( 0 === $count ) {
+		return '';
+	}
+
+	$output = '<div class="pint-checkins">';
+	$output .= '<h3 class="pint-checkins__heading">';
+	$output .= esc_html( sprintf(
+		/* translators: %d: number of check-ins */
+		_n( '%d Check-in', '%d Check-ins', $count, 'pint' ),
+		$count
+	) );
+	$output .= '</h3>';
+	$output .= '<ul class="pint-checkins__list">';
+
+	foreach ( $checkins as $checkin ) {
+		$rating  = get_comment_meta( $checkin->comment_ID, '_beer_slurper_rating', true );
+		$serving = get_comment_meta( $checkin->comment_ID, '_beer_slurper_serving_type', true );
+		$venue_id = get_comment_meta( $checkin->comment_ID, '_beer_slurper_venue_id', true );
+
+		$output .= '<li class="pint-checkin">';
+		$output .= '<div class="pint-checkin__meta">';
+		$output .= '<strong class="pint-checkin__author">' . esc_html( $checkin->comment_author ) . '</strong>';
+		$output .= '<time class="pint-checkin__date" datetime="' . esc_attr( $checkin->comment_date_gmt ) . '">';
+		$output .= esc_html( date_i18n( get_option( 'date_format' ), strtotime( $checkin->comment_date ) ) );
+		$output .= '</time>';
+		$output .= '</div>';
+
+		$details = array();
+		if ( $rating ) {
+			$stars = str_repeat( "\xe2\x98\x85", (int) round( (float) $rating ) );
+			$details[] = '<span class="pint-checkin__rating" title="' . esc_attr( $rating ) . '/5">' . $stars . '</span>';
+		}
+		if ( $serving ) {
+			$details[] = '<span class="pint-checkin__serving">' . esc_html( ucfirst( $serving ) ) . '</span>';
+		}
+		if ( $venue_id ) {
+			$venue_term = get_term( (int) $venue_id, BEER_SLURPER_TAX_VENUE );
+			if ( $venue_term && ! is_wp_error( $venue_term ) ) {
+				$details[] = '<a href="' . esc_url( get_term_link( $venue_term ) ) . '" class="pint-checkin__venue">'
+					. esc_html( $venue_term->name ) . '</a>';
+			}
+		}
+		if ( $details ) {
+			$output .= '<div class="pint-checkin__details">' . implode( ' &middot; ', $details ) . '</div>';
+		}
+
+		if ( ! empty( $checkin->comment_content ) ) {
+			$output .= '<div class="pint-checkin__comment">' . esc_html( $checkin->comment_content ) . '</div>';
+		}
+
+		$output .= '</li>';
+	}
+
+	$output .= '</ul></div>';
+
+	return $output;
+}
+
+/**
  * Render callback for the pint/beer-meta block.
  *
  * @return string Block HTML.

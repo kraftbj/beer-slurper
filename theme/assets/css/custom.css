@@ -188,3 +188,109 @@
 	opacity: 0.85;
 	margin: 0;
 }
+
+/* ==========================================================================
+   Venue Details (address + map)
+   ========================================================================== */
+
+.pint-venue-details {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1.5rem;
+	align-items: start;
+}
+
+@media (max-width: 600px) {
+	.pint-venue-details {
+		grid-template-columns: 1fr;
+	}
+}
+
+.pint-venue-address {
+	font-family: var(--wp--preset--font-family--montserrat);
+	font-size: var(--wp--preset--font-size--small);
+	line-height: 1.8;
+}
+
+.pint-venue-street {
+	font-weight: 700;
+}
+
+.pint-venue-url {
+	font-size: 0.8125rem;
+	word-break: break-all;
+}
+
+.pint-venue-map {
+	height: 280px;
+	border-radius: 4px;
+	z-index: 0;
+}
+
+/* ==========================================================================
+   Checkin List
+   ========================================================================== */
+
+.pint-checkins {
+	margin: 2rem 0;
+	border-top: 1px solid var(--wp--preset--color--border);
+	padding-top: 1.5rem;
+}
+
+.pint-checkins__heading {
+	font-family: var(--wp--preset--font-family--montserrat);
+	text-transform: uppercase;
+	letter-spacing: 0.0625em;
+	font-size: var(--wp--preset--font-size--large);
+	margin: 0 0 1rem;
+}
+
+.pint-checkins__list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.pint-checkin {
+	padding: 1rem 0;
+	border-bottom: 1px solid var(--wp--preset--color--border);
+}
+
+.pint-checkin__meta {
+	display: flex;
+	align-items: baseline;
+	gap: 0.75rem;
+	margin-bottom: 0.25rem;
+}
+
+.pint-checkin__author {
+	font-family: var(--wp--preset--font-family--montserrat);
+	font-size: var(--wp--preset--font-size--small);
+	text-transform: uppercase;
+	letter-spacing: 0.0625em;
+}
+
+.pint-checkin__date {
+	font-size: 0.8125rem;
+	color: var(--wp--preset--color--gray);
+}
+
+.pint-checkin__details {
+	font-family: var(--wp--preset--font-family--montserrat);
+	font-size: 0.8125rem;
+	color: var(--wp--preset--color--gray);
+	margin-bottom: 0.25rem;
+}
+
+.pint-checkin__rating {
+	color: var(--wp--preset--color--teal-1);
+}
+
+.pint-checkin__venue {
+	text-decoration: none;
+}
+
+.pint-checkin__comment {
+	margin-top: 0.25rem;
+	font-style: italic;
+}
