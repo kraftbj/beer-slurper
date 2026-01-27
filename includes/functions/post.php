@@ -118,13 +118,30 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 
 	 if ( isset( $post_info['badges'] ) ) {
 	 	foreach ( $post_info['badges'] as $badge ) {
-	 		insert_thumbnail( $badge['badge_image'], $post_id, sanitize_title( $badge['badge_name']) );
+	 		$badge_img_url = isset( $badge['badge_image']['lg'] ) ? $badge['badge_image']['lg'] : '';
+	 		if ( $badge_img_url ) {
+	 			insert_thumbnail( $badge_img_url, $post_id, sanitize_title( $badge['badge_name'] ) );
+	 		}
+
+	 		// Create/find badge term and attach to beer post.
+	 		$badge_term_id = \Kraft\Beer_Slurper\Badge\get_badge_term_id( $badge['badge_id'], $badge );
+	 		if ( $badge_term_id ) {
+	 			wp_set_object_terms( $post_id, (int) $badge_term_id, BEER_SLURPER_TAX_BADGE, true );
+	 		}
 	 	}
 	 }
 
 	 if ( isset( $post_info['img_src'] ) ) {
 	 	insert_thumbnail( $post_info['img_src'], $post_id, basename( get_permalink( $post_id ) ) );
 	 }
+
+	 // Attach venue term to beer post.
+	 if ( ! empty( $post_info['venue_term_id'] ) ) {
+	 	wp_set_object_terms( $post_id, (int) $post_info['venue_term_id'], BEER_SLURPER_TAX_VENUE, true );
+	 }
+
+	 // Insert checkin as a comment on the beer post.
+	 \Kraft\Beer_Slurper\Checkin\insert_checkin( $checkin, $post_id );
 
 	 return $post_id;
 }
@@ -196,6 +213,13 @@ function setup_post( $checkin ){
 
 	if ( isset( $checkin['venue']['venue_id'] ) ) {
 		$post_info['meta']['_beer_slurper_venue'] = $checkin['venue']['venue_id'];
+		$venue_term_id = \Kraft\Beer_Slurper\Venue\get_venue_term_id(
+			$checkin['venue']['venue_id'],
+			$checkin['venue']
+		);
+		if ( $venue_term_id ) {
+			$post_info['venue_term_id'] = $venue_term_id;
+		}
 	}
 
 	if ( isset( $checkin['badges']['items'] ) && ! empty( $checkin['badges']['items'] ) ) {
@@ -203,7 +227,7 @@ function setup_post( $checkin ){
 			$post_info['badges'][] = array(
 				'badge_id' => $badges['badge_id'],
 				'badge_name' => $badges['badge_name'],
-				'badge_image' => $badges['badge_image']['lg'],
+				'badge_image' => isset( $badges['badge_image'] ) ? $badges['badge_image'] : array(),
 				);
 		}
 	}

@@ -12,6 +12,8 @@ namespace Kraft\Beer_Slurper\CPT;
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_cpt', 0 );
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_brewery', 0 );
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_style', 0 );
+add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_venue', 0 );
+add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_badge', 0 );
 
 /**
  * Registers the Beer custom post type.
@@ -65,12 +67,13 @@ function init_cpt() {
 		'label'                 => __( 'Beer', 'beer_slurper' ),
 		'description'           => __( 'Individual beers', 'beer_slurper' ),
 		'labels'                => $labels,
-		'supports'              => array( 'title', 'editor', 'thumbnail', 'comments', 'revisions', ),
+		'supports'              => array( 'title', 'editor', 'thumbnail', 'comments', 'revisions', 'custom-fields', ),
 		'taxonomies'            => array(),
 		'hierarchical'          => false,
 		'public'                => true,
 		'show_ui'               => true,
 		'show_in_menu'          => true,
+		'show_in_rest'          => true,
 		'menu_position'         => 5,
 		'show_in_admin_bar'     => true,
 		'show_in_nav_menus'     => true,
@@ -131,6 +134,7 @@ function init_tax_brewery(){
 		'hierarchical'               => true,
 		'public'                     => true,
 		'show_ui'                    => true,
+		'show_in_rest'               => true,
 		'show_admin_column'          => true,
 		'show_in_nav_menus'          => true,
 		'show_tagcloud'              => true,
@@ -187,6 +191,7 @@ $labels = array(
 		'hierarchical'               => false,
 		'public'                     => true,
 		'show_ui'                    => true,
+		'show_in_rest'               => true,
 		'show_admin_column'          => true,
 		'show_in_nav_menus'          => true,
 		'show_tagcloud'              => true,
@@ -194,4 +199,102 @@ $labels = array(
 	);
 	register_taxonomy( BEER_SLURPER_TAX_STYLE, BEER_SLURPER_CPT, $args );
 	register_taxonomy_for_object_type( BEER_SLURPER_TAX_STYLE, BEER_SLURPER_CPT );
+}
+
+/**
+ * Registers the Venue taxonomy.
+ *
+ * Creates a non-hierarchical taxonomy for organizing beers by venue
+ * (where they were checked in).
+ *
+ * @return void
+ */
+function init_tax_venue() {
+	$labels = array(
+		'name'                       => _x( 'Venues', 'Taxonomy General Name', 'beer_slurper' ),
+		'singular_name'              => _x( 'Venue', 'Taxonomy Singular Name', 'beer_slurper' ),
+		'menu_name'                  => __( 'Venues', 'beer_slurper' ),
+		'all_items'                  => __( 'All Venues', 'beer_slurper' ),
+		'new_item_name'              => __( 'New Venue Name', 'beer_slurper' ),
+		'add_new_item'               => __( 'Add New Venue', 'beer_slurper' ),
+		'edit_item'                  => __( 'Edit Venue', 'beer_slurper' ),
+		'update_item'                => __( 'Update Venue', 'beer_slurper' ),
+		'view_item'                  => __( 'View Venue', 'beer_slurper' ),
+		'separate_items_with_commas' => __( 'Separate items with commas', 'beer_slurper' ),
+		'add_or_remove_items'        => __( 'Add or remove venues', 'beer_slurper' ),
+		'choose_from_most_used'      => __( 'Choose from the most used', 'beer_slurper' ),
+		'popular_items'              => __( 'Popular Venues', 'beer_slurper' ),
+		'search_items'               => __( 'Search Venues', 'beer_slurper' ),
+		'not_found'                  => __( 'Not Found', 'beer_slurper' ),
+		'no_terms'                   => __( 'No venues', 'beer_slurper' ),
+		'items_list'                 => __( 'Venues list', 'beer_slurper' ),
+		'items_list_navigation'      => __( 'Venues list navigation', 'beer_slurper' ),
+	);
+	$rewrite = array(
+		'slug'                       => 'venue',
+		'with_front'                 => false,
+		'hierarchical'               => false,
+	);
+	$args = array(
+		'labels'                     => $labels,
+		'hierarchical'               => false,
+		'public'                     => true,
+		'show_ui'                    => true,
+		'show_in_rest'               => true,
+		'show_admin_column'          => true,
+		'show_in_nav_menus'          => true,
+		'show_tagcloud'              => true,
+		'rewrite'                    => $rewrite,
+	);
+	register_taxonomy( BEER_SLURPER_TAX_VENUE, BEER_SLURPER_CPT, $args );
+	register_taxonomy_for_object_type( BEER_SLURPER_TAX_VENUE, BEER_SLURPER_CPT );
+}
+
+/**
+ * Registers the Badge taxonomy.
+ *
+ * Creates a non-hierarchical taxonomy for organizing beers by badges
+ * earned during checkins.
+ *
+ * @return void
+ */
+function init_tax_badge() {
+	$labels = array(
+		'name'                       => _x( 'Badges', 'Taxonomy General Name', 'beer_slurper' ),
+		'singular_name'              => _x( 'Badge', 'Taxonomy Singular Name', 'beer_slurper' ),
+		'menu_name'                  => __( 'Badges', 'beer_slurper' ),
+		'all_items'                  => __( 'All Badges', 'beer_slurper' ),
+		'new_item_name'              => __( 'New Badge Name', 'beer_slurper' ),
+		'add_new_item'               => __( 'Add New Badge', 'beer_slurper' ),
+		'edit_item'                  => __( 'Edit Badge', 'beer_slurper' ),
+		'update_item'                => __( 'Update Badge', 'beer_slurper' ),
+		'view_item'                  => __( 'View Badge', 'beer_slurper' ),
+		'separate_items_with_commas' => __( 'Separate items with commas', 'beer_slurper' ),
+		'add_or_remove_items'        => __( 'Add or remove badges', 'beer_slurper' ),
+		'choose_from_most_used'      => __( 'Choose from the most used', 'beer_slurper' ),
+		'popular_items'              => __( 'Popular Badges', 'beer_slurper' ),
+		'search_items'               => __( 'Search Badges', 'beer_slurper' ),
+		'not_found'                  => __( 'Not Found', 'beer_slurper' ),
+		'no_terms'                   => __( 'No badges', 'beer_slurper' ),
+		'items_list'                 => __( 'Badges list', 'beer_slurper' ),
+		'items_list_navigation'      => __( 'Badges list navigation', 'beer_slurper' ),
+	);
+	$rewrite = array(
+		'slug'                       => 'badge',
+		'with_front'                 => false,
+		'hierarchical'               => false,
+	);
+	$args = array(
+		'labels'                     => $labels,
+		'hierarchical'               => false,
+		'public'                     => true,
+		'show_ui'                    => true,
+		'show_in_rest'               => true,
+		'show_admin_column'          => false,
+		'show_in_nav_menus'          => true,
+		'show_tagcloud'              => true,
+		'rewrite'                    => $rewrite,
+	);
+	register_taxonomy( BEER_SLURPER_TAX_BADGE, BEER_SLURPER_CPT, $args );
+	register_taxonomy_for_object_type( BEER_SLURPER_TAX_BADGE, BEER_SLURPER_CPT );
 }

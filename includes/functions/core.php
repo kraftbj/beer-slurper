@@ -90,6 +90,8 @@ function activate() {
  */
 function deactivate() {
 	wp_clear_scheduled_hook( 'bs_hourly_importer' );
+	wp_clear_scheduled_hook( 'bs_daily_maintenance' );
+	\Kraft\Beer_Slurper\Queue\cleanup();
 }
 
 /**

@@ -120,7 +120,119 @@ function add_brewery( $breweryid, $brewery_data = null ){
 
 	$term_id = $term['term_id'];
 	update_term_meta( $term_id, 'untappd_id', isset( $brewery['brewery_id'] ) ? $brewery['brewery_id'] : $breweryid );
-	update_term_meta( $term_id, 'brewery_type', isset( $brewery['brewery_type'] ) ? $brewery['brewery_type'] : '' );
+	save_brewery_meta( $term_id, $brewery );
 
 	return $term_id;
+}
+
+/**
+ * Saves all available brewery metadata to a term.
+ *
+ * @param int   $term_id The term ID.
+ * @param array $brewery The brewery data array from the API.
+ *
+ * @return void
+ */
+function save_brewery_meta( $term_id, $brewery ) {
+	$simple_fields = array(
+		'brewery_type'        => 'brewery_type',
+		'brewery_label'       => 'brewery_label',
+		'brewery_description' => 'brewery_description',
+	);
+
+	foreach ( $simple_fields as $meta_key => $api_key ) {
+		if ( isset( $brewery[ $api_key ] ) && '' !== $brewery[ $api_key ] ) {
+			update_term_meta( $term_id, $meta_key, $brewery[ $api_key ] );
+		}
+	}
+
+	// Location fields.
+	if ( isset( $brewery['location'] ) && is_array( $brewery['location'] ) ) {
+		$location = $brewery['location'];
+		$location_fields = array(
+			'brewery_lat'     => 'brewery_lat',
+			'brewery_lng'     => 'brewery_lng',
+			'brewery_address' => 'brewery_address',
+		);
+		foreach ( $location_fields as $meta_key => $api_key ) {
+			if ( isset( $location[ $api_key ] ) && '' !== $location[ $api_key ] ) {
+				update_term_meta( $term_id, $meta_key, $location[ $api_key ] );
+			}
+		}
+	}
+
+	// City/state/country may be top-level or nested.
+	$geo_fields = array( 'brewery_city', 'brewery_state', 'brewery_country' );
+	foreach ( $geo_fields as $field ) {
+		if ( isset( $brewery[ $field ] ) && '' !== $brewery[ $field ] ) {
+			update_term_meta( $term_id, $field, $brewery[ $field ] );
+		} elseif ( isset( $brewery['location'][ $field ] ) && '' !== $brewery['location'][ $field ] ) {
+			update_term_meta( $term_id, $field, $brewery['location'][ $field ] );
+		}
+	}
+
+	// Contact fields.
+	if ( isset( $brewery['contact'] ) && is_array( $brewery['contact'] ) ) {
+		$contact = $brewery['contact'];
+		$contact_fields = array(
+			'brewery_url'       => 'url',
+			'brewery_twitter'   => 'twitter',
+			'brewery_facebook'  => 'facebook',
+			'brewery_instagram' => 'instagram',
+		);
+		foreach ( $contact_fields as $meta_key => $api_key ) {
+			if ( isset( $contact[ $api_key ] ) && '' !== $contact[ $api_key ] ) {
+				update_term_meta( $term_id, $meta_key, $contact[ $api_key ] );
+			}
+		}
+	}
+}
+
+/**
+ * Backfills missing brewery metadata from the API.
+ *
+ * Finds brewery terms missing lat/lng data and re-fetches from the API.
+ * Limited to 5 per run to stay within rate limits.
+ *
+ * @return int Number of breweries updated.
+ */
+function backfill_missing_meta() {
+	$terms = get_terms( array(
+		'taxonomy'   => apply_filters( 'beer_slurper_tax_brewery', BEER_SLURPER_TAX_BREWERY ),
+		'hide_empty' => false,
+		'number'     => 5,
+		'meta_query' => array(
+			'relation' => 'AND',
+			array(
+				'key'     => 'untappd_id',
+				'compare' => 'EXISTS',
+			),
+			array(
+				'key'     => 'brewery_lat',
+				'compare' => 'NOT EXISTS',
+			),
+		),
+	) );
+
+	if ( empty( $terms ) || is_wp_error( $terms ) ) {
+		return 0;
+	}
+
+	$updated = 0;
+	foreach ( $terms as $term ) {
+		$brewery_id = get_term_meta( $term->term_id, 'untappd_id', true );
+		if ( ! $brewery_id ) {
+			continue;
+		}
+
+		$brewery = \Kraft\Beer_Slurper\API\get_brewery_info( $brewery_id );
+		if ( is_wp_error( $brewery ) || ! is_array( $brewery ) ) {
+			continue;
+		}
+
+		save_brewery_meta( $term->term_id, $brewery );
+		$updated++;
+	}
+
+	return $updated;
 }

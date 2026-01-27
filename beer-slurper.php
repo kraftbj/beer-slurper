@@ -47,6 +47,11 @@
  * @package Kraft\Beer_Slurper
  */
 
+// Load Jetpack Autoloader for Action Scheduler and other dependencies.
+if ( file_exists( __DIR__ . '/vendor/autoload_packages.php' ) ) {
+	require_once __DIR__ . '/vendor/autoload_packages.php';
+}
+
 // Useful global constants
 define( 'BEER_SLURPER_VERSION', '0.1.0' );
 define( 'BEER_SLURPER_URL',     plugin_dir_url( __FILE__ ) );
@@ -66,15 +71,28 @@ if ( ! defined( 'BEER_SLURPER_TAX_BREWERY') ) {
 	define( 'BEER_SLURPER_TAX_BREWERY', 'beerlog_brewery' );
 }
 
+if ( ! defined( 'BEER_SLURPER_TAX_VENUE' ) ) {
+	define( 'BEER_SLURPER_TAX_VENUE', 'beerlog_venue' );
+}
+
+if ( ! defined( 'BEER_SLURPER_TAX_BADGE' ) ) {
+	define( 'BEER_SLURPER_TAX_BADGE', 'beerlog_badge' );
+}
+
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
 require_once BEER_SLURPER_INC . 'functions/cpt.php';
 require_once BEER_SLURPER_INC . 'functions/brewery.php';
+require_once BEER_SLURPER_INC . 'functions/venue.php';
+require_once BEER_SLURPER_INC . 'functions/badge.php';
+require_once BEER_SLURPER_INC . 'functions/checkin.php';
+require_once BEER_SLURPER_INC . 'functions/stats.php';
 require_once BEER_SLURPER_INC . 'functions/oauth.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';
 require_once BEER_SLURPER_INC . 'functions/sync-status.php';
+require_once BEER_SLURPER_INC . 'functions/queue.php';
 
 /**
  * Inserts the latest check-in for a user as a test.
@@ -116,6 +134,10 @@ function bs_start_import( $user = null ){
 	if (! wp_next_scheduled( 'bs_hourly_importer', array( $user ) ) ) {
 		wp_schedule_event( time(), 'hourly', 'bs_hourly_importer', array( $user ) );
 	}
+	if ( ! wp_next_scheduled( 'bs_daily_maintenance' ) ) {
+		wp_schedule_event( time(), 'daily', 'bs_daily_maintenance' );
+	}
+	\Kraft\Beer_Slurper\Queue\init_scheduled_actions( $user );
 }
 
 /**
@@ -172,6 +194,43 @@ function bs_import( $user = null ){
 }
 
 add_action('bs_hourly_importer', 'bs_import', 10, 2 );
+
+/**
+ * Performs daily maintenance tasks.
+ *
+ * Refreshes user stats from the Untappd API and backfills missing
+ * metadata for breweries and venues.
+ *
+ * @return void
+ */
+function bs_daily_maintenance() {
+	\Kraft\Beer_Slurper\Stats\refresh_user_stats();
+	\Kraft\Beer_Slurper\Brewery\backfill_missing_meta();
+	\Kraft\Beer_Slurper\Venue\backfill_missing_meta();
+}
+add_action( 'bs_daily_maintenance', 'bs_daily_maintenance' );
+
+/**
+ * Registers all Beer Slurper blocks from the build directory.
+ *
+ * @return void
+ */
+function bs_register_blocks() {
+	$build_dir = BEER_SLURPER_PATH . 'build/';
+	if ( ! is_dir( $build_dir ) ) {
+		return;
+	}
+
+	$blocks = glob( $build_dir . '*/block.json' );
+	if ( empty( $blocks ) ) {
+		return;
+	}
+
+	foreach ( $blocks as $block_json ) {
+		register_block_type( dirname( $block_json ) );
+	}
+}
+add_action( 'init', 'bs_register_blocks' );
 
 // Activation/Deactivation
 register_activation_hook( __FILE__, '\Kraft\Beer_Slurper\Core\activate' );
