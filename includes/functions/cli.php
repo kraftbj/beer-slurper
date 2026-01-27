@@ -155,9 +155,9 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 		\Kraft\Beer_Slurper\Queue\cleanup();
 		\WP_CLI::log( 'Cleared scheduled actions.' );
 
-		// Clear legacy WP-Cron hooks from older versions.
-		wp_clear_scheduled_hook( 'bs_hourly_importer' );
-		wp_clear_scheduled_hook( 'bs_daily_maintenance' );
+		// Clear legacy WP-Cron hooks from older versions (unschedule_hook clears all args).
+		wp_unschedule_hook( 'bs_hourly_importer' );
+		wp_unschedule_hook( 'bs_daily_maintenance' );
 
 		\WP_CLI::success( 'All Beer Slurper data has been deleted.' );
 	}

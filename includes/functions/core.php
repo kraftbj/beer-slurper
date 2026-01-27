@@ -92,8 +92,8 @@ function deactivate() {
 	\Kraft\Beer_Slurper\Queue\cleanup();
 
 	// Clear legacy WP-Cron hooks in case the site upgraded from an older version.
-	wp_clear_scheduled_hook( 'bs_hourly_importer' );
-	wp_clear_scheduled_hook( 'bs_daily_maintenance' );
+	wp_unschedule_hook( 'bs_hourly_importer' );
+	wp_unschedule_hook( 'bs_daily_maintenance' );
 }
 
 /**

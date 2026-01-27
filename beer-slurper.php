@@ -205,13 +205,17 @@ function bs_import( $user = null ){
  * @return void
  */
 function bs_maybe_clear_legacy_cron() {
-	if ( get_option( 'beer_slurper_cron_migrated' ) ) {
+	if ( get_option( 'beer_slurper_cron_migrated_v2' ) ) {
 		return;
 	}
 
-	wp_clear_scheduled_hook( 'bs_hourly_importer' );
-	wp_clear_scheduled_hook( 'bs_daily_maintenance' );
-	update_option( 'beer_slurper_cron_migrated', true, true );
+	// wp_unschedule_hook removes all events regardless of args.
+	// The original bs_hourly_importer was scheduled with array( $user ),
+	// so wp_clear_scheduled_hook() without args failed to match.
+	wp_unschedule_hook( 'bs_hourly_importer' );
+	wp_unschedule_hook( 'bs_daily_maintenance' );
+	delete_option( 'beer_slurper_cron_migrated' );
+	update_option( 'beer_slurper_cron_migrated_v2', true, true );
 
 	// Re-schedule via Action Scheduler if a user is configured.
 	$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
