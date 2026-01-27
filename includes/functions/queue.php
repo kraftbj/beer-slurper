@@ -177,6 +177,11 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 			continue;
 		}
 
+		// Skip checkins that have already been imported.
+		if ( \Kraft\Beer_Slurper\Post\find_existing_checkin( $checkin['checkin_id'] ) ) {
+			continue;
+		}
+
 		if ( $usable >= $cost_per ) {
 			// Schedule within current budget window.
 			$usable -= $cost_per;

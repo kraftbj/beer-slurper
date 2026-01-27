@@ -331,6 +331,7 @@ function find_existing_checkin( $checkin_id ){
 	return ! empty( $query );
 }
 
+
 /**
  * Downloads and attaches an image as a post thumbnail.
  *
