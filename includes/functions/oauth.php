@@ -13,12 +13,22 @@ namespace Kraft\Beer_Slurper\OAuth;
 /**
  * Returns the OAuth redirect URL (callback URL).
  *
- * This is the URL Untappd will redirect back to after authorization.
- * Users must also register this URL in their Untappd app settings.
+ * Uses a REST API endpoint to avoid query parameter conflicts.
+ * Untappd appends ?code=X to the callback, so the base URL must
+ * not contain query parameters.
  *
- * @return string The admin settings page URL used as the OAuth callback.
+ * @return string The REST API endpoint URL used as the OAuth callback.
  */
 function get_redirect_url() {
+	return rest_url( 'beer-slurper/v1/oauth/callback' );
+}
+
+/**
+ * Returns the settings page URL.
+ *
+ * @return string The admin settings page URL.
+ */
+function get_settings_url() {
 	return admin_url( 'options-general.php?page=beer-slurper-settings' );
 }
 
@@ -48,29 +58,49 @@ function get_authorize_url() {
 }
 
 /**
- * Handles the OAuth callback from Untappd.
- *
- * Hooked to admin_init. Detects the authorization code in the query string,
- * exchanges it for an access token, stores the token, and redirects to
- * clean the URL.
+ * Registers the REST API route for the OAuth callback.
  *
  * @return void
  */
-function handle_callback() {
-	if ( ! isset( $_GET['code'] ) || ! isset( $_GET['page'] ) || 'beer-slurper-settings' !== $_GET['page'] ) {
-		return;
+function register_rest_route() {
+	\register_rest_route( 'beer-slurper/v1', '/oauth/callback', array(
+		'methods'             => 'GET',
+		'callback'            => __NAMESPACE__ . '\handle_callback',
+		'permission_callback' => '__return_true',
+	) );
+}
+add_action( 'rest_api_init', __NAMESPACE__ . '\register_rest_route' );
+
+/**
+ * Handles the OAuth callback from Untappd.
+ *
+ * Receives the authorization code via the REST API endpoint,
+ * exchanges it for an access token, stores the token, and redirects
+ * to the settings page.
+ *
+ * @param \WP_REST_Request $request The REST request object.
+ * @return \WP_REST_Response|\WP_Error Response on failure, or redirect on success.
+ */
+function handle_callback( $request ) {
+	$code = $request->get_param( 'code' );
+
+	if ( ! $code ) {
+		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'missing_code', get_settings_url() ) );
+		exit;
 	}
 
 	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
+		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'unauthorized', get_settings_url() ) );
+		exit;
 	}
 
-	$code          = sanitize_text_field( wp_unslash( $_GET['code'] ) );
+	$code          = sanitize_text_field( $code );
 	$client_id     = get_option( 'beer-slurper-key' );
 	$client_secret = get_option( 'beer-slurper-secret' );
 
 	if ( ! $client_id || ! $client_secret ) {
-		return;
+		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'missing_credentials', get_settings_url() ) );
+		exit;
 	}
 
 	$token_url = add_query_arg(
@@ -88,7 +118,7 @@ function handle_callback() {
 
 	if ( is_wp_error( $response ) ) {
 		error_log( 'Beer Slurper OAuth: Token exchange failed - ' . $response->get_error_message() );
-		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'exchange_failed', get_redirect_url() ) );
+		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'exchange_failed', get_settings_url() ) );
 		exit;
 	}
 
@@ -97,16 +127,15 @@ function handle_callback() {
 
 	if ( ! is_array( $decoded ) || empty( $decoded['response']['access_token'] ) ) {
 		error_log( 'Beer Slurper OAuth: Invalid token response - ' . substr( $body, 0, 500 ) );
-		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'invalid_response', get_redirect_url() ) );
+		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'invalid_response', get_settings_url() ) );
 		exit;
 	}
 
 	update_option( 'beer-slurper-access-token', sanitize_text_field( $decoded['response']['access_token'] ) );
 
-	wp_safe_redirect( get_redirect_url() );
+	wp_safe_redirect( get_settings_url() );
 	exit;
 }
-add_action( 'admin_init', __NAMESPACE__ . '\handle_callback' );
 
 /**
  * Handles disconnecting the OAuth token.
@@ -131,7 +160,7 @@ function disconnect() {
 
 	delete_option( 'beer-slurper-access-token' );
 
-	wp_safe_redirect( get_redirect_url() );
+	wp_safe_redirect( get_settings_url() );
 	exit;
 }
 add_action( 'admin_init', __NAMESPACE__ . '\disconnect' );
