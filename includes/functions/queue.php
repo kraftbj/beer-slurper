@@ -200,6 +200,7 @@ function process_daily_maintenance() {
 	\Kraft\Beer_Slurper\Stats\refresh_user_stats();
 	\Kraft\Beer_Slurper\Brewery\backfill_missing_meta();
 	\Kraft\Beer_Slurper\Venue\backfill_missing_meta();
+	\Kraft\Beer_Slurper\Badge\backfill_missing_descriptions();
 }
 add_action( 'bs_daily_maintenance', __NAMESPACE__ . '\process_daily_maintenance' );
 

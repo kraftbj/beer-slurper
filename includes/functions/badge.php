@@ -165,3 +165,95 @@ function maybe_update_level( $term_id, $badge, $level ) {
 		update_term_meta( $term_id, 'badge_description', $badge['badge_description'] );
 	}
 }
+
+/**
+ * Backfills missing badge descriptions from the user/badges API endpoint.
+ *
+ * Checkin responses contain sparse badge data without descriptions.
+ * This fetches the authenticated user's full badge list and updates
+ * any badge terms missing a description.
+ *
+ * @return int Number of badge descriptions updated.
+ */
+function backfill_missing_descriptions() {
+	$terms = get_terms( array(
+		'taxonomy'   => BEER_SLURPER_TAX_BADGE,
+		'hide_empty' => false,
+		'meta_query' => array(
+			array(
+				'key'     => 'badge_description',
+				'compare' => 'NOT EXISTS',
+			),
+		),
+	) );
+
+	if ( empty( $terms ) || is_wp_error( $terms ) ) {
+		return 0;
+	}
+
+	// Build a slug-indexed lookup of terms needing descriptions.
+	$needed = array();
+	foreach ( $terms as $term ) {
+		$needed[ $term->slug ] = $term->term_id;
+	}
+
+	$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
+	if ( ! $user ) {
+		return 0;
+	}
+
+	$updated = 0;
+	$offset  = 0;
+	$limit   = 50;
+
+	// Paginate through the user's badges (max 5 pages to stay within rate limits).
+	for ( $page = 0; $page < 5; $page++ ) {
+		$args = array( 'offset' => $offset );
+		$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'user/badges', $user, $args );
+
+		if ( is_wp_error( $response ) || ! is_array( $response ) ) {
+			break;
+		}
+
+		// Handle both possible response structures.
+		$items = array();
+		if ( isset( $response['items'] ) ) {
+			$items = $response['items'];
+		} elseif ( isset( $response['badges']['items'] ) ) {
+			$items = $response['badges']['items'];
+		}
+
+		if ( empty( $items ) ) {
+			break;
+		}
+
+		foreach ( $items as $badge ) {
+			if ( empty( $badge['badge_description'] ) || empty( $badge['badge_name'] ) ) {
+				continue;
+			}
+
+			$parsed = parse_badge_name( $badge['badge_name'] );
+			$slug   = sanitize_title( $parsed['base_name'] );
+
+			if ( isset( $needed[ $slug ] ) ) {
+				update_term_meta( $needed[ $slug ], 'badge_description', $badge['badge_description'] );
+				unset( $needed[ $slug ] );
+				$updated++;
+			}
+		}
+
+		// Stop early if all missing descriptions have been filled.
+		if ( empty( $needed ) ) {
+			break;
+		}
+
+		$offset += $limit;
+
+		// If fewer items returned than the limit, we've reached the end.
+		if ( count( $items ) < $limit ) {
+			break;
+		}
+	}
+
+	return $updated;
+}
