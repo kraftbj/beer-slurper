@@ -70,6 +70,7 @@ if ( ! defined( 'BEER_SLURPER_TAX_BREWERY') ) {
 require_once BEER_SLURPER_INC . 'functions/core.php';
 require_once BEER_SLURPER_INC . 'functions/cpt.php';
 require_once BEER_SLURPER_INC . 'functions/brewery.php';
+require_once BEER_SLURPER_INC . 'functions/oauth.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';

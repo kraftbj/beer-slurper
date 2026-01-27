@@ -124,6 +124,9 @@ function setting_init() {
 	add_settings_field( 'beer-slurper-gallery', __( 'Auto-append Gallery', 'beer_slurper' ), $n( 'setting_gallery' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-gallery' ) );
 	register_setting( 'beer-slurper-settings', 'beer-slurper-gallery', 'boolval' );
 
+	// Untappd Connection section
+	add_settings_section( 'untappd_connection', __( 'Untappd Connection', 'beer_slurper' ), $n( 'oauth_section_callback' ), 'beer-slurper-settings' );
+
 	// Sync Status section
 	add_settings_section( 'sync_status_settings', __( 'Sync Status', 'beer_slurper' ), $n( 'sync_status_section_callback' ), 'beer-slurper-settings' );
 }
@@ -278,6 +281,71 @@ function setting_gallery() {
 	$html = '<input type="checkbox" id="beer-slurper-gallery" name="beer-slurper-gallery" value="1" ' . checked( $checked, true, false ) . ' />';
 	$html .= '<label for="beer-slurper-gallery">' . __( 'Automatically append [gallery] shortcode to beer posts', 'beer_slurper' ) . '</label>';
 	echo $html;
+}
+
+/**
+ * Renders the Untappd Connection section content.
+ *
+ * Displays the OAuth connection status, connect/disconnect buttons,
+ * and the redirect URL that must be registered in the Untappd app.
+ *
+ * @return void
+ */
+function oauth_section_callback() {
+	$connected      = \Kraft\Beer_Slurper\OAuth\is_connected();
+	$has_credentials = get_option( 'beer-slurper-key' ) && get_option( 'beer-slurper-secret' );
+	$redirect_url   = \Kraft\Beer_Slurper\OAuth\get_redirect_url();
+
+	?>
+	<div class="beer-slurper-oauth-status">
+		<p>
+			<strong><?php _e( 'Redirect URL:', 'beer_slurper' ); ?></strong><br />
+			<code><?php echo esc_html( $redirect_url ); ?></code><br />
+			<span class="description">
+				<?php _e( 'Enter this URL as the Callback URL in your Untappd app settings at', 'beer_slurper' ); ?>
+				<a href="https://untappd.com/api/dashboard" target="_blank">untappd.com/api/dashboard</a>.
+			</span>
+		</p>
+
+		<?php if ( $connected ) : ?>
+			<p class="beer-slurper-success">
+				<strong><?php _e( 'Status: Connected', 'beer_slurper' ); ?></strong>
+			</p>
+			<?php
+			$disconnect_url = wp_nonce_url(
+				add_query_arg(
+					array(
+						'page'                      => 'beer-slurper-settings',
+						'beer-slurper-disconnect'    => '1',
+					),
+					admin_url( 'options-general.php' )
+				),
+				'beer_slurper_disconnect'
+			);
+			?>
+			<a href="<?php echo esc_url( $disconnect_url ); ?>" class="button button-secondary">
+				<?php _e( 'Disconnect from Untappd', 'beer_slurper' ); ?>
+			</a>
+		<?php elseif ( $has_credentials ) : ?>
+			<p>
+				<strong><?php _e( 'Status: Not connected', 'beer_slurper' ); ?></strong>
+			</p>
+			<a href="<?php echo esc_url( \Kraft\Beer_Slurper\OAuth\get_authorize_url() ); ?>" class="button button-primary">
+				<?php _e( 'Connect with Untappd', 'beer_slurper' ); ?>
+			</a>
+		<?php else : ?>
+			<p>
+				<em><?php _e( 'Enter your Untappd API Key and Secret above, then save settings to enable OAuth connection.', 'beer_slurper' ); ?></em>
+			</p>
+		<?php endif; ?>
+
+		<?php if ( isset( $_GET['beer-slurper-oauth-error'] ) ) : ?>
+			<div class="beer-slurper-error" style="margin-top: 10px;">
+				<?php _e( 'OAuth connection failed. Please try again.', 'beer_slurper' ); ?>
+			</div>
+		<?php endif; ?>
+	</div>
+	<?php
 }
 
 /**

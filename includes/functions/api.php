@@ -51,13 +51,17 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 		return new \WP_Error( 'poor_form', __( "The args must be in an array.", "beer_slurper" ) );
 	}
 
-	if (! $untappd_key || ! $untappd_secret ){
+	$access_token = \Kraft\Beer_Slurper\OAuth\get_access_token();
+
+	if ( $access_token ) {
+		$args['access_token'] = $access_token;
+	} elseif ( $untappd_key && $untappd_secret ) {
+		$args['client_id']     = $untappd_key;
+		$args['client_secret'] = $untappd_secret;
+	} else {
 		error_log( 'Beer Slurper: API credentials missing' );
 		return new \WP_Error( 'lacking_creds', __( "Somehow, you got to this point without API creds.", "beer_slurper" ) );
 	}
-
-	$args['client_id']     = $untappd_key;
-	$args['client_secret'] = $untappd_secret;
 
 	$untappd_url = $untappd_url . $endpoint . '/' . $parameter;
 	$untappd_url = add_query_arg( $args, $untappd_url );
