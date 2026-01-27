@@ -166,6 +166,29 @@ function is_backfilling( $user ) {
 }
 
 /**
+ * Gets the total count of imported checkin comments.
+ *
+ * @return int Total number of beer_checkin comments.
+ */
+function get_total_checkins() {
+	global $wpdb;
+
+	return (int) $wpdb->get_var(
+		"SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_type = 'beer_checkin'"
+	);
+}
+
+/**
+ * Gets the total checkin count from the cached Untappd user stats.
+ *
+ * @return int Total checkins on Untappd, or 0 if not yet fetched.
+ */
+function get_untappd_total_checkins() {
+	$stats = \Kraft\Beer_Slurper\Stats\get_user_stats();
+	return isset( $stats['total_checkins'] ) ? (int) $stats['total_checkins'] : 0;
+}
+
+/**
  * Formats a relative time string from a timestamp.
  *
  * @param int $timestamp Unix timestamp.

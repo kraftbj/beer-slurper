@@ -291,6 +291,129 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	}
 
 	/**
+	 * Fetch all outstanding checkins and queue them for processing.
+	 *
+	 * Rapidly pages through the Untappd checkin history, spending API
+	 * budget on list fetches (1 call per 25 checkins) and queuing every
+	 * discovered checkin via Action Scheduler. Processing then happens
+	 * automatically over subsequent hours as budget allows.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--pages=<number>]
+	 * : Maximum pages to fetch (25 checkins each). Default: all remaining.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp beer-slurper prime-queue
+	 *     wp beer-slurper prime-queue --pages=10
+	 *
+	 * @subcommand prime-queue
+	 */
+	public function prime_queue( $args, $assoc_args ) {
+		$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
+
+		if ( ! $user ) {
+			\WP_CLI::error( 'No Untappd user configured. Connect via OAuth first.' );
+		}
+
+		$max_pages = isset( $assoc_args['pages'] ) ? (int) $assoc_args['pages'] : 0;
+		$is_backfilling = \Kraft\Beer_Slurper\Sync_Status\is_backfilling( $user );
+
+		if ( ! $is_backfilling ) {
+			\WP_CLI::log( 'Not currently backfilling — fetching new checkins only.' );
+			$result = \Kraft\Beer_Slurper\Walker\import_new( $user );
+			\WP_CLI::log( is_wp_error( $result ) ? $result->get_error_message() : $result );
+			\WP_CLI::success( 'Done.' );
+			return;
+		}
+
+		\WP_CLI::log( "Fetching historical checkins for {$user}..." );
+
+		$total_fetched = 0;
+		$total_queued  = 0;
+		$page          = 0;
+
+		while ( true ) {
+			$page++;
+
+			if ( $max_pages > 0 && $page > $max_pages ) {
+				\WP_CLI::log( "Reached --pages limit ({$max_pages})." );
+				break;
+			}
+
+			// Each page costs 1 API call to fetch the list.
+			if ( ! \Kraft\Beer_Slurper\Queue\has_budget( 1 ) ) {
+				\WP_CLI::warning( 'API budget exhausted. Run again after the rate limit resets.' );
+				break;
+			}
+
+			$max_id = get_option( 'beer_slurper_' . $user . '_max' );
+			$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, $max_id, null, '25' );
+
+			if ( is_wp_error( $checkins ) ) {
+				\WP_CLI::warning( 'API error: ' . $checkins->get_error_message() );
+				break;
+			}
+
+			if ( ! is_array( $checkins ) || ! isset( $checkins['checkins']['items'] ) || empty( $checkins['checkins']['items'] ) ) {
+				\WP_CLI::log( 'No more checkins to fetch.' );
+				delete_option( 'beer_slurper_' . $user . '_import' );
+				break;
+			}
+
+			$items = $checkins['checkins']['items'];
+			$count = count( $items );
+			$total_fetched += $count;
+
+			// Update pagination cursor.
+			$max_id = $checkins['pagination']['max_id'];
+			update_option( 'beer_slurper_' . $user . '_max', $max_id, false );
+
+			if ( ! get_option( 'beer_slurper_' . $user . '_since' ) ) {
+				$since_url = wp_parse_args( parse_url( $checkins['pagination']['since_url'], PHP_URL_QUERY ) );
+				$since_id = intval( $since_url['min_id'] );
+				update_option( 'beer_slurper_' . $user . '_since', $since_id, false );
+			}
+
+			// Queue for processing.
+			$queued = \Kraft\Beer_Slurper\Queue\queue_checkin_batch( $items, 'import_old' );
+			$total_queued += $queued;
+
+			\WP_CLI::log( sprintf(
+				'Page %d: fetched %d checkins, queued %d (%d fetched / %d queued total)',
+				$page,
+				$count,
+				$queued,
+				$total_fetched,
+				$total_queued
+			) );
+
+			// End of history?
+			if ( $count < 25 ) {
+				\WP_CLI::log( 'Reached end of checkin history.' );
+				delete_option( 'beer_slurper_' . $user . '_import' );
+				break;
+			}
+		}
+
+		// Also fetch new checkins if we have a since_id.
+		if ( get_option( 'beer_slurper_' . $user . '_since' ) && \Kraft\Beer_Slurper\Queue\has_budget( 1 ) ) {
+			$result = \Kraft\Beer_Slurper\Walker\import_new( $user );
+			if ( ! is_wp_error( $result ) ) {
+				\WP_CLI::log( $result );
+			}
+		}
+
+		\WP_CLI::success( sprintf(
+			'Fetched %d checkins across %d pages, %d queued for processing.',
+			$total_fetched,
+			$page,
+			$total_queued
+		) );
+	}
+
+	/**
 	 * Trigger a sync immediately.
 	 *
 	 * ## EXAMPLES

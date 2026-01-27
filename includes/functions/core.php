@@ -369,6 +369,8 @@ function sync_status_section_callback() {
 	$total_beers = \Kraft\Beer_Slurper\Sync_Status\get_total_beers();
 	$total_pictures = \Kraft\Beer_Slurper\Sync_Status\get_total_pictures();
 	$total_breweries = \Kraft\Beer_Slurper\Sync_Status\get_total_breweries();
+	$local_checkins = \Kraft\Beer_Slurper\Sync_Status\get_total_checkins();
+	$untappd_checkins = \Kraft\Beer_Slurper\Sync_Status\get_untappd_total_checkins();
 
 	?>
 	<style>
@@ -404,7 +406,26 @@ function sync_status_section_callback() {
 				<?php if ( ! $user ) : ?>
 					<em><?php _e( 'No user configured', 'beer_slurper' ); ?></em>
 				<?php elseif ( $is_backfilling ) : ?>
-					<span class="beer-slurper-backfilling"><?php _e( 'Backfilling historical data...', 'beer_slurper' ); ?></span>
+					<span class="beer-slurper-backfilling">
+						<?php
+						if ( $untappd_checkins > 0 ) {
+							$pct = min( 100, round( ( $local_checkins / $untappd_checkins ) * 100 ) );
+							printf(
+								/* translators: 1: local count, 2: untappd total, 3: percentage */
+								__( 'Backfilling — %1$s of %2$s checkins (%3$s%%)', 'beer_slurper' ),
+								number_format_i18n( $local_checkins ),
+								number_format_i18n( $untappd_checkins ),
+								$pct
+							);
+						} else {
+							printf(
+								/* translators: %s: local checkin count */
+								__( 'Backfilling — %s checkins imported so far', 'beer_slurper' ),
+								number_format_i18n( $local_checkins )
+							);
+						}
+						?>
+					</span>
 				<?php else : ?>
 					<span class="beer-slurper-success"><?php _e( 'Caught up', 'beer_slurper' ); ?></span>
 				<?php endif; ?>
@@ -480,6 +501,17 @@ function sync_status_section_callback() {
 				<tr>
 					<td><?php _e( 'Total Breweries', 'beer_slurper' ); ?></td>
 					<td><?php echo number_format_i18n( $total_breweries ); ?></td>
+				</tr>
+				<tr>
+					<td><?php _e( 'Total Checkins', 'beer_slurper' ); ?></td>
+					<td>
+						<?php
+						echo number_format_i18n( $local_checkins );
+						if ( $untappd_checkins > 0 ) {
+							printf( ' / %s', number_format_i18n( $untappd_checkins ) );
+						}
+						?>
+					</td>
 				</tr>
 			</tbody>
 		</table>
