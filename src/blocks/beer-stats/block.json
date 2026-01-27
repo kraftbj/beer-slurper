@@ -1,0 +1,16 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "beer-slurper/beer-stats",
+	"version": "0.1.0",
+	"title": "Beer Stats",
+	"category": "widgets",
+	"description": "Displays Untappd user stats and local site statistics.",
+	"textdomain": "beer_slurper",
+	"editorScript": "file:./index.js",
+	"render": "file:./render.php",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	}
+}

@@ -1,0 +1,26 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "beer-slurper/badge-wall",
+	"version": "0.1.0",
+	"title": "Badge Wall",
+	"category": "widgets",
+	"description": "Displays a grid of earned Untappd badges.",
+	"textdomain": "beer_slurper",
+	"editorScript": "file:./index.js",
+	"render": "file:./render.php",
+	"attributes": {
+		"columns": {
+			"type": "number",
+			"default": 4
+		},
+		"limit": {
+			"type": "number",
+			"default": 0
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	}
+}

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Beer Slurper 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/beer-slurper\n"
-"POT-Creation-Date: 2026-01-27 18:22:06+00:00\n"
+"POT-Creation-Date: 2026-01-27 18:47:24+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -12,6 +12,62 @@ msgstr ""
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "X-Generator: grunt-wp-i18n 1.0.4\n"
+
+#: build/badge-wall/render.php:27 src/blocks/badge-wall/render.php:27
+msgid "No badges earned yet. Start checking in beers to earn badges!"
+msgstr ""
+
+#: build/beer-stats/render.php:18 src/blocks/beer-stats/render.php:18
+msgid "User avatar"
+msgstr ""
+
+#: build/beer-stats/render.php:23 src/blocks/beer-stats/render.php:23
+msgid "Untappd Stats"
+msgstr ""
+
+#: build/beer-stats/render.php:27 src/blocks/beer-stats/render.php:27
+msgid "Total Checkins"
+msgstr ""
+
+#: build/beer-stats/render.php:34 src/blocks/beer-stats/render.php:34
+msgid "Unique Beers"
+msgstr ""
+
+#: build/beer-stats/render.php:41 src/blocks/beer-stats/render.php:41
+msgid "Badges Earned"
+msgstr ""
+
+#: build/beer-stats/render.php:48 src/blocks/beer-stats/render.php:48
+msgid "Friends"
+msgstr ""
+
+#: build/beer-stats/render.php:54 src/blocks/beer-stats/render.php:54
+msgid "Site Stats"
+msgstr ""
+
+#: build/beer-stats/render.php:57 src/blocks/beer-stats/render.php:57
+msgid "Imported Beers"
+msgstr ""
+
+#: build/beer-stats/render.php:61 src/blocks/beer-stats/render.php:61
+msgid "Pictures"
+msgstr ""
+
+#: build/beer-stats/render.php:65 includes/functions/cpt.php:108
+#: release/0.1.0/includes/functions/cpt.php:105
+#: src/blocks/beer-stats/render.php:65
+msgid "Breweries"
+msgstr ""
+
+#: build/beer-stats/render.php:72 src/blocks/beer-stats/render.php:72
+msgid "No stats available yet. Connect to Untappd and run a sync to see your stats."
+msgstr ""
+
+#: build/venue-map/render.php:65 src/blocks/venue-map/render.php:65
+msgid ""
+"No venues with location data found. Check in at some venues to see them on "
+"the map."
+msgstr ""
 
 #: includes/functions/api.php:51 release/0.1.0/includes/functions/api.php:51
 msgid "The args must be in an array."
@@ -45,460 +101,567 @@ msgstr ""
 msgid "The specified endpoint is not on the shortlist."
 msgstr ""
 
+#: includes/functions/badge.php:58
+msgid "Invalid badge data."
+msgstr ""
+
 #: includes/functions/brewery.php:86 includes/functions/brewery.php:92
 #: release/0.1.0/includes/functions/brewery.php:86
 #: release/0.1.0/includes/functions/brewery.php:92
 msgid "Invalid brewery data from API."
 msgstr ""
 
-#: includes/functions/core.php:115
+#: includes/functions/core.php:117
 #: release/0.1.0/includes/functions/core.php:115
 msgid "Untappd Key"
 msgstr ""
 
-#: includes/functions/core.php:118
+#: includes/functions/core.php:120
 #: release/0.1.0/includes/functions/core.php:118
 msgid "Untappd Secret"
 msgstr ""
 
-#: includes/functions/core.php:121
-#: release/0.1.0/includes/functions/core.php:124
+#: includes/functions/core.php:123
+#: release/0.1.0/includes/functions/core.php:121
 msgid "Auto-append Gallery"
 msgstr ""
 
-#: includes/functions/core.php:125
-#: release/0.1.0/includes/functions/core.php:128
+#: includes/functions/core.php:127
+#: release/0.1.0/includes/functions/core.php:125
 msgid "Untappd Connection"
 msgstr ""
 
-#: includes/functions/core.php:128 includes/functions/core.php:394
-#: release/0.1.0/includes/functions/core.php:131
-#: release/0.1.0/includes/functions/core.php:409
+#: includes/functions/core.php:130 includes/functions/core.php:396
+#: release/0.1.0/includes/functions/core.php:128
+#: release/0.1.0/includes/functions/core.php:394
 msgid "Sync Status"
 msgstr ""
 
-#: includes/functions/core.php:182
-#: release/0.1.0/includes/functions/core.php:185
+#: includes/functions/core.php:184
+#: release/0.1.0/includes/functions/core.php:182
 msgid "Beer Slurper Settings"
 msgstr ""
 
-#: includes/functions/core.php:207 includes/functions/core.php:231
-#: release/0.1.0/includes/functions/core.php:210
-#: release/0.1.0/includes/functions/core.php:234
-#: release/0.1.0/includes/functions/core.php:258
+#: includes/functions/core.php:209 includes/functions/core.php:233
+#: release/0.1.0/includes/functions/core.php:207
+#: release/0.1.0/includes/functions/core.php:231
 msgid "This setting has been set via code and must be changed there."
 msgstr ""
 
-#: includes/functions/core.php:254
-#: release/0.1.0/includes/functions/core.php:282
+#: includes/functions/core.php:256
+#: release/0.1.0/includes/functions/core.php:254
 msgid "Automatically append [gallery] shortcode to beer posts"
 msgstr ""
 
-#: includes/functions/core.php:275
-#: release/0.1.0/includes/functions/core.php:302
+#: includes/functions/core.php:277
+#: release/0.1.0/includes/functions/core.php:275
 msgid "Redirect URL:"
 msgstr ""
 
-#: includes/functions/core.php:278
-#: release/0.1.0/includes/functions/core.php:305
+#: includes/functions/core.php:280
+#: release/0.1.0/includes/functions/core.php:278
 msgid "Enter this URL as the Callback URL in your Untappd app settings at"
 msgstr ""
 
-#: includes/functions/core.php:290
+#: includes/functions/core.php:292
+#: release/0.1.0/includes/functions/core.php:290
 #. translators: %s: Untappd username
 msgid "Status: Connected as %s"
 msgstr ""
 
-#: includes/functions/core.php:294
-#: release/0.1.0/includes/functions/core.php:312
+#: includes/functions/core.php:296
+#: release/0.1.0/includes/functions/core.php:294
 msgid "Status: Connected"
 msgstr ""
 
-#: includes/functions/core.php:312
-#: release/0.1.0/includes/functions/core.php:327
+#: includes/functions/core.php:314
+#: release/0.1.0/includes/functions/core.php:312
 msgid "Disconnect from Untappd"
 msgstr ""
 
-#: includes/functions/core.php:316
-#: release/0.1.0/includes/functions/core.php:331
+#: includes/functions/core.php:318
+#: release/0.1.0/includes/functions/core.php:316
 msgid "Status: Not connected"
 msgstr ""
 
-#: includes/functions/core.php:319
-#: release/0.1.0/includes/functions/core.php:334
+#: includes/functions/core.php:321
+#: release/0.1.0/includes/functions/core.php:319
 msgid "Connect with Untappd"
 msgstr ""
 
-#: includes/functions/core.php:323
-#: release/0.1.0/includes/functions/core.php:338
+#: includes/functions/core.php:325
+#: release/0.1.0/includes/functions/core.php:323
 msgid ""
 "Enter your Untappd API Key and Secret above, then save settings to enable "
 "OAuth connection."
 msgstr ""
 
-#: includes/functions/core.php:329
-#: release/0.1.0/includes/functions/core.php:344
+#: includes/functions/core.php:331
+#: release/0.1.0/includes/functions/core.php:329
 msgid "OAuth connection failed. Please try again."
 msgstr ""
 
-#: includes/functions/core.php:385
-#: release/0.1.0/includes/functions/core.php:400
+#: includes/functions/core.php:387
+#: release/0.1.0/includes/functions/core.php:385
 msgid "Untappd User"
 msgstr ""
 
-#: includes/functions/core.php:390
-#: release/0.1.0/includes/functions/core.php:405
+#: includes/functions/core.php:392
+#: release/0.1.0/includes/functions/core.php:390
 msgid "Not configured"
 msgstr ""
 
-#: includes/functions/core.php:397
-#: release/0.1.0/includes/functions/core.php:412
+#: includes/functions/core.php:399
+#: release/0.1.0/includes/functions/core.php:397
 msgid "No user configured"
 msgstr ""
 
-#: includes/functions/core.php:399
-#: release/0.1.0/includes/functions/core.php:414
+#: includes/functions/core.php:401
+#: release/0.1.0/includes/functions/core.php:399
 msgid "Backfilling historical data..."
 msgstr ""
 
-#: includes/functions/core.php:401
-#: release/0.1.0/includes/functions/core.php:416
+#: includes/functions/core.php:403
+#: release/0.1.0/includes/functions/core.php:401
 msgid "Caught up"
 msgstr ""
 
-#: includes/functions/core.php:405
-#: release/0.1.0/includes/functions/core.php:420
+#: includes/functions/core.php:407
+#: release/0.1.0/includes/functions/core.php:405
 msgid "Last Sync"
 msgstr ""
 
-#: includes/functions/core.php:416
-#: release/0.1.0/includes/functions/core.php:431
+#: includes/functions/core.php:418
+#: release/0.1.0/includes/functions/core.php:416
 msgid "Never"
 msgstr ""
 
-#: includes/functions/core.php:421
-#: release/0.1.0/includes/functions/core.php:436
+#: includes/functions/core.php:423
+#: release/0.1.0/includes/functions/core.php:421
 msgid "Last Error"
 msgstr ""
 
-#: includes/functions/core.php:430
-#: release/0.1.0/includes/functions/core.php:445
+#: includes/functions/core.php:432
+#: release/0.1.0/includes/functions/core.php:430
 msgid "Next Scheduled Sync"
 msgstr ""
 
-#: includes/functions/core.php:444
-#: release/0.1.0/includes/functions/core.php:459
+#: includes/functions/core.php:446
+#: release/0.1.0/includes/functions/core.php:444
 #. translators: %s: function name
 msgid "Cron not scheduled. Run %s or check WP-Cron configuration."
 msgstr ""
 
-#: includes/functions/core.php:450
-#: release/0.1.0/includes/functions/core.php:465
+#: includes/functions/core.php:452
+#: release/0.1.0/includes/functions/core.php:450
 msgid "N/A - No user configured"
 msgstr ""
 
-#: includes/functions/core.php:455
-#: release/0.1.0/includes/functions/core.php:470
+#: includes/functions/core.php:457
+#: release/0.1.0/includes/functions/core.php:455
 msgid "Statistics"
 msgstr ""
 
-#: includes/functions/core.php:459
-#: release/0.1.0/includes/functions/core.php:474
+#: includes/functions/core.php:461
+#: release/0.1.0/includes/functions/core.php:459
 msgid "Metric"
 msgstr ""
 
-#: includes/functions/core.php:460
-#: release/0.1.0/includes/functions/core.php:475
+#: includes/functions/core.php:462
+#: release/0.1.0/includes/functions/core.php:460
 msgid "Count"
 msgstr ""
 
-#: includes/functions/core.php:465
-#: release/0.1.0/includes/functions/core.php:480
+#: includes/functions/core.php:467
+#: release/0.1.0/includes/functions/core.php:465
 msgid "Total Beers"
 msgstr ""
 
-#: includes/functions/core.php:469
-#: release/0.1.0/includes/functions/core.php:484
+#: includes/functions/core.php:471
+#: release/0.1.0/includes/functions/core.php:469
 msgid "Total Pictures"
 msgstr ""
 
-#: includes/functions/core.php:473
-#: release/0.1.0/includes/functions/core.php:488
+#: includes/functions/core.php:475
+#: release/0.1.0/includes/functions/core.php:473
 msgid "Total Breweries"
 msgstr ""
 
-#: includes/functions/core.php:481
-#: release/0.1.0/includes/functions/core.php:496
+#: includes/functions/core.php:483
+#: release/0.1.0/includes/functions/core.php:481
 msgid "Sync Now"
 msgstr ""
 
-#: includes/functions/core.php:526
-#: release/0.1.0/includes/functions/core.php:541
+#: includes/functions/core.php:528
+#: release/0.1.0/includes/functions/core.php:526
 msgid "Syncing..."
 msgstr ""
 
-#: includes/functions/core.php:527
-#: release/0.1.0/includes/functions/core.php:542
+#: includes/functions/core.php:529
+#: release/0.1.0/includes/functions/core.php:527
 msgid "Sync complete!"
 msgstr ""
 
-#: includes/functions/core.php:528
-#: release/0.1.0/includes/functions/core.php:543
+#: includes/functions/core.php:530
+#: release/0.1.0/includes/functions/core.php:528
 msgid "Sync failed:"
 msgstr ""
 
-#: includes/functions/core.php:553
-#: release/0.1.0/includes/functions/core.php:568
+#: includes/functions/core.php:555
+#: release/0.1.0/includes/functions/core.php:553
 msgid "You do not have permission to perform this action."
 msgstr ""
 
-#: includes/functions/core.php:561
-#: release/0.1.0/includes/functions/core.php:576
+#: includes/functions/core.php:563
+#: release/0.1.0/includes/functions/core.php:561
 msgid "No Untappd user configured."
 msgstr ""
 
-#: includes/functions/core.php:576
-#: release/0.1.0/includes/functions/core.php:591
+#: includes/functions/core.php:578
+#: release/0.1.0/includes/functions/core.php:576
 msgid "Sync completed successfully."
 msgstr ""
 
-#: includes/functions/cpt.php:34 includes/functions/cpt.php:35
+#: includes/functions/cpt.php:36 includes/functions/cpt.php:37
 #: release/0.1.0/includes/functions/cpt.php:34
 #: release/0.1.0/includes/functions/cpt.php:35
 msgid "Beers"
 msgstr ""
 
-#: includes/functions/cpt.php:36 release/0.1.0/includes/functions/cpt.php:36
+#: includes/functions/cpt.php:38 release/0.1.0/includes/functions/cpt.php:36
 msgid "Beer Archives"
 msgstr ""
 
-#: includes/functions/cpt.php:37 release/0.1.0/includes/functions/cpt.php:37
+#: includes/functions/cpt.php:39 release/0.1.0/includes/functions/cpt.php:37
 msgid "Parent Item:"
 msgstr ""
 
-#: includes/functions/cpt.php:38 release/0.1.0/includes/functions/cpt.php:38
+#: includes/functions/cpt.php:40 release/0.1.0/includes/functions/cpt.php:38
 msgid "All Beers"
 msgstr ""
 
-#: includes/functions/cpt.php:39 release/0.1.0/includes/functions/cpt.php:39
+#: includes/functions/cpt.php:41 release/0.1.0/includes/functions/cpt.php:39
 msgid "Add New Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:40 release/0.1.0/includes/functions/cpt.php:40
+#: includes/functions/cpt.php:42 release/0.1.0/includes/functions/cpt.php:40
 msgid "Add New"
 msgstr ""
 
-#: includes/functions/cpt.php:41 release/0.1.0/includes/functions/cpt.php:41
+#: includes/functions/cpt.php:43 release/0.1.0/includes/functions/cpt.php:41
 msgid "New Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:42 release/0.1.0/includes/functions/cpt.php:42
+#: includes/functions/cpt.php:44 release/0.1.0/includes/functions/cpt.php:42
 msgid "Edit Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:43 release/0.1.0/includes/functions/cpt.php:43
+#: includes/functions/cpt.php:45 release/0.1.0/includes/functions/cpt.php:43
 msgid "Update Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:44 release/0.1.0/includes/functions/cpt.php:44
+#: includes/functions/cpt.php:46 release/0.1.0/includes/functions/cpt.php:44
 msgid "View Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:45 release/0.1.0/includes/functions/cpt.php:45
+#: includes/functions/cpt.php:47 release/0.1.0/includes/functions/cpt.php:45
 msgid "Search Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:46 release/0.1.0/includes/functions/cpt.php:46
+#: includes/functions/cpt.php:48 release/0.1.0/includes/functions/cpt.php:46
 msgid "Not found"
 msgstr ""
 
-#: includes/functions/cpt.php:47 release/0.1.0/includes/functions/cpt.php:47
+#: includes/functions/cpt.php:49 release/0.1.0/includes/functions/cpt.php:47
 msgid "Not found in Trash"
 msgstr ""
 
-#: includes/functions/cpt.php:48 release/0.1.0/includes/functions/cpt.php:48
+#: includes/functions/cpt.php:50 release/0.1.0/includes/functions/cpt.php:48
 msgid "Beer Image"
 msgstr ""
 
-#: includes/functions/cpt.php:49 release/0.1.0/includes/functions/cpt.php:49
+#: includes/functions/cpt.php:51 release/0.1.0/includes/functions/cpt.php:49
 msgid "Set beer image"
 msgstr ""
 
-#: includes/functions/cpt.php:50 release/0.1.0/includes/functions/cpt.php:50
+#: includes/functions/cpt.php:52 release/0.1.0/includes/functions/cpt.php:50
 msgid "Remove beer image"
 msgstr ""
 
-#: includes/functions/cpt.php:51 release/0.1.0/includes/functions/cpt.php:51
+#: includes/functions/cpt.php:53 release/0.1.0/includes/functions/cpt.php:51
 msgid "Use as featured image"
 msgstr ""
 
-#: includes/functions/cpt.php:52 release/0.1.0/includes/functions/cpt.php:52
+#: includes/functions/cpt.php:54 release/0.1.0/includes/functions/cpt.php:52
 msgid "Insert into beer"
 msgstr ""
 
-#: includes/functions/cpt.php:53 release/0.1.0/includes/functions/cpt.php:53
+#: includes/functions/cpt.php:55 release/0.1.0/includes/functions/cpt.php:53
 msgid "Uploaded to this beer"
 msgstr ""
 
-#: includes/functions/cpt.php:54 release/0.1.0/includes/functions/cpt.php:54
+#: includes/functions/cpt.php:56 release/0.1.0/includes/functions/cpt.php:54
 msgid "Beers list"
 msgstr ""
 
-#: includes/functions/cpt.php:55 release/0.1.0/includes/functions/cpt.php:55
+#: includes/functions/cpt.php:57 release/0.1.0/includes/functions/cpt.php:55
 msgid "Beers list navigation"
 msgstr ""
 
-#: includes/functions/cpt.php:56 release/0.1.0/includes/functions/cpt.php:56
+#: includes/functions/cpt.php:58 release/0.1.0/includes/functions/cpt.php:56
 msgid "Filter beers list"
 msgstr ""
 
-#: includes/functions/cpt.php:65 release/0.1.0/includes/functions/cpt.php:65
+#: includes/functions/cpt.php:67 release/0.1.0/includes/functions/cpt.php:65
 msgid "Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:66 release/0.1.0/includes/functions/cpt.php:66
+#: includes/functions/cpt.php:68 release/0.1.0/includes/functions/cpt.php:66
 msgid "Individual beers"
 msgstr ""
 
-#: includes/functions/cpt.php:105 release/0.1.0/includes/functions/cpt.php:105
-msgid "Breweries"
-msgstr ""
-
-#: includes/functions/cpt.php:106 release/0.1.0/includes/functions/cpt.php:106
+#: includes/functions/cpt.php:109 release/0.1.0/includes/functions/cpt.php:106
 msgid "All Breweries"
 msgstr ""
 
-#: includes/functions/cpt.php:107 release/0.1.0/includes/functions/cpt.php:107
+#: includes/functions/cpt.php:110 release/0.1.0/includes/functions/cpt.php:107
 msgid "Parent Brewery"
 msgstr ""
 
-#: includes/functions/cpt.php:108 release/0.1.0/includes/functions/cpt.php:108
+#: includes/functions/cpt.php:111 release/0.1.0/includes/functions/cpt.php:108
 msgid "Parent Brewery:"
 msgstr ""
 
-#: includes/functions/cpt.php:109 release/0.1.0/includes/functions/cpt.php:109
+#: includes/functions/cpt.php:112 release/0.1.0/includes/functions/cpt.php:109
 msgid "New Brewery Name"
 msgstr ""
 
-#: includes/functions/cpt.php:110 release/0.1.0/includes/functions/cpt.php:110
+#: includes/functions/cpt.php:113 release/0.1.0/includes/functions/cpt.php:110
 msgid "Add New Brewery"
 msgstr ""
 
-#: includes/functions/cpt.php:111 release/0.1.0/includes/functions/cpt.php:111
+#: includes/functions/cpt.php:114 release/0.1.0/includes/functions/cpt.php:111
 msgid "Edit Brewery"
 msgstr ""
 
-#: includes/functions/cpt.php:112 release/0.1.0/includes/functions/cpt.php:112
+#: includes/functions/cpt.php:115 release/0.1.0/includes/functions/cpt.php:112
 msgid "Update Brewery"
 msgstr ""
 
-#: includes/functions/cpt.php:113 release/0.1.0/includes/functions/cpt.php:113
+#: includes/functions/cpt.php:116 release/0.1.0/includes/functions/cpt.php:113
 msgid "View Brewery"
 msgstr ""
 
-#: includes/functions/cpt.php:114 includes/functions/cpt.php:170
+#: includes/functions/cpt.php:117 includes/functions/cpt.php:174
+#: includes/functions/cpt.php:223 includes/functions/cpt.php:272
 #: release/0.1.0/includes/functions/cpt.php:114
 #: release/0.1.0/includes/functions/cpt.php:170
 msgid "Separate items with commas"
 msgstr ""
 
-#: includes/functions/cpt.php:115 release/0.1.0/includes/functions/cpt.php:115
+#: includes/functions/cpt.php:118 release/0.1.0/includes/functions/cpt.php:115
 msgid "Add or remove breweries"
 msgstr ""
 
-#: includes/functions/cpt.php:116 includes/functions/cpt.php:172
+#: includes/functions/cpt.php:119 includes/functions/cpt.php:176
+#: includes/functions/cpt.php:225 includes/functions/cpt.php:274
 #: release/0.1.0/includes/functions/cpt.php:116
 #: release/0.1.0/includes/functions/cpt.php:172
 msgid "Choose from the most used"
 msgstr ""
 
-#: includes/functions/cpt.php:117 release/0.1.0/includes/functions/cpt.php:117
+#: includes/functions/cpt.php:120 release/0.1.0/includes/functions/cpt.php:117
 msgid "Popular Breweries"
 msgstr ""
 
-#: includes/functions/cpt.php:118 release/0.1.0/includes/functions/cpt.php:118
+#: includes/functions/cpt.php:121 release/0.1.0/includes/functions/cpt.php:118
 msgid "Search Breweries"
 msgstr ""
 
-#: includes/functions/cpt.php:119 includes/functions/cpt.php:175
+#: includes/functions/cpt.php:122 includes/functions/cpt.php:179
+#: includes/functions/cpt.php:228 includes/functions/cpt.php:277
 #: release/0.1.0/includes/functions/cpt.php:119
 #: release/0.1.0/includes/functions/cpt.php:175
 msgid "Not Found"
 msgstr ""
 
-#: includes/functions/cpt.php:120 release/0.1.0/includes/functions/cpt.php:120
+#: includes/functions/cpt.php:123 release/0.1.0/includes/functions/cpt.php:120
 msgid "No breweries"
 msgstr ""
 
-#: includes/functions/cpt.php:121 release/0.1.0/includes/functions/cpt.php:121
+#: includes/functions/cpt.php:124 release/0.1.0/includes/functions/cpt.php:121
 msgid "Breweries list"
 msgstr ""
 
-#: includes/functions/cpt.php:122 release/0.1.0/includes/functions/cpt.php:122
+#: includes/functions/cpt.php:125 release/0.1.0/includes/functions/cpt.php:122
 msgid "Breweries list navigation"
 msgstr ""
 
-#: includes/functions/cpt.php:161 release/0.1.0/includes/functions/cpt.php:161
+#: includes/functions/cpt.php:165 release/0.1.0/includes/functions/cpt.php:161
 msgid "Styles"
 msgstr ""
 
-#: includes/functions/cpt.php:162 release/0.1.0/includes/functions/cpt.php:162
+#: includes/functions/cpt.php:166 release/0.1.0/includes/functions/cpt.php:162
 msgid "All Styles"
 msgstr ""
 
-#: includes/functions/cpt.php:163 release/0.1.0/includes/functions/cpt.php:163
+#: includes/functions/cpt.php:167 release/0.1.0/includes/functions/cpt.php:163
 msgid "Parent Style"
 msgstr ""
 
-#: includes/functions/cpt.php:164 release/0.1.0/includes/functions/cpt.php:164
+#: includes/functions/cpt.php:168 release/0.1.0/includes/functions/cpt.php:164
 msgid "Parent Style:"
 msgstr ""
 
-#: includes/functions/cpt.php:165 release/0.1.0/includes/functions/cpt.php:165
+#: includes/functions/cpt.php:169 release/0.1.0/includes/functions/cpt.php:165
 msgid "New Style Name"
 msgstr ""
 
-#: includes/functions/cpt.php:166 release/0.1.0/includes/functions/cpt.php:166
+#: includes/functions/cpt.php:170 release/0.1.0/includes/functions/cpt.php:166
 msgid "Add New Style"
 msgstr ""
 
-#: includes/functions/cpt.php:167 release/0.1.0/includes/functions/cpt.php:167
+#: includes/functions/cpt.php:171 release/0.1.0/includes/functions/cpt.php:167
 msgid "Edit Style"
 msgstr ""
 
-#: includes/functions/cpt.php:168 release/0.1.0/includes/functions/cpt.php:168
+#: includes/functions/cpt.php:172 release/0.1.0/includes/functions/cpt.php:168
 msgid "Update Style"
 msgstr ""
 
-#: includes/functions/cpt.php:169 release/0.1.0/includes/functions/cpt.php:169
+#: includes/functions/cpt.php:173 release/0.1.0/includes/functions/cpt.php:169
 msgid "View Style"
 msgstr ""
 
-#: includes/functions/cpt.php:171 release/0.1.0/includes/functions/cpt.php:171
+#: includes/functions/cpt.php:175 release/0.1.0/includes/functions/cpt.php:171
 msgid "Add or removes styles"
 msgstr ""
 
-#: includes/functions/cpt.php:173 release/0.1.0/includes/functions/cpt.php:173
+#: includes/functions/cpt.php:177 release/0.1.0/includes/functions/cpt.php:173
 msgid "Popular Styles"
 msgstr ""
 
-#: includes/functions/cpt.php:174 release/0.1.0/includes/functions/cpt.php:174
+#: includes/functions/cpt.php:178 release/0.1.0/includes/functions/cpt.php:174
 msgid "Search Styles"
 msgstr ""
 
-#: includes/functions/cpt.php:176 release/0.1.0/includes/functions/cpt.php:176
+#: includes/functions/cpt.php:180 release/0.1.0/includes/functions/cpt.php:176
 msgid "No styles"
 msgstr ""
 
-#: includes/functions/cpt.php:177 release/0.1.0/includes/functions/cpt.php:177
+#: includes/functions/cpt.php:181 release/0.1.0/includes/functions/cpt.php:177
 msgid "Styles list"
 msgstr ""
 
-#: includes/functions/cpt.php:178 release/0.1.0/includes/functions/cpt.php:178
+#: includes/functions/cpt.php:182 release/0.1.0/includes/functions/cpt.php:178
 msgid "Styles list navigation"
 msgstr ""
 
-#: includes/functions/post.php:42 includes/functions/post.php:157
+#: includes/functions/cpt.php:216
+msgid "Venues"
+msgstr ""
+
+#: includes/functions/cpt.php:217
+msgid "All Venues"
+msgstr ""
+
+#: includes/functions/cpt.php:218
+msgid "New Venue Name"
+msgstr ""
+
+#: includes/functions/cpt.php:219
+msgid "Add New Venue"
+msgstr ""
+
+#: includes/functions/cpt.php:220
+msgid "Edit Venue"
+msgstr ""
+
+#: includes/functions/cpt.php:221
+msgid "Update Venue"
+msgstr ""
+
+#: includes/functions/cpt.php:222
+msgid "View Venue"
+msgstr ""
+
+#: includes/functions/cpt.php:224
+msgid "Add or remove venues"
+msgstr ""
+
+#: includes/functions/cpt.php:226
+msgid "Popular Venues"
+msgstr ""
+
+#: includes/functions/cpt.php:227
+msgid "Search Venues"
+msgstr ""
+
+#: includes/functions/cpt.php:229
+msgid "No venues"
+msgstr ""
+
+#: includes/functions/cpt.php:230
+msgid "Venues list"
+msgstr ""
+
+#: includes/functions/cpt.php:231
+msgid "Venues list navigation"
+msgstr ""
+
+#: includes/functions/cpt.php:265
+msgid "Badges"
+msgstr ""
+
+#: includes/functions/cpt.php:266
+msgid "All Badges"
+msgstr ""
+
+#: includes/functions/cpt.php:267
+msgid "New Badge Name"
+msgstr ""
+
+#: includes/functions/cpt.php:268
+msgid "Add New Badge"
+msgstr ""
+
+#: includes/functions/cpt.php:269
+msgid "Edit Badge"
+msgstr ""
+
+#: includes/functions/cpt.php:270
+msgid "Update Badge"
+msgstr ""
+
+#: includes/functions/cpt.php:271
+msgid "View Badge"
+msgstr ""
+
+#: includes/functions/cpt.php:273
+msgid "Add or remove badges"
+msgstr ""
+
+#: includes/functions/cpt.php:275
+msgid "Popular Badges"
+msgstr ""
+
+#: includes/functions/cpt.php:276
+msgid "Search Badges"
+msgstr ""
+
+#: includes/functions/cpt.php:278
+msgid "No badges"
+msgstr ""
+
+#: includes/functions/cpt.php:279
+msgid "Badges list"
+msgstr ""
+
+#: includes/functions/cpt.php:280
+msgid "Badges list navigation"
+msgstr ""
+
+#: includes/functions/post.php:42 includes/functions/post.php:174
 #: release/0.1.0/includes/functions/post.php:42
 #: release/0.1.0/includes/functions/post.php:157
 msgid "No information provided."
@@ -512,7 +675,7 @@ msgstr ""
 msgid "We've already added this exact checkin!"
 msgstr ""
 
-#: includes/functions/post.php:168
+#: includes/functions/post.php:185
 #: release/0.1.0/includes/functions/post.php:168
 msgid "Invalid beer data from API."
 msgstr ""
@@ -522,6 +685,10 @@ msgstr ""
 msgid "ago"
 msgstr ""
 
+#: includes/functions/venue.php:56
+msgid "Invalid venue data."
+msgstr ""
+
 #: includes/functions/walker.php:37 includes/functions/walker.php:105
 #: release/0.1.0/includes/functions/walker.php:37
 #: release/0.1.0/includes/functions/walker.php:105
@@ -529,12 +696,9 @@ msgid "Invalid or empty username provided."
 msgstr ""
 
 #: includes/functions/walker.php:51 includes/functions/walker.php:118
+#: release/0.1.0/includes/functions/walker.php:51
 #: release/0.1.0/includes/functions/walker.php:118
 msgid "Invalid response from Untappd API."
-msgstr ""
-
-#: release/0.1.0/includes/functions/core.php:121
-msgid "User to Import"
 msgstr ""
 
 #. Plugin Name of the plugin/theme
@@ -557,32 +721,52 @@ msgstr ""
 msgid "https://kraft.im/"
 msgstr ""
 
-#: includes/functions/cpt.php:32 release/0.1.0/includes/functions/cpt.php:32
+#: includes/functions/cpt.php:34 release/0.1.0/includes/functions/cpt.php:32
 msgctxt "Post Type General Name"
 msgid "Beers"
 msgstr ""
 
-#: includes/functions/cpt.php:33 release/0.1.0/includes/functions/cpt.php:33
+#: includes/functions/cpt.php:35 release/0.1.0/includes/functions/cpt.php:33
 msgctxt "Post Type Singular Name"
 msgid "Beer"
 msgstr ""
 
-#: includes/functions/cpt.php:103 release/0.1.0/includes/functions/cpt.php:103
+#: includes/functions/cpt.php:106 release/0.1.0/includes/functions/cpt.php:103
 msgctxt "Taxonomy General Name"
 msgid "Breweries"
 msgstr ""
 
-#: includes/functions/cpt.php:159 release/0.1.0/includes/functions/cpt.php:159
+#: includes/functions/cpt.php:163 release/0.1.0/includes/functions/cpt.php:159
 msgctxt "Taxonomy General Name"
 msgid "Styles"
 msgstr ""
 
-#: includes/functions/cpt.php:104 release/0.1.0/includes/functions/cpt.php:104
+#: includes/functions/cpt.php:214
+msgctxt "Taxonomy General Name"
+msgid "Venues"
+msgstr ""
+
+#: includes/functions/cpt.php:263
+msgctxt "Taxonomy General Name"
+msgid "Badges"
+msgstr ""
+
+#: includes/functions/cpt.php:107 release/0.1.0/includes/functions/cpt.php:104
 msgctxt "Taxonomy Singular Name"
 msgid "Brewery"
 msgstr ""
 
-#: includes/functions/cpt.php:160 release/0.1.0/includes/functions/cpt.php:160
+#: includes/functions/cpt.php:164 release/0.1.0/includes/functions/cpt.php:160
 msgctxt "Taxonomy Singular Name"
 msgid "Style"
+msgstr ""
+
+#: includes/functions/cpt.php:215
+msgctxt "Taxonomy Singular Name"
+msgid "Venue"
+msgstr ""
+
+#: includes/functions/cpt.php:264
+msgctxt "Taxonomy Singular Name"
+msgid "Badge"
 msgstr ""

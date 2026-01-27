@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "beer-slurper/venue-map",
+	"version": "0.1.0",
+	"title": "Venue Map",
+	"category": "widgets",
+	"description": "Displays an interactive map of Untappd checkin venues.",
+	"textdomain": "beer_slurper",
+	"editorScript": "file:./index.js",
+	"viewScript": "file:./view.js",
+	"render": "file:./render.php",
+	"attributes": {
+		"height": {
+			"type": "string",
+			"default": "400px"
+		},
+		"zoom": {
+			"type": "number",
+			"default": 4
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	}
+}
