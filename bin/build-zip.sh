@@ -50,6 +50,7 @@ EXCLUDES=(
     "release"
     "tests"
     "agent-os"
+    "theme"
     "bin"
     "src"
     "assets/css/src"
