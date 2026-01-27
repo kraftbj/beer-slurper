@@ -89,7 +89,13 @@ function handle_callback( $request ) {
 		exit;
 	}
 
-	if ( ! current_user_can( 'manage_options' ) ) {
+	// REST API cookie auth requires a nonce, which isn't present on OAuth
+	// redirects. Fall back to validating the logged-in cookie directly.
+	$user_id = current_user_can( 'manage_options' )
+		? get_current_user_id()
+		: wp_validate_auth_cookie( '', 'logged_in' );
+
+	if ( ! $user_id || ! user_can( $user_id, 'manage_options' ) ) {
 		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'unauthorized', get_settings_url() ) );
 		exit;
 	}

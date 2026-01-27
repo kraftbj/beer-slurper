@@ -1,22 +1,16 @@
 /**
  * @file Gruntfile.js
  * @description Grunt build configuration for the Beer Slurper WordPress plugin.
- *              Defines tasks for linting, CSS minification, file watching, release
- *              packaging, internationalization, and test execution.
+ *              Defines tasks for linting, CSS minification, file watching,
+ *              internationalization, and test execution.
+ *
+ *              For release packaging, use: npm run build:zip
  */
 
 /**
  * Configures and registers Grunt tasks for the Beer Slurper plugin build process.
  *
  * @param {Object} grunt - The Grunt instance providing task registration and configuration APIs.
- * @description Initializes the Grunt configuration with tasks for:
- *              - JSHint linting of JavaScript files
- *              - CSS minification with version banners
- *              - File watching with LiveReload support
- *              - Release directory cleanup and packaging
- *              - WordPress readme to markdown conversion
- *              - PHPUnit and QUnit test execution
- *              - Internationalization (i18n) text domain and POT file generation
  */
 module.exports = function( grunt ) {
 
@@ -69,57 +63,6 @@ module.exports = function( grunt ) {
 				options: {
 					debounceDelay: 500
 				}
-			}
-		},
-
-		// Clean - removes previous release build directory
-		clean: {
-			main: ['release/<%= pkg.version %>']
-		},
-
-		// Copy - copies plugin files to versioned release directory
-		copy: {
-			// Copy the plugin to a versioned release directory
-			main: {
-				src:  [
-					'**',
-					'!**/.*',
-					'!**/*.md',
-					'!node_modules/**',
-					'!tests/**',
-					'!release/**',
-					'!bin/**',
-					'!agent-os/**',
-					'!.claude/**',
-					'!src/**',
-					'!assets/css/src/**',
-					'!assets/js/src/**',
-					'!images/src/**',
-					'!bootstrap.php',
-					'!bower.json',
-					'!composer.json',
-					'!composer.lock',
-					'!Gruntfile.js',
-					'!package.json',
-					'!package-lock.json',
-					'!phpunit.xml',
-					'!phpunit.xml.dist'
-				],
-				dest: 'release/<%= pkg.version %>/'
-			}
-		},
-
-		// Compress - creates ZIP archive for distribution
-		compress: {
-			main: {
-				options: {
-					mode: 'zip',
-					archive: './release/beer-slurper.<%= pkg.version %>.zip'
-				},
-				expand: true,
-				cwd: 'release/<%= pkg.version %>/',
-				src: ['**/*'],
-				dest: 'beer-slurper/'
 			}
 		},
 
@@ -187,9 +130,6 @@ module.exports = function( grunt ) {
 
 	// Default task: lint, minify CSS, convert readme, and generate POT
 	grunt.registerTask( 'default', ['jshint', 'cssmin', 'wp_readme_to_markdown', 'makepot' ] );
-
-	// Build task: runs default tasks then creates release package
-	grunt.registerTask( 'build', ['default', 'clean', 'copy', 'compress'] );
 
 	// Test task: runs PHPUnit and QUnit test suites
 	grunt.registerTask( 'test', ['phpunit', 'qunit'] );

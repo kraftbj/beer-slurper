@@ -329,6 +329,7 @@ function oauth_section_callback() {
 		<?php if ( isset( $_GET['beer-slurper-oauth-error'] ) ) : ?>
 			<div class="beer-slurper-error" style="margin-top: 10px;">
 				<?php _e( 'OAuth connection failed. Please try again.', 'beer_slurper' ); ?>
+				<br><small><?php echo esc_html( sanitize_text_field( wp_unslash( $_GET['beer-slurper-oauth-error'] ) ) ); ?></small>
 			</div>
 		<?php endif; ?>
 	</div>
