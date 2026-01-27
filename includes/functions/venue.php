@@ -156,6 +156,10 @@ function backfill_missing_meta() {
 
 	$updated = 0;
 	foreach ( $terms as $term ) {
+		if ( ! \Kraft\Beer_Slurper\Queue\has_budget( 1 ) ) {
+			break;
+		}
+
 		$venue_id = get_term_meta( $term->term_id, 'untappd_id', true );
 		if ( ! $venue_id ) {
 			continue;

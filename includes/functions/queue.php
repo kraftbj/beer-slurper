@@ -36,6 +36,35 @@ function get_remaining_budget() {
 }
 
 /**
+ * Checks whether enough API budget remains for a given number of calls.
+ *
+ * @param int $needed Number of API calls required. Default 1.
+ *
+ * @return bool True if budget is sufficient.
+ */
+function has_budget( $needed = 1 ) {
+	return get_remaining_budget() >= $needed;
+}
+
+/**
+ * Records that API calls have been consumed against the hourly budget.
+ *
+ * Increments the transient counter so that subsequent budget checks
+ * reflect the calls that have been scheduled or consumed.
+ *
+ * @param int $count Number of calls to record. Default 1.
+ *
+ * @return void
+ */
+function consume_budget( $count = 1 ) {
+	$used = get_transient( 'beer_slurper_api_calls' );
+	if ( false === $used ) {
+		$used = 0;
+	}
+	set_transient( 'beer_slurper_api_calls', (int) $used + $count, HOUR_IN_SECONDS );
+}
+
+/**
  * Schedules a single async action if not already pending.
  *
  * @param string $hook The action hook name.
@@ -107,8 +136,9 @@ function cancel_all( $hook ) {
  * Queues a batch of checkins for processing.
  *
  * Each checkin is scheduled as its own action so that if one fails,
- * the rest still proceed. Actions are staggered by 2 seconds to
- * avoid rate limit bursts.
+ * the rest still proceed. Actions within the current budget are staggered
+ * by 2 seconds. Overflow items are scheduled after the rate limit resets
+ * (1 hour), ensuring we use as much budget as possible without exceeding it.
  *
  * @param array  $checkins Array of checkin data arrays.
  * @param string $source   Source context ('import_old' or 'import_new').
@@ -118,16 +148,26 @@ function cancel_all( $hook ) {
 function queue_checkin_batch( $checkins, $source = 'import' ) {
 	$budget = get_remaining_budget();
 	$queued = 0;
+	$delay  = 0;
 
-	foreach ( $checkins as $index => $checkin ) {
+	// Reserve a small buffer so other work (daily maintenance, etc.) can proceed.
+	$usable = max( 0, $budget - 2 );
+
+	foreach ( $checkins as $checkin ) {
 		if ( ! isset( $checkin['checkin_id'] ) ) {
 			continue;
 		}
 
 		// Each checkin needs ~2 API calls (checkin insert + beer info).
-		// If we're running low, stop queueing and let the next cron pick up.
-		if ( $budget < 3 ) {
-			break;
+		if ( $usable >= 2 ) {
+			// Schedule within current budget window.
+			$usable -= 2;
+		} else {
+			// Budget exhausted — jump to the next hourly window.
+			// Only jump once; subsequent items stagger from there.
+			if ( $delay < HOUR_IN_SECONDS ) {
+				$delay = HOUR_IN_SECONDS;
+			}
 		}
 
 		schedule_action(
@@ -136,10 +176,10 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 				'checkin' => $checkin,
 				'source'  => $source,
 			),
-			$index * 2 // Stagger by 2 seconds.
+			$delay
 		);
 
-		$budget -= 2;
+		$delay += 2; // Stagger by 2 seconds within each window.
 		$queued++;
 	}
 
@@ -155,15 +195,15 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
  * @return void
  */
 function process_checkin( $checkin, $source = 'import' ) {
-	if ( get_remaining_budget() < 2 ) {
-		// Re-queue with a delay to wait for budget refresh.
+	if ( ! has_budget( 2 ) ) {
+		// Re-queue after the rate limit resets.
 		schedule_action(
 			'bs_process_checkin',
 			array(
 				'checkin' => $checkin,
 				'source'  => $source,
 			),
-			300 // Retry in 5 minutes.
+			HOUR_IN_SECONDS
 		);
 		return;
 	}
@@ -188,15 +228,15 @@ add_action( 'bs_process_checkin', __NAMESPACE__ . '\process_checkin', 10, 2 );
  * @return void
  */
 function process_companion_backfill( $checkin_id, $post_id ) {
-	if ( get_remaining_budget() < 2 ) {
-		// Re-queue with a delay to wait for budget refresh.
+	if ( ! has_budget( 2 ) ) {
+		// Re-queue after the rate limit resets.
 		schedule_action(
 			'bs_backfill_companion',
 			array(
 				'checkin_id' => $checkin_id,
 				'post_id'    => $post_id,
 			),
-			300 // Retry in 5 minutes.
+			HOUR_IN_SECONDS
 		);
 		return;
 	}
@@ -233,15 +273,87 @@ add_action( 'bs_hourly_import', __NAMESPACE__ . '\process_hourly_import' );
 /**
  * Performs daily maintenance via Action Scheduler.
  *
+ * Instead of running all maintenance tasks synchronously (which can
+ * burst through the API budget), this schedules each task as its own
+ * action, staggered and budget-aware.
+ *
  * @return void
  */
 function process_daily_maintenance() {
-	\Kraft\Beer_Slurper\Stats\refresh_user_stats();
-	\Kraft\Beer_Slurper\Brewery\backfill_missing_meta();
-	\Kraft\Beer_Slurper\Venue\backfill_missing_meta();
-	\Kraft\Beer_Slurper\Badge\backfill_missing_descriptions();
+	$delay = 0;
+
+	$tasks = array(
+		'bs_maintenance_stats',
+		'bs_maintenance_brewery_backfill',
+		'bs_maintenance_venue_backfill',
+		'bs_maintenance_badge_backfill',
+	);
+
+	foreach ( $tasks as $hook ) {
+		schedule_action( $hook, array(), $delay );
+		$delay += 60; // Stagger by 1 minute to let earlier tasks claim budget.
+	}
 }
 add_action( 'bs_daily_maintenance', __NAMESPACE__ . '\process_daily_maintenance' );
+
+/**
+ * Maintenance action: refresh user stats (1 API call).
+ *
+ * @return void
+ */
+function maintenance_stats() {
+	if ( ! has_budget( 1 ) ) {
+		schedule_action( 'bs_maintenance_stats', array(), HOUR_IN_SECONDS );
+		return;
+	}
+	\Kraft\Beer_Slurper\Stats\refresh_user_stats();
+}
+add_action( 'bs_maintenance_stats', __NAMESPACE__ . '\maintenance_stats' );
+
+/**
+ * Maintenance action: backfill missing brewery metadata.
+ *
+ * Fetches up to 5 breweries, each requiring 1 API call.
+ * Stops early if budget runs low and re-queues for the next window.
+ *
+ * @return void
+ */
+function maintenance_brewery_backfill() {
+	if ( ! has_budget( 1 ) ) {
+		schedule_action( 'bs_maintenance_brewery_backfill', array(), HOUR_IN_SECONDS );
+		return;
+	}
+	\Kraft\Beer_Slurper\Brewery\backfill_missing_meta();
+}
+add_action( 'bs_maintenance_brewery_backfill', __NAMESPACE__ . '\maintenance_brewery_backfill' );
+
+/**
+ * Maintenance action: backfill missing venue metadata.
+ *
+ * @return void
+ */
+function maintenance_venue_backfill() {
+	if ( ! has_budget( 1 ) ) {
+		schedule_action( 'bs_maintenance_venue_backfill', array(), HOUR_IN_SECONDS );
+		return;
+	}
+	\Kraft\Beer_Slurper\Venue\backfill_missing_meta();
+}
+add_action( 'bs_maintenance_venue_backfill', __NAMESPACE__ . '\maintenance_venue_backfill' );
+
+/**
+ * Maintenance action: backfill missing badge descriptions.
+ *
+ * @return void
+ */
+function maintenance_badge_backfill() {
+	if ( ! has_budget( 1 ) ) {
+		schedule_action( 'bs_maintenance_badge_backfill', array(), HOUR_IN_SECONDS );
+		return;
+	}
+	\Kraft\Beer_Slurper\Badge\backfill_missing_descriptions();
+}
+add_action( 'bs_maintenance_badge_backfill', __NAMESPACE__ . '\maintenance_badge_backfill' );
 
 /**
  * Initializes Action Scheduler recurring tasks.
@@ -290,6 +402,10 @@ function cleanup() {
 	cancel_all( 'bs_backfill_companion' );
 	cancel_all( 'bs_hourly_import' );
 	cancel_all( 'bs_daily_maintenance' );
+	cancel_all( 'bs_maintenance_stats' );
+	cancel_all( 'bs_maintenance_brewery_backfill' );
+	cancel_all( 'bs_maintenance_venue_backfill' );
+	cancel_all( 'bs_maintenance_badge_backfill' );
 
 	// Legacy hook names from older versions.
 	cancel_all( 'bs_as_daily_maintenance' );

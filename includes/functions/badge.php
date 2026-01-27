@@ -206,8 +206,12 @@ function backfill_missing_descriptions() {
 	$offset  = 0;
 	$limit   = 50;
 
-	// Paginate through the user's badges (max 5 pages to stay within rate limits).
+	// Paginate through the user's badges (max 5 pages, budget-aware).
 	for ( $page = 0; $page < 5; $page++ ) {
+		if ( ! \Kraft\Beer_Slurper\Queue\has_budget( 1 ) ) {
+			break;
+		}
+
 		$args = array( 'offset' => $offset );
 		$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'user/badges', $user, $args );
 

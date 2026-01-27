@@ -65,20 +65,16 @@ function import_new( $user ) {
 		return "No new beers here!";
 	}
 
-	if ( isset( $checkins['count'] ) && $checkins['count'] == 25 ) {
-		// @todo do special stuff since there are likely more than we thought.
-		// This also means you had more than 25 beers in an hour.
-		// Even if you're at a homebrew conference, throw a governor on that engine, eh?
-	}
-
-	foreach ( $checkins['items'] as $checkin ){
-		\Kraft\Beer_Slurper\Post\insert_beer( $checkin );
-	}
-
+	// Update the since_id immediately so the next run doesn't re-fetch these.
 	$since_id = $checkins['items'][0]['checkin_id'];
 	update_option( 'beer_slurper_' . $user . '_since', $since_id, false );
 
-	$message = $checkins['count'] . " beer(s) imported.";
+	// Queue checkins via Action Scheduler instead of processing synchronously.
+	// This respects the API rate limit — items that exceed the current budget
+	// are automatically scheduled for the next hourly window.
+	$queued = \Kraft\Beer_Slurper\Queue\queue_checkin_batch( $checkins['items'], 'import_new' );
+
+	$message = $checkins['count'] . " beer(s) queued for import ({$queued} within current budget).";
 	return $message;
 }
 
@@ -128,10 +124,7 @@ function import_old( $user ) {
 		return new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
 	}
 
-	foreach ( $checkins['checkins']['items'] as $checkin ){
-		\Kraft\Beer_Slurper\Post\insert_beer( $checkin );
-	}
-
+	// Update pagination state immediately so the next run advances.
 	$max_id = $checkins['pagination']['max_id'];
 	update_option( 'beer_slurper_' . $user . '_max', $max_id, false );
 	if ( ! get_option( 'beer_slurper_' . $user . '_since') ) { //first time to import anything from this user
@@ -144,6 +137,10 @@ function import_old( $user ) {
 		// Fewer old beers than we asked for, so we should be all done here.
 		delete_option( 'beer_slurper_' . $user . '_import' );
 	}
+
+	// Queue checkins via Action Scheduler instead of processing synchronously.
+	// Overflow items are scheduled for the next hourly window.
+	\Kraft\Beer_Slurper\Queue\queue_checkin_batch( $checkins['checkins']['items'], 'import_old' );
 
 }
 
