@@ -150,7 +150,9 @@ function handle_callback( $request ) {
 		$user_decoded = json_decode( $user_body, true );
 
 		if ( is_array( $user_decoded ) && ! empty( $user_decoded['response']['user']['user_name'] ) ) {
-			update_option( 'beer-slurper-user', sanitize_user( $user_decoded['response']['user']['user_name'] ) );
+			$username = sanitize_user( $user_decoded['response']['user']['user_name'] );
+			update_option( 'beer-slurper-user', $username );
+			\bs_start_import( $username );
 		}
 	}
 
