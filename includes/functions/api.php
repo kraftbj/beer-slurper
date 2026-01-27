@@ -115,7 +115,9 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 
 	// Check for API-level errors in the response
 	if ( isset( $decoded['meta']['error_type'] ) ) {
-		error_log( 'Beer Slurper: API error - ' . $decoded['meta']['error_type'] . ': ' . ( $decoded['meta']['error_detail'] ?? 'no detail' ) );
+		$error_detail = $decoded['meta']['error_detail'] ?? $decoded['meta']['error_type'];
+		error_log( 'Beer Slurper: API error - ' . $decoded['meta']['error_type'] . ': ' . $error_detail );
+		return new \WP_Error( $decoded['meta']['error_type'], $error_detail );
 	}
 
 	return $decoded;

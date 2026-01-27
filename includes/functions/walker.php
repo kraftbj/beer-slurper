@@ -57,8 +57,19 @@ function import_new( $user ) {
 		}
 	}
 
+	// If still failing (e.g. the since_id is older than the API allows),
+	// retry without min_id so the API returns the most recent checkins.
+	if ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) {
+		$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, null, null, '25' );
+	}
+
 	if ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) {
 		return is_wp_error( $checkins ) ? $checkins : new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
+	}
+
+	// Without min_id the API wraps checkins inside a 'checkins' key.
+	if ( isset( $checkins['checkins'] ) ) {
+		$checkins = $checkins['checkins'];
 	}
 
 	if ( ! isset( $checkins['count'] ) || $checkins['count'] == 0 ) {
