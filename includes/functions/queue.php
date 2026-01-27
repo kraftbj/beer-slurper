@@ -160,10 +160,10 @@ function cancel_all( $hook ) {
  * @return int Number of actions queued.
  */
 function queue_checkin_batch( $checkins, $source = 'import' ) {
-	// Each checkin costs up to ~4 API calls:
-	// 1 beer/info + 1 brewery/info (if new) + 1 parent brewery + 1 collab.
-	// Most repeat checkins cost 1 (beer info only, brewery already exists).
-	$cost_per = 4;
+	// Each checkin costs up to ~5 API calls:
+	// 1 checkin/view + 1 beer/info + 1 brewery/info (if new) + 1 parent + 1 collab.
+	// Most repeat checkins cost 2 (checkin/view + beer info, brewery already exists).
+	$cost_per = 5;
 
 	$budget = get_remaining_budget();
 	$queued = 0;
@@ -193,11 +193,14 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 			}
 		}
 
+		// Only store the checkin ID — the full payload is too large for
+		// Action Scheduler's args column. process_checkin() fetches the
+		// data from the API when it runs.
 		schedule_action(
 			'bs_process_checkin',
 			array(
-				'checkin' => $checkin,
-				'source'  => $source,
+				'checkin_id' => (int) $checkin['checkin_id'],
+				'source'     => $source,
 			),
 			$delay
 		);
@@ -212,29 +215,68 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 /**
  * Processes a single queued checkin.
  *
- * @param array  $checkin The checkin data array.
- * @param string $source  Source context.
+ * Accepts either a checkin ID (current format) or a full checkin array
+ * (legacy actions queued before the args-size fix). Fetches the checkin
+ * from the API when only the ID is provided.
+ *
+ * @param int|array $checkin_or_id Checkin ID or legacy checkin data array.
+ * @param string    $source        Source context.
  *
  * @return void
  */
-function process_checkin( $checkin, $source = 'import' ) {
-	if ( ! has_budget( 4 ) ) {
-		// Re-queue after the rate limit resets.
+function process_checkin( $checkin_or_id, $source = 'import' ) {
+	// Handle legacy actions that stored the full checkin payload.
+	if ( is_array( $checkin_or_id ) ) {
+		$checkin    = $checkin_or_id;
+		$checkin_id = $checkin['checkin_id'];
+
+		if ( ! has_budget( 4 ) ) {
+			schedule_action(
+				'bs_process_checkin',
+				array(
+					'checkin_id' => (int) $checkin_id,
+					'source'     => $source,
+				),
+				HOUR_IN_SECONDS
+			);
+			return;
+		}
+
+		$result = \Kraft\Beer_Slurper\Post\insert_beer( $checkin );
+
+		if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
+			error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
+		}
+		return;
+	}
+
+	// Current format: just the checkin ID.
+	$checkin_id = (int) $checkin_or_id;
+
+	if ( ! has_budget( 5 ) ) {
 		schedule_action(
 			'bs_process_checkin',
 			array(
-				'checkin' => $checkin,
-				'source'  => $source,
+				'checkin_id' => $checkin_id,
+				'source'     => $source,
 			),
 			HOUR_IN_SECONDS
 		);
 		return;
 	}
 
-	$result = \Kraft\Beer_Slurper\Post\insert_beer( $checkin );
+	$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $checkin_id );
+
+	if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
+		$msg = is_wp_error( $response ) ? $response->get_error_message() : 'Empty response';
+		error_log( 'Beer Slurper Queue: Failed to fetch checkin ' . $checkin_id . ' - ' . $msg );
+		return;
+	}
+
+	$result = \Kraft\Beer_Slurper\Post\insert_beer( $response['checkin'] );
 
 	if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
-		error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin['checkin_id'] . ' - ' . $result->get_error_message() );
+		error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
 	}
 }
 add_action( 'bs_process_checkin', __NAMESPACE__ . '\process_checkin', 10, 2 );
