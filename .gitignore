@@ -5,3 +5,4 @@ composer.lock
 phpunit.xml
 .idea
 config.php
+build

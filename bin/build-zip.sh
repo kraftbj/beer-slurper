@@ -31,6 +31,14 @@ rm -rf "$BUILD_DIR"
 rm -f "$ZIP_FILE"
 mkdir -p "$BUILD_DIR/$PLUGIN_SLUG"
 
+# Install production Composer dependencies.
+echo "Installing production Composer dependencies..."
+composer install --no-dev --optimize-autoloader --no-interaction
+
+# Build blocks.
+echo "Building blocks..."
+npm run build:blocks
+
 # Files and directories to exclude from the zip
 EXCLUDES=(
     ".git"
@@ -39,11 +47,11 @@ EXCLUDES=(
     ".bowerrc"
     ".claude"
     "node_modules"
-    "vendor"
     "release"
     "tests"
     "agent-os"
     "bin"
+    "src"
     "assets/css/src"
     "assets/js/src"
     "images/src"
@@ -66,11 +74,12 @@ for exclude in "${EXCLUDES[@]}"; do
     RSYNC_EXCLUDES="$RSYNC_EXCLUDES --exclude=$exclude"
 done
 
-# Copy files to build directory
+# Copy files to build directory (vendor/ and build/ are now included)
 rsync -av $RSYNC_EXCLUDES ./ "$BUILD_DIR/$PLUGIN_SLUG/"
 
-# Re-add specific files we want (readme.txt is needed for WordPress)
-# readme.txt should already be included since we only exclude *.md
+# Restore dev dependencies after build.
+echo "Restoring dev Composer dependencies..."
+composer install --no-interaction
 
 # Create the zip file
 cd "$BUILD_DIR"

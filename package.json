@@ -16,7 +16,12 @@
     "url": "https://kraft.im/"
   },
   "scripts": {
-    "build:zip": "./bin/build-zip.sh"
+    "build:zip": "./bin/build-zip.sh",
+    "start": "wp-scripts start --webpack-src-dir=src/blocks --output-path=build",
+    "build:blocks": "wp-scripts build --webpack-src-dir=src/blocks --output-path=build"
+  },
+  "dependencies": {
+    "@wordpress/scripts": "^30.0.0"
   },
   "devDependencies": {
     "grunt": "^1.6.1",
