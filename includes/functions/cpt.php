@@ -14,6 +14,7 @@ add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_brewery', 0 );
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_style', 0 );
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_venue', 0 );
 add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_badge', 0 );
+add_action( 'init', '\Kraft\Beer_Slurper\CPT\init_tax_companion', 0 );
 
 /**
  * Registers the Beer custom post type.
@@ -297,4 +298,53 @@ function init_tax_badge() {
 	);
 	register_taxonomy( BEER_SLURPER_TAX_BADGE, BEER_SLURPER_CPT, $args );
 	register_taxonomy_for_object_type( BEER_SLURPER_TAX_BADGE, BEER_SLURPER_CPT );
+}
+
+/**
+ * Registers the Companion taxonomy.
+ *
+ * Creates a non-hierarchical taxonomy for tracking people you
+ * checked in with (tagged friends from Untappd).
+ *
+ * @return void
+ */
+function init_tax_companion() {
+	$labels = array(
+		'name'                       => _x( 'Companions', 'Taxonomy General Name', 'beer_slurper' ),
+		'singular_name'              => _x( 'Companion', 'Taxonomy Singular Name', 'beer_slurper' ),
+		'menu_name'                  => __( 'Companions', 'beer_slurper' ),
+		'all_items'                  => __( 'All Companions', 'beer_slurper' ),
+		'new_item_name'              => __( 'New Companion Name', 'beer_slurper' ),
+		'add_new_item'               => __( 'Add New Companion', 'beer_slurper' ),
+		'edit_item'                  => __( 'Edit Companion', 'beer_slurper' ),
+		'update_item'                => __( 'Update Companion', 'beer_slurper' ),
+		'view_item'                  => __( 'View Companion', 'beer_slurper' ),
+		'separate_items_with_commas' => __( 'Separate companions with commas', 'beer_slurper' ),
+		'add_or_remove_items'        => __( 'Add or remove companions', 'beer_slurper' ),
+		'choose_from_most_used'      => __( 'Choose from the most used', 'beer_slurper' ),
+		'popular_items'              => __( 'Popular Companions', 'beer_slurper' ),
+		'search_items'               => __( 'Search Companions', 'beer_slurper' ),
+		'not_found'                  => __( 'Not Found', 'beer_slurper' ),
+		'no_terms'                   => __( 'No companions', 'beer_slurper' ),
+		'items_list'                 => __( 'Companions list', 'beer_slurper' ),
+		'items_list_navigation'      => __( 'Companions list navigation', 'beer_slurper' ),
+	);
+	$rewrite = array(
+		'slug'                       => 'companion',
+		'with_front'                 => false,
+		'hierarchical'               => false,
+	);
+	$args = array(
+		'labels'                     => $labels,
+		'hierarchical'               => false,
+		'public'                     => true,
+		'show_ui'                    => true,
+		'show_in_rest'               => true,
+		'show_admin_column'          => false,
+		'show_in_nav_menus'          => true,
+		'show_tagcloud'              => true,
+		'rewrite'                    => $rewrite,
+	);
+	register_taxonomy( BEER_SLURPER_TAX_COMPANION, BEER_SLURPER_CPT, $args );
+	register_taxonomy_for_object_type( BEER_SLURPER_TAX_COMPANION, BEER_SLURPER_CPT );
 }

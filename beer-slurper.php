@@ -85,6 +85,10 @@ if ( ! defined( 'BEER_SLURPER_TAX_BADGE' ) ) {
 	define( 'BEER_SLURPER_TAX_BADGE', 'beerlog_badge' );
 }
 
+if ( ! defined( 'BEER_SLURPER_TAX_COMPANION' ) ) {
+	define( 'BEER_SLURPER_TAX_COMPANION', 'beerlog_companion' );
+}
+
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
 require_once BEER_SLURPER_INC . 'functions/cpt.php';
@@ -92,6 +96,7 @@ require_once BEER_SLURPER_INC . 'functions/brewery.php';
 require_once BEER_SLURPER_INC . 'functions/venue.php';
 require_once BEER_SLURPER_INC . 'functions/badge.php';
 require_once BEER_SLURPER_INC . 'functions/checkin.php';
+require_once BEER_SLURPER_INC . 'functions/companion.php';
 require_once BEER_SLURPER_INC . 'functions/stats.php';
 require_once BEER_SLURPER_INC . 'functions/oauth.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';

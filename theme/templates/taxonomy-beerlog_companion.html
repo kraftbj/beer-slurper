@@ -1,0 +1,44 @@
+<!-- wp:template-part {"slug":"header","area":"header"} /-->
+
+<!-- wp:group {"className":"pint-term-header","backgroundColor":"teal-3","textColor":"white","layout":{"type":"constrained"}} -->
+<div class="wp-block-group pint-term-header has-white-color has-teal-3-background-color has-text-color has-background">
+	<!-- wp:query-title {"type":"archive"} /-->
+	<!-- wp:term-description /-->
+</div>
+<!-- /wp:group -->
+
+<!-- wp:query {"queryId":9,"query":{"perPage":12,"order":"desc","orderBy":"date","inherit":true},"layout":{"type":"default"}} -->
+<div class="wp-block-query">
+	<!-- wp:post-template {"layout":{"type":"grid","columnCount":3},"className":"pint-beer-cards"} -->
+		<!-- wp:group {"className":"pint-beer-card","layout":{"type":"default"}} -->
+		<div class="wp-block-group pint-beer-card">
+			<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"1"} /-->
+			<!-- wp:group {"className":"pint-beer-card__overlay","layout":{"type":"default"}} -->
+			<div class="wp-block-group pint-beer-card__overlay">
+				<!-- wp:post-title {"level":3,"isLink":true} /-->
+				<!-- wp:post-terms {"term":"beerlog_brewery"} /-->
+			</div>
+			<!-- /wp:group -->
+		</div>
+		<!-- /wp:group -->
+	<!-- /wp:post-template -->
+
+	<!-- wp:group {"layout":{"type":"flex","justifyContent":"center"}} -->
+	<div class="wp-block-group">
+		<!-- wp:query-pagination -->
+			<!-- wp:query-pagination-previous /-->
+			<!-- wp:query-pagination-numbers /-->
+			<!-- wp:query-pagination-next /-->
+		<!-- /wp:query-pagination -->
+	</div>
+	<!-- /wp:group -->
+
+	<!-- wp:query-no-results -->
+		<!-- wp:paragraph -->
+		<p>No beers found.</p>
+		<!-- /wp:paragraph -->
+	<!-- /wp:query-no-results -->
+</div>
+<!-- /wp:query -->
+
+<!-- wp:template-part {"slug":"footer","area":"footer"} /-->

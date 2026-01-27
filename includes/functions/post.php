@@ -140,6 +140,9 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 	 	wp_set_object_terms( $post_id, (int) $post_info['venue_term_id'], BEER_SLURPER_TAX_VENUE, true );
 	 }
 
+	 // Attach tagged friends as companions.
+	 \Kraft\Beer_Slurper\Companion\attach_companions( $checkin, $post_id );
+
 	 // Insert checkin as a comment on the beer post.
 	 \Kraft\Beer_Slurper\Checkin\insert_checkin( $checkin, $post_id );
 

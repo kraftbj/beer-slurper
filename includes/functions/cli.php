@@ -92,10 +92,11 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 
 		// 3. Delete taxonomy terms.
 		$taxonomies = array(
-			BEER_SLURPER_TAX_STYLE   => 'style',
-			BEER_SLURPER_TAX_BREWERY => 'brewery',
-			BEER_SLURPER_TAX_VENUE   => 'venue',
-			BEER_SLURPER_TAX_BADGE   => 'badge',
+			BEER_SLURPER_TAX_STYLE     => 'style',
+			BEER_SLURPER_TAX_BREWERY   => 'brewery',
+			BEER_SLURPER_TAX_VENUE     => 'venue',
+			BEER_SLURPER_TAX_BADGE     => 'badge',
+			BEER_SLURPER_TAX_COMPANION => 'companion',
 		);
 
 		foreach ( $taxonomies as $taxonomy => $label ) {
@@ -213,12 +214,89 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 		\WP_CLI::log( sprintf( 'Venues:        %s', is_wp_error( $venue_count ) ? '0' : number_format_i18n( $venue_count ) ) );
 		\WP_CLI::log( sprintf( 'Badges:        %s', is_wp_error( $badge_count ) ? '0' : number_format_i18n( $badge_count ) ) );
 
+		$companion_count = wp_count_terms( array( 'taxonomy' => BEER_SLURPER_TAX_COMPANION, 'hide_empty' => false ) );
+		\WP_CLI::log( sprintf( 'Companions:    %s', is_wp_error( $companion_count ) ? '0' : number_format_i18n( $companion_count ) ) );
+
 		global $wpdb;
 		$checkin_count = (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_type = 'beer_checkin'"
 		);
 		\WP_CLI::log( sprintf( 'Checkins:      %s', number_format_i18n( $checkin_count ) ) );
 		\WP_CLI::log( '' );
+	}
+
+	/**
+	 * Backfill companion terms from existing checkins.
+	 *
+	 * Re-fetches checkin data from the Untappd API and attaches tagged
+	 * friends as companion taxonomy terms. Temporary migration command.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp beer-slurper backfill-companions
+	 *
+	 * @subcommand backfill-companions
+	 */
+	public function backfill_companions( $args, $assoc_args ) {
+		global $wpdb;
+
+		$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
+		if ( ! $user ) {
+			\WP_CLI::error( 'No Untappd user configured.' );
+		}
+
+		// Get all checkin comments with their Untappd checkin IDs.
+		$checkins = $wpdb->get_results(
+			"SELECT c.comment_post_ID, cm.meta_value AS checkin_id
+			FROM {$wpdb->comments} c
+			INNER JOIN {$wpdb->commentmeta} cm ON c.comment_ID = cm.comment_id
+			WHERE c.comment_type = 'beer_checkin'
+			AND cm.meta_key = '_beer_slurper_checkin_id'
+			ORDER BY c.comment_date DESC"
+		);
+
+		if ( empty( $checkins ) ) {
+			\WP_CLI::warning( 'No checkin comments found.' );
+			return;
+		}
+
+		\WP_CLI::log( sprintf( 'Found %d checkins to process.', count( $checkins ) ) );
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Backfilling companions', count( $checkins ) );
+
+		$updated = 0;
+		$api_batch = 0;
+
+		foreach ( $checkins as $row ) {
+			// Rate-limit: pause after every 80 API calls.
+			if ( $api_batch >= 80 ) {
+				\WP_CLI::log( 'Rate limit pause (60s)...' );
+				sleep( 60 );
+				$api_batch = 0;
+				// Clear transient counter so the API layer doesn't block us.
+				delete_transient( 'beer_slurper_api_calls' );
+			}
+
+			// Fetch the individual checkin detail from API.
+			$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $row->checkin_id );
+			$api_batch++;
+
+			if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
+				$progress->tick();
+				continue;
+			}
+
+			$checkin_data = $response['checkin'];
+
+			if ( ! empty( $checkin_data['tagged_friends']['items'] ) ) {
+				\Kraft\Beer_Slurper\Companion\attach_companions( $checkin_data, (int) $row->comment_post_ID );
+				$updated++;
+			}
+
+			$progress->tick();
+		}
+
+		$progress->finish();
+		\WP_CLI::success( sprintf( 'Done. Attached companions from %d checkin(s).', $updated ) );
 	}
 
 	/**

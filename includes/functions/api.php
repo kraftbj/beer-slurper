@@ -331,6 +331,7 @@ function validate_endpoint( $endpoint, $parameter, $ver ){
 		'search/beer',
 		'search/brewery',
 		'checkin/add',
+		'checkin/view',
 		'checkin/toast',
 		'user/pending',
 		'friend/request',
