@@ -1,0 +1,48 @@
+<!-- wp:template-part {"slug":"header","area":"header"} /-->
+
+<!-- wp:post-featured-image {"className":"pint-hero-image"} /-->
+
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"2rem","bottom":"3rem"}}},"layout":{"type":"constrained","contentSize":"720px"}} -->
+<div class="wp-block-group" style="padding-top:2rem;padding-bottom:3rem">
+	<!-- wp:post-title {"level":1} /-->
+
+	<!-- wp:group {"className":"pint-beer-meta","layout":{"type":"flex","flexWrap":"wrap"}} -->
+	<div class="wp-block-group pint-beer-meta">
+		<!-- wp:post-terms {"term":"beerlog_brewery","prefix":"Brewery: "} /-->
+		<!-- wp:post-terms {"term":"beerlog_style","prefix":"Style: "} /-->
+	</div>
+	<!-- /wp:group -->
+
+	<!-- wp:pint/beer-meta /-->
+
+	<!-- wp:post-content /-->
+
+	<!-- wp:post-terms {"term":"beerlog_venue","prefix":"Venues: "} /-->
+	<!-- wp:post-terms {"term":"beerlog_badge","prefix":"Badges: "} /-->
+
+	<!-- wp:comments-query-loop -->
+		<!-- wp:comments-title /-->
+		<!-- wp:comment-template -->
+			<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"top"}} -->
+			<div class="wp-block-group">
+				<!-- wp:avatar {"size":40} /-->
+				<!-- wp:group {"layout":{"type":"default"}} -->
+				<div class="wp-block-group">
+					<!-- wp:comment-author-name /-->
+					<!-- wp:comment-date /-->
+					<!-- wp:comment-content /-->
+				</div>
+				<!-- /wp:group -->
+			</div>
+			<!-- /wp:group -->
+		<!-- /wp:comment-template -->
+		<!-- wp:comments-pagination -->
+			<!-- wp:comments-pagination-previous /-->
+			<!-- wp:comments-pagination-numbers /-->
+			<!-- wp:comments-pagination-next /-->
+		<!-- /wp:comments-pagination -->
+	<!-- /wp:comments-query-loop -->
+</div>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","area":"footer"} /-->
