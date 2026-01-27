@@ -130,6 +130,9 @@ function setting_init() {
 
 	// Sync Status section
 	add_settings_section( 'sync_status_settings', __( 'Sync Status', 'beer_slurper' ), $n( 'sync_status_section_callback' ), 'beer-slurper-settings' );
+
+	// API Rate Limit section
+	add_settings_section( 'api_rate_limit', __( 'API Rate Limit', 'beer_slurper' ), $n( 'rate_limit_section_callback' ), 'beer-slurper-settings' );
 }
 
 /**
@@ -488,6 +491,154 @@ function sync_status_section_callback() {
 			<span id="beer-slurper-sync-message"></span>
 			<?php wp_nonce_field( 'beer_slurper_sync_now', 'beer_slurper_sync_nonce' ); ?>
 		<?php endif; ?>
+	</div>
+	<?php
+}
+
+/**
+ * Renders the API Rate Limit settings section.
+ *
+ * Displays current API budget usage, pending Action Scheduler jobs,
+ * and scheduled action counts so the admin can see at a glance how
+ * the rate limit conductor is managing API calls.
+ *
+ * @return void
+ */
+function rate_limit_section_callback() {
+	$budget    = \Kraft\Beer_Slurper\Queue\API_BUDGET_PER_HOUR;
+	$remaining = \Kraft\Beer_Slurper\Queue\get_remaining_budget();
+	$used      = $budget - $remaining;
+	$pct_used  = $budget > 0 ? round( ( $used / $budget ) * 100 ) : 0;
+
+	// Count pending Action Scheduler jobs by hook.
+	$pending_counts = array();
+	if ( function_exists( 'as_get_scheduled_actions' ) ) {
+		$hooks = array(
+			'bs_process_checkin'              => __( 'Checkin imports', 'beer_slurper' ),
+			'bs_backfill_companion'           => __( 'Companion backfills', 'beer_slurper' ),
+			'bs_maintenance_stats'            => __( 'Stats refresh', 'beer_slurper' ),
+			'bs_maintenance_brewery_backfill' => __( 'Brewery backfills', 'beer_slurper' ),
+			'bs_maintenance_venue_backfill'   => __( 'Venue backfills', 'beer_slurper' ),
+			'bs_maintenance_badge_backfill'   => __( 'Badge backfills', 'beer_slurper' ),
+		);
+
+		foreach ( $hooks as $hook => $label ) {
+			$actions = as_get_scheduled_actions( array(
+				'hook'     => $hook,
+				'status'   => \ActionScheduler_Store::STATUS_PENDING,
+				'group'    => \Kraft\Beer_Slurper\Queue\AS_GROUP,
+				'per_page' => 0,
+			), 'ids' );
+
+			$count = count( $actions );
+			if ( $count > 0 ) {
+				$pending_counts[ $label ] = $count;
+			}
+		}
+	}
+
+	$total_pending = array_sum( $pending_counts );
+
+	// Determine bar color based on usage.
+	if ( $pct_used >= 90 ) {
+		$bar_color = '#d63638';
+	} elseif ( $pct_used >= 70 ) {
+		$bar_color = '#dba617';
+	} else {
+		$bar_color = '#00a32a';
+	}
+
+	?>
+	<style>
+		.beer-slurper-rate-limit { margin-top: 10px; }
+		.beer-slurper-rate-limit dl { margin: 0; }
+		.beer-slurper-rate-limit dt { font-weight: 600; margin-top: 10px; }
+		.beer-slurper-rate-limit dd { margin-left: 0; margin-bottom: 5px; }
+		.beer-slurper-budget-bar {
+			width: 300px;
+			height: 20px;
+			background: #f0f0f1;
+			border: 1px solid #c3c4c7;
+			border-radius: 3px;
+			overflow: hidden;
+			display: inline-block;
+			vertical-align: middle;
+		}
+		.beer-slurper-budget-bar-fill {
+			height: 100%;
+			transition: width 0.3s ease;
+		}
+		.beer-slurper-budget-text {
+			display: inline-block;
+			margin-left: 8px;
+			vertical-align: middle;
+		}
+		.beer-slurper-pending-list { margin: 5px 0 0 0; padding: 0; list-style: none; }
+		.beer-slurper-pending-list li {
+			display: inline-block;
+			background: #f0f0f1;
+			border: 1px solid #c3c4c7;
+			border-radius: 3px;
+			padding: 2px 8px;
+			margin: 2px 4px 2px 0;
+			font-size: 13px;
+		}
+		.beer-slurper-pending-list li strong { font-variant-numeric: tabular-nums; }
+	</style>
+
+	<div class="beer-slurper-rate-limit">
+		<dl>
+			<dt><?php _e( 'Hourly Budget', 'beer_slurper' ); ?></dt>
+			<dd>
+				<div class="beer-slurper-budget-bar">
+					<div class="beer-slurper-budget-bar-fill" style="width: <?php echo esc_attr( $pct_used ); ?>%; background-color: <?php echo esc_attr( $bar_color ); ?>;"></div>
+				</div>
+				<span class="beer-slurper-budget-text">
+					<?php
+					printf(
+						/* translators: 1: used calls, 2: total budget, 3: remaining calls */
+						__( '%1$s / %2$s used (%3$s remaining)', 'beer_slurper' ),
+						'<strong>' . number_format_i18n( $used ) . '</strong>',
+						number_format_i18n( $budget ),
+						'<strong>' . number_format_i18n( $remaining ) . '</strong>'
+					);
+					?>
+				</span>
+			</dd>
+
+			<dt><?php _e( 'Pending Jobs', 'beer_slurper' ); ?></dt>
+			<dd>
+				<?php if ( $total_pending > 0 ) : ?>
+					<?php
+					printf(
+						/* translators: %s: total pending job count */
+						__( '%s queued actions:', 'beer_slurper' ),
+						'<strong>' . number_format_i18n( $total_pending ) . '</strong>'
+					);
+					?>
+					<ul class="beer-slurper-pending-list">
+						<?php foreach ( $pending_counts as $label => $count ) : ?>
+							<li><?php echo esc_html( $label ); ?>: <strong><?php echo number_format_i18n( $count ); ?></strong></li>
+						<?php endforeach; ?>
+					</ul>
+				<?php else : ?>
+					<em><?php _e( 'No pending jobs', 'beer_slurper' ); ?></em>
+				<?php endif; ?>
+			</dd>
+
+			<dt><?php _e( 'Untappd Limit', 'beer_slurper' ); ?></dt>
+			<dd>
+				<?php
+				printf(
+					/* translators: 1: actual limit, 2: reserved count, 3: usable budget */
+					__( '%1$s calls/hour (Untappd allows 100; %2$s reserved for overhead, %3$s usable)', 'beer_slurper' ),
+					number_format_i18n( $budget ),
+					number_format_i18n( 100 - $budget ),
+					number_format_i18n( $budget )
+				);
+				?>
+			</dd>
+		</dl>
 	</div>
 	<?php
 }
