@@ -1,0 +1,190 @@
+/**
+ * Pint theme custom styles.
+ *
+ * Grid layout, card overlays, color cycling, hero image, and beer meta.
+ */
+
+/* ==========================================================================
+   Beer Card Grid
+   ========================================================================== */
+
+.pint-beer-cards {
+	gap: 0 !important;
+}
+
+@media (max-width: 1024px) {
+	.pint-beer-cards {
+		grid-template-columns: repeat(2, 1fr) !important;
+	}
+}
+
+@media (max-width: 600px) {
+	.pint-beer-cards {
+		grid-template-columns: 1fr !important;
+	}
+}
+
+/* ==========================================================================
+   Square Cards with Image Cover
+   ========================================================================== */
+
+.pint-beer-card {
+	position: relative;
+	overflow: hidden;
+	aspect-ratio: 1;
+	background-color: var(--wp--preset--color--black);
+}
+
+.pint-beer-card .wp-block-post-featured-image {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+}
+
+.pint-beer-card .wp-block-post-featured-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* ==========================================================================
+   5-Color Cycling (nth-child on Query Loop <li> elements)
+   ========================================================================== */
+
+.pint-beer-cards > .wp-block-post:nth-child(5n+1) .pint-beer-card {
+	background-color: #10b0b8;
+}
+
+.pint-beer-cards > .wp-block-post:nth-child(5n+2) .pint-beer-card {
+	background-color: #0e9ea5;
+}
+
+.pint-beer-cards > .wp-block-post:nth-child(5n+3) .pint-beer-card {
+	background-color: #0d8d93;
+}
+
+.pint-beer-cards > .wp-block-post:nth-child(5n+4) .pint-beer-card {
+	background-color: #0b7b80;
+}
+
+.pint-beer-cards > .wp-block-post:nth-child(5n+5) .pint-beer-card {
+	background-color: #0a6a6e;
+}
+
+/* ==========================================================================
+   Card Overlay (gradient over featured image)
+   ========================================================================== */
+
+.pint-beer-card__overlay {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	padding: 1.5rem;
+	background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+	color: #fff;
+	z-index: 1;
+}
+
+.pint-beer-card__overlay .wp-block-post-title {
+	font-family: var(--wp--preset--font-family--montserrat);
+	text-transform: uppercase;
+	letter-spacing: 0.0625em;
+	font-size: var(--wp--preset--font-size--large);
+	margin: 0 0 0.25rem;
+}
+
+.pint-beer-card__overlay .wp-block-post-title a {
+	color: #fff;
+	text-decoration: none;
+}
+
+.pint-beer-card__overlay .wp-block-post-terms {
+	font-size: var(--wp--preset--font-size--small);
+	text-transform: uppercase;
+	opacity: 0.8;
+	margin: 0;
+}
+
+.pint-beer-card__overlay .wp-block-post-terms a {
+	color: #fff;
+	text-decoration: none;
+}
+
+/* ==========================================================================
+   Single Beer Hero Image
+   ========================================================================== */
+
+.pint-hero-image {
+	width: 100vw;
+	max-height: 80vh;
+	margin-left: calc(-50vw + 50%);
+	overflow: hidden;
+}
+
+.pint-hero-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* ==========================================================================
+   Beer Meta Row
+   ========================================================================== */
+
+.pint-beer-meta {
+	gap: 1.5rem;
+	font-family: var(--wp--preset--font-family--montserrat);
+	font-size: var(--wp--preset--font-size--small);
+	text-transform: uppercase;
+	letter-spacing: 0.0625em;
+}
+
+.pint-beer-meta .wp-block-post-terms a {
+	text-decoration: none;
+}
+
+/* ==========================================================================
+   Beer Details Block (ABV / IBU / Check-ins)
+   ========================================================================== */
+
+.beer-details-block {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.5rem;
+	padding: 1rem 0;
+	border-top: 1px solid var(--wp--preset--color--border);
+	border-bottom: 1px solid var(--wp--preset--color--border);
+	font-family: var(--wp--preset--font-family--montserrat);
+	margin: 1.5rem 0;
+}
+
+.beer-details-block dt {
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: #666;
+}
+
+.beer-details-block dd {
+	font-size: 1.125rem;
+	font-weight: 700;
+	margin: 0;
+}
+
+/* ==========================================================================
+   Taxonomy Term Header
+   ========================================================================== */
+
+.pint-term-header {
+	padding: 3rem 0;
+}
+
+.pint-term-header .wp-block-query-title {
+	margin: 0 0 0.5rem;
+}
+
+.pint-term-header p {
+	opacity: 0.85;
+	margin: 0;
+}
