@@ -114,12 +114,12 @@ module.exports = function( grunt ) {
 			main: {
 				options: {
 					mode: 'zip',
-					archive: './release/beer_slurper.<%= pkg.version %>.zip'
+					archive: './release/beer-slurper.<%= pkg.version %>.zip'
 				},
 				expand: true,
 				cwd: 'release/<%= pkg.version %>/',
 				src: ['**/*'],
-				dest: 'beer_slurper/'
+				dest: 'beer-slurper/'
 			}
 		},
 
