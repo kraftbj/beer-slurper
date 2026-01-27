@@ -98,6 +98,11 @@ function consume_budget( $count = 1 ) {
 		$used = 0;
 	}
 	set_transient( 'beer_slurper_api_calls', (int) $used + $count, HOUR_IN_SECONDS );
+
+	// Ensure the window-end marker exists (works with object cache).
+	if ( false === get_transient( 'beer_slurper_api_window_end' ) ) {
+		set_transient( 'beer_slurper_api_window_end', time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS );
+	}
 }
 
 /**

@@ -88,10 +88,24 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 		if ( '' !== $remaining_header && false !== $remaining_header ) {
 			$remaining = (int) $remaining_header;
 			$used = max( 0, 100 - $remaining );
+
+			// Detect window rollover: remaining jumped above what we
+			// previously saw, meaning Untappd started a fresh window.
+			$prev_used = (int) get_transient( 'beer_slurper_api_calls' );
+			if ( $used < $prev_used ) {
+				delete_transient( 'beer_slurper_api_window_end' );
+			}
+
 			set_transient( 'beer_slurper_api_calls', $used, HOUR_IN_SECONDS );
 		} else {
 			// Fallback: increment our own counter.
 			set_transient( 'beer_slurper_api_calls', $api_calls + 1, HOUR_IN_SECONDS );
+		}
+
+		// Store when this budget window expires (works with object cache).
+		// Set once per window; cleared on rollover above.
+		if ( false === get_transient( 'beer_slurper_api_window_end' ) ) {
+			set_transient( 'beer_slurper_api_window_end', time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS );
 		}
 
 		set_transient( 'beer_slurper_' . $request_hash, $response, HOUR_IN_SECONDS );
