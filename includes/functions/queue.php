@@ -67,6 +67,9 @@ function consume_budget( $count = 1 ) {
 /**
  * Schedules a single async action if not already pending.
  *
+ * Uses the pending-only status check to avoid blocking re-queues
+ * from a currently running action (which has the same hook + args).
+ *
  * @param string $hook The action hook name.
  * @param array  $args Arguments to pass to the action.
  * @param int    $delay Optional. Seconds to delay execution. Default 0.
@@ -74,11 +77,22 @@ function consume_budget( $count = 1 ) {
  * @return int|null The action ID, or null if already pending.
  */
 function schedule_action( $hook, $args = array(), $delay = 0 ) {
-	if ( ! function_exists( 'as_has_scheduled_action' ) ) {
+	if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
 		return null;
 	}
 
-	if ( as_has_scheduled_action( $hook, $args, AS_GROUP ) ) {
+	// Only skip if a genuinely pending action exists. as_has_scheduled_action()
+	// also matches running actions, which blocks re-queues from within
+	// a handler that needs to defer itself.
+	$existing = as_get_scheduled_actions( array(
+		'hook'     => $hook,
+		'args'     => $args,
+		'status'   => \ActionScheduler_Store::STATUS_PENDING,
+		'group'    => AS_GROUP,
+		'per_page' => 1,
+	), 'ids' );
+
+	if ( ! empty( $existing ) ) {
 		return null;
 	}
 
