@@ -4,9 +4,8 @@ namespace Kraft\Beer_Slurper\Queue;
 /**
  * Action Scheduler Queue Functions
  *
- * Provides rate-limit-aware API call queuing using Action Scheduler.
- * Each API-consuming operation is queued as an action and processed
- * within the rate limit budget (90 calls/hour to stay under 100).
+ * All recurring tasks (hourly import, daily maintenance) and
+ * rate-limit-aware API call queuing use Action Scheduler.
  *
  * @package Kraft\Beer_Slurper
  */
@@ -178,7 +177,22 @@ function process_checkin( $checkin, $source = 'import' ) {
 add_action( 'bs_process_checkin', __NAMESPACE__ . '\process_checkin', 10, 2 );
 
 /**
- * Processes the daily maintenance via Action Scheduler.
+ * Performs the hourly import via Action Scheduler.
+ *
+ * @param string $user The Untappd username.
+ * @return void
+ */
+function process_hourly_import( $user ) {
+	if ( empty( $user ) ) {
+		return;
+	}
+
+	\bs_import( $user );
+}
+add_action( 'bs_hourly_import', __NAMESPACE__ . '\process_hourly_import' );
+
+/**
+ * Performs daily maintenance via Action Scheduler.
  *
  * @return void
  */
@@ -187,22 +201,43 @@ function process_daily_maintenance() {
 	\Kraft\Beer_Slurper\Brewery\backfill_missing_meta();
 	\Kraft\Beer_Slurper\Venue\backfill_missing_meta();
 }
-add_action( 'bs_as_daily_maintenance', __NAMESPACE__ . '\process_daily_maintenance' );
+add_action( 'bs_daily_maintenance', __NAMESPACE__ . '\process_daily_maintenance' );
 
 /**
- * Initializes Action Scheduler recurring tasks when the plugin starts import.
+ * Initializes Action Scheduler recurring tasks.
+ *
+ * Schedules the hourly import (with user arg) and daily maintenance.
  *
  * @param string $user The Untappd username.
  *
  * @return void
  */
 function init_scheduled_actions( $user ) {
-	// Daily maintenance via Action Scheduler.
-	schedule_recurring( 'bs_as_daily_maintenance', DAY_IN_SECONDS );
+	schedule_recurring( 'bs_hourly_import', HOUR_IN_SECONDS, array( $user ) );
+	schedule_recurring( 'bs_daily_maintenance', DAY_IN_SECONDS );
 }
 
 /**
- * Cleans up Action Scheduler actions on deactivation.
+ * Returns the next scheduled timestamp for a given hook.
+ *
+ * @param string $hook The action hook name.
+ * @param array  $args Optional. Action arguments for lookup.
+ *
+ * @return int|null Unix timestamp, or null if not scheduled.
+ */
+function get_next_scheduled( $hook, $args = array() ) {
+	if ( ! function_exists( 'as_next_scheduled_action' ) ) {
+		return null;
+	}
+
+	$timestamp = as_next_scheduled_action( $hook, $args, AS_GROUP );
+
+	// as_next_scheduled_action returns false if nothing scheduled, or the timestamp.
+	return $timestamp ? (int) $timestamp : null;
+}
+
+/**
+ * Cleans up all Action Scheduler actions on deactivation or reset.
  *
  * @return void
  */
@@ -212,5 +247,9 @@ function cleanup() {
 	}
 
 	cancel_all( 'bs_process_checkin' );
+	cancel_all( 'bs_hourly_import' );
+	cancel_all( 'bs_daily_maintenance' );
+
+	// Legacy hook names from older versions.
 	cancel_all( 'bs_as_daily_maintenance' );
 }

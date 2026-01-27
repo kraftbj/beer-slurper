@@ -89,9 +89,11 @@ function activate() {
  * @return void
  */
 function deactivate() {
+	\Kraft\Beer_Slurper\Queue\cleanup();
+
+	// Clear legacy WP-Cron hooks in case the site upgraded from an older version.
 	wp_clear_scheduled_hook( 'bs_hourly_importer' );
 	wp_clear_scheduled_hook( 'bs_daily_maintenance' );
-	\Kraft\Beer_Slurper\Queue\cleanup();
 }
 
 /**
@@ -443,9 +445,9 @@ function sync_status_section_callback() {
 					<div class="beer-slurper-warning">
 						<?php
 						printf(
-							/* translators: %s: function name */
-							__( 'Cron not scheduled. Run %s or check WP-Cron configuration.', 'beer_slurper' ),
-							'<code>bs_start_import(\'' . esc_html( $user ) . '\')</code>'
+							/* translators: %s: WP-CLI command */
+							__( 'Sync not scheduled. Try disconnecting and reconnecting, or run %s.', 'beer_slurper' ),
+							'<code>wp beer-slurper sync</code>'
 						);
 						?>
 					</div>

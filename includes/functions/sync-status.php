@@ -148,8 +148,7 @@ function get_next_scheduled_sync( $user ) {
 		return null;
 	}
 
-	$timestamp = wp_next_scheduled( 'bs_hourly_importer', array( $user ) );
-	return $timestamp ? (int) $timestamp : null;
+	return \Kraft\Beer_Slurper\Queue\get_next_scheduled( 'bs_hourly_import', array( $user ) );
 }
 
 /**

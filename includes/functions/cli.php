@@ -21,7 +21,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	 *
 	 * Removes all beer posts (and their attached media), checkin comments,
 	 * taxonomy terms (style, brewery, venue, badge), options, transients,
-	 * scheduled cron hooks, and Action Scheduler actions.
+	 * and scheduled actions.
 	 *
 	 * ## OPTIONS
 	 *
@@ -151,14 +151,13 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			delete_transient( $transient_key );
 		}
 
-		// 6. Clear cron hooks.
+		// 6. Clear scheduled actions.
+		\Kraft\Beer_Slurper\Queue\cleanup();
+		\WP_CLI::log( 'Cleared scheduled actions.' );
+
+		// Clear legacy WP-Cron hooks from older versions.
 		wp_clear_scheduled_hook( 'bs_hourly_importer' );
 		wp_clear_scheduled_hook( 'bs_daily_maintenance' );
-		\WP_CLI::log( 'Cleared scheduled cron hooks.' );
-
-		// 7. Clear Action Scheduler actions.
-		\Kraft\Beer_Slurper\Queue\cleanup();
-		\WP_CLI::log( 'Cleared Action Scheduler actions.' );
 
 		\WP_CLI::success( 'All Beer Slurper data has been deleted.' );
 	}
@@ -196,11 +195,11 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			\WP_CLI::warning( sprintf( 'Last error:    %s: %s', $last_error['code'], $last_error['message'] ) );
 		}
 
-		$next_hourly = $user ? wp_next_scheduled( 'bs_hourly_importer', array( $user ) ) : false;
-		$next_daily  = wp_next_scheduled( 'bs_daily_maintenance' );
+		$next_hourly = $user ? \Kraft\Beer_Slurper\Queue\get_next_scheduled( 'bs_hourly_import', array( $user ) ) : null;
+		$next_daily  = \Kraft\Beer_Slurper\Queue\get_next_scheduled( 'bs_daily_maintenance' );
 
-		\WP_CLI::log( sprintf( 'Hourly cron:   %s', $next_hourly ? date_i18n( 'Y-m-d H:i:s', $next_hourly ) : 'Not scheduled' ) );
-		\WP_CLI::log( sprintf( 'Daily cron:    %s', $next_daily ? date_i18n( 'Y-m-d H:i:s', $next_daily ) : 'Not scheduled' ) );
+		\WP_CLI::log( sprintf( 'Hourly sync:   %s', $next_hourly ? date_i18n( 'Y-m-d H:i:s', $next_hourly ) : 'Not scheduled' ) );
+		\WP_CLI::log( sprintf( 'Daily maint:   %s', $next_daily ? date_i18n( 'Y-m-d H:i:s', $next_daily ) : 'Not scheduled' ) );
 
 		\WP_CLI::log( '' );
 		\WP_CLI::log( 'Statistics' );

@@ -126,15 +126,13 @@ function bs_test_insert( $user = 'kraft' ){
 /**
  * Initiates the import process for a user.
  *
- * Sets up the import option flag and schedules an hourly cron event
- * to perform the import if one is not already scheduled.
+ * Sets up the import option flag and schedules recurring Action Scheduler
+ * actions for the hourly import and daily maintenance tasks.
  *
  * @param string|null $user The Untappd username. Defaults to null.
  * @return string|void Error message if no user provided, void otherwise.
  *
  * @uses update_option()
- * @uses wp_next_scheduled()
- * @uses wp_schedule_event()
  */
 function bs_start_import( $user = null ){
 	if ( ! $user ){
@@ -142,12 +140,6 @@ function bs_start_import( $user = null ){
 	}
 	// @todo check for other user options. No need to restart the import if options suggest it has been done.
 	update_option( 'beer_slurper_' . $user . '_import', true, false );
-	if (! wp_next_scheduled( 'bs_hourly_importer', array( $user ) ) ) {
-		wp_schedule_event( time(), 'hourly', 'bs_hourly_importer', array( $user ) );
-	}
-	if ( ! wp_next_scheduled( 'bs_daily_maintenance' ) ) {
-		wp_schedule_event( time(), 'daily', 'bs_daily_maintenance' );
-	}
 	\Kraft\Beer_Slurper\Queue\init_scheduled_actions( $user );
 }
 
@@ -204,22 +196,30 @@ function bs_import( $user = null ){
 	return "All done.";
 }
 
-add_action('bs_hourly_importer', 'bs_import', 10, 2 );
-
 /**
- * Performs daily maintenance tasks.
+ * Clears legacy WP-Cron hooks from older versions of the plugin.
  *
- * Refreshes user stats from the Untappd API and backfills missing
- * metadata for breweries and venues.
+ * All recurring tasks now use Action Scheduler. This runs once on
+ * upgrade to clean up the old cron entries.
  *
  * @return void
  */
-function bs_daily_maintenance() {
-	\Kraft\Beer_Slurper\Stats\refresh_user_stats();
-	\Kraft\Beer_Slurper\Brewery\backfill_missing_meta();
-	\Kraft\Beer_Slurper\Venue\backfill_missing_meta();
+function bs_maybe_clear_legacy_cron() {
+	if ( get_option( 'beer_slurper_cron_migrated' ) ) {
+		return;
+	}
+
+	wp_clear_scheduled_hook( 'bs_hourly_importer' );
+	wp_clear_scheduled_hook( 'bs_daily_maintenance' );
+	update_option( 'beer_slurper_cron_migrated', true, true );
+
+	// Re-schedule via Action Scheduler if a user is configured.
+	$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
+	if ( $user ) {
+		\Kraft\Beer_Slurper\Queue\init_scheduled_actions( $user );
+	}
 }
-add_action( 'bs_daily_maintenance', 'bs_daily_maintenance' );
+add_action( 'admin_init', 'bs_maybe_clear_legacy_cron' );
 
 /**
  * Registers all Beer Slurper blocks from the build directory.
