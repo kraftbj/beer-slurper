@@ -542,6 +542,13 @@ function rate_limit_section_callback() {
 	$used      = $budget - $remaining;
 	$pct_used  = $budget > 0 ? round( ( $used / $budget ) * 100 ) : 0;
 
+	// Determine when the budget resets from the transient timeout.
+	$reset_timestamp = (int) get_option( '_transient_timeout_beer_slurper_api_calls' );
+	$reset_time      = null;
+	if ( $reset_timestamp > 0 && $used > 0 ) {
+		$reset_time = $reset_timestamp;
+	}
+
 	// Count pending Action Scheduler jobs by hook.
 	$pending_counts = array();
 	if ( function_exists( 'as_get_scheduled_actions' ) ) {
@@ -636,6 +643,27 @@ function rate_limit_section_callback() {
 					);
 					?>
 				</span>
+			</dd>
+
+			<dt><?php _e( 'Budget Resets', 'beer_slurper' ); ?></dt>
+			<dd>
+				<?php if ( $reset_time ) : ?>
+					<?php
+					$now = time();
+					if ( $reset_time <= $now ) {
+						_e( 'Now (next API call starts a fresh window)', 'beer_slurper' );
+					} else {
+						printf(
+							/* translators: 1: relative time, 2: local time */
+							__( 'In %1$s (%2$s)', 'beer_slurper' ),
+							human_time_diff( $now, $reset_time ),
+							date_i18n( get_option( 'time_format' ), $reset_time )
+						);
+					}
+					?>
+				<?php else : ?>
+					<em><?php _e( 'No active window (resets on next API call)', 'beer_slurper' ); ?></em>
+				<?php endif; ?>
 			</dd>
 
 			<dt><?php _e( 'Pending Jobs', 'beer_slurper' ); ?></dt>
