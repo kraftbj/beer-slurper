@@ -226,6 +226,37 @@ function bs_maybe_clear_legacy_cron() {
 add_action( 'admin_init', 'bs_maybe_clear_legacy_cron' );
 
 /**
+ * Migrates legacy post meta keys to the new naming convention.
+ *
+ * Renames _beerlog_meta_abv and _beerlog_meta_ibu to _beer_slurper_abv
+ * and _beer_slurper_ibu. Runs once on admin_init.
+ *
+ * @return void
+ */
+function bs_maybe_migrate_meta_keys() {
+	if ( get_option( 'beer_slurper_meta_keys_migrated' ) ) {
+		return;
+	}
+
+	global $wpdb;
+
+	$wpdb->update(
+		$wpdb->postmeta,
+		array( 'meta_key' => '_beer_slurper_abv' ),
+		array( 'meta_key' => '_beerlog_meta_abv' )
+	);
+
+	$wpdb->update(
+		$wpdb->postmeta,
+		array( 'meta_key' => '_beer_slurper_ibu' ),
+		array( 'meta_key' => '_beerlog_meta_ibu' )
+	);
+
+	update_option( 'beer_slurper_meta_keys_migrated', true, true );
+}
+add_action( 'admin_init', 'bs_maybe_migrate_meta_keys' );
+
+/**
  * Registers all Beer Slurper blocks from the build directory.
  *
  * @return void

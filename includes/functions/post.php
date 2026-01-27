@@ -197,8 +197,8 @@ function setup_post( $checkin ){
 		'date'          => date( "Y-m-d H:i:s", strtotime( $checkin['created_at'] ) ), // Untappd returns UTC.
 		'meta'          => array(
 			'_beer_slurper_id'   => $beer['bid'],
-			'_beerlog_meta_abv'  => isset( $beer['beer_abv'] ) ? $beer['beer_abv'] : '',
-			'_beerlog_meta_ibu'  => isset( $beer_all['beer_ibu'] ) ? $beer_all['beer_ibu'] : '',
+			'_beer_slurper_abv'  => isset( $beer['beer_abv'] ) ? $beer['beer_abv'] : '',
+			'_beer_slurper_ibu'  => isset( $beer_all['beer_ibu'] ) ? $beer_all['beer_ibu'] : '',
 			'_beer_slurper_desc' => $description,
 			'_beer_slurper_brew' => is_array( $brewery ) && isset( $brewery['brewery_id'] ) ? $brewery['brewery_id'] : '',
 			),
