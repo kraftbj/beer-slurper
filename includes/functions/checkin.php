@@ -94,18 +94,28 @@ function get_checkin_exists( $checkin_id ) {
 }
 
 /**
- * Includes beer_checkin comment type when viewing beer posts.
+ * Excludes beer_checkin comments from the standard WordPress comments loop.
+ *
+ * Checkins are displayed by the dedicated pint/checkin-list block.
+ * Without this filter, WP_Comment_Query returns all comment types,
+ * causing checkins to appear in both the checkin list and the
+ * regular comments section.
  *
  * @param \WP_Comment_Query $query The comment query object.
  * @return void
  */
-function include_checkin_comments( $query ) {
+function exclude_checkin_from_default_comments( $query ) {
 	if ( ! is_singular( BEER_SLURPER_CPT ) ) {
 		return;
 	}
 
-	if ( empty( $query->query_vars['type'] ) || 'comment' === $query->query_vars['type'] ) {
-		$query->query_vars['type'] = array( 'comment', 'beer_checkin' );
+	// Don't interfere with queries explicitly requesting beer_checkin
+	// (e.g. the checkin-list block's own get_comments() call).
+	$type = isset( $query->query_vars['type'] ) ? $query->query_vars['type'] : '';
+	if ( 'beer_checkin' === $type ) {
+		return;
 	}
+
+	$query->query_vars['type__not_in'] = array( 'beer_checkin' );
 }
-add_action( 'pre_get_comments', __NAMESPACE__ . '\include_checkin_comments' );
+add_action( 'pre_get_comments', __NAMESPACE__ . '\exclude_checkin_from_default_comments' );
