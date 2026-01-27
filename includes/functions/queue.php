@@ -146,6 +146,11 @@ function cancel_all( $hook ) {
  * @return int Number of actions queued.
  */
 function queue_checkin_batch( $checkins, $source = 'import' ) {
+	// Each checkin costs up to ~4 API calls:
+	// 1 beer/info + 1 brewery/info (if new) + 1 parent brewery + 1 collab.
+	// Most repeat checkins cost 1 (beer info only, brewery already exists).
+	$cost_per = 4;
+
 	$budget = get_remaining_budget();
 	$queued = 0;
 	$delay  = 0;
@@ -158,10 +163,9 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 			continue;
 		}
 
-		// Each checkin needs ~2 API calls (checkin insert + beer info).
-		if ( $usable >= 2 ) {
+		if ( $usable >= $cost_per ) {
 			// Schedule within current budget window.
-			$usable -= 2;
+			$usable -= $cost_per;
 		} else {
 			// Budget exhausted — jump to the next hourly window.
 			// Only jump once; subsequent items stagger from there.
@@ -195,7 +199,7 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
  * @return void
  */
 function process_checkin( $checkin, $source = 'import' ) {
-	if ( ! has_budget( 2 ) ) {
+	if ( ! has_budget( 4 ) ) {
 		// Re-queue after the rate limit resets.
 		schedule_action(
 			'bs_process_checkin',
