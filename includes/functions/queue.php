@@ -177,6 +177,45 @@ function process_checkin( $checkin, $source = 'import' ) {
 add_action( 'bs_process_checkin', __NAMESPACE__ . '\process_checkin', 10, 2 );
 
 /**
+ * Processes a single companion backfill job.
+ *
+ * Fetches the checkin from the API and attaches any tagged friends
+ * as companion taxonomy terms. Re-queues with delay if rate-limited.
+ *
+ * @param int $checkin_id The Untappd checkin ID.
+ * @param int $post_id    The beer post ID.
+ *
+ * @return void
+ */
+function process_companion_backfill( $checkin_id, $post_id ) {
+	if ( get_remaining_budget() < 2 ) {
+		// Re-queue with a delay to wait for budget refresh.
+		schedule_action(
+			'bs_backfill_companion',
+			array(
+				'checkin_id' => $checkin_id,
+				'post_id'    => $post_id,
+			),
+			300 // Retry in 5 minutes.
+		);
+		return;
+	}
+
+	$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $checkin_id );
+
+	if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
+		return;
+	}
+
+	$checkin_data = $response['checkin'];
+
+	if ( ! empty( $checkin_data['tagged_friends']['items'] ) ) {
+		\Kraft\Beer_Slurper\Companion\attach_companions( $checkin_data, $post_id );
+	}
+}
+add_action( 'bs_backfill_companion', __NAMESPACE__ . '\process_companion_backfill', 10, 2 );
+
+/**
  * Performs the hourly import via Action Scheduler.
  *
  * @param string $user The Untappd username.
@@ -248,6 +287,7 @@ function cleanup() {
 	}
 
 	cancel_all( 'bs_process_checkin' );
+	cancel_all( 'bs_backfill_companion' );
 	cancel_all( 'bs_hourly_import' );
 	cancel_all( 'bs_daily_maintenance' );
 

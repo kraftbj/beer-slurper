@@ -228,8 +228,9 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	/**
 	 * Backfill companion terms from existing checkins.
 	 *
-	 * Re-fetches checkin data from the Untappd API and attaches tagged
-	 * friends as companion taxonomy terms. Temporary migration command.
+	 * Schedules Action Scheduler jobs to re-fetch checkin data from the
+	 * Untappd API and populate companion terms from tagged_friends.
+	 * Respects API rate limits via the remaining budget.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -240,12 +241,11 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	public function backfill_companions( $args, $assoc_args ) {
 		global $wpdb;
 
-		$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
-		if ( ! $user ) {
-			\WP_CLI::error( 'No Untappd user configured.' );
+		if ( ! function_exists( 'as_schedule_single_action' ) ) {
+			\WP_CLI::error( 'Action Scheduler is required. Make sure it is installed and active.' );
 		}
 
-		// Get all checkin comments with their Untappd checkin IDs.
+		// Get all checkin IDs + post IDs that haven't been processed yet.
 		$checkins = $wpdb->get_results(
 			"SELECT c.comment_post_ID, cm.meta_value AS checkin_id
 			FROM {$wpdb->comments} c
@@ -260,43 +260,34 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			return;
 		}
 
-		\WP_CLI::log( sprintf( 'Found %d checkins to process.', count( $checkins ) ) );
-		$progress = \WP_CLI\Utils\make_progress_bar( 'Backfilling companions', count( $checkins ) );
-
-		$updated = 0;
-		$api_batch = 0;
+		$budget = \Kraft\Beer_Slurper\Queue\get_remaining_budget();
+		$queued = 0;
+		$delay  = 0;
 
 		foreach ( $checkins as $row ) {
-			// Rate-limit: pause after every 80 API calls.
-			if ( $api_batch >= 80 ) {
-				\WP_CLI::log( 'Rate limit pause (60s)...' );
-				sleep( 60 );
-				$api_batch = 0;
-				// Clear transient counter so the API layer doesn't block us.
-				delete_transient( 'beer_slurper_api_calls' );
+			\Kraft\Beer_Slurper\Queue\schedule_action(
+				'bs_backfill_companion',
+				array(
+					'checkin_id' => (int) $row->checkin_id,
+					'post_id'    => (int) $row->comment_post_ID,
+				),
+				$delay
+			);
+
+			$queued++;
+			$delay += 3; // Stagger by 3 seconds.
+
+			// After exhausting the budget, jump ahead by an hour.
+			if ( $queued % $budget === 0 ) {
+				$delay += HOUR_IN_SECONDS;
 			}
-
-			// Fetch the individual checkin detail from API.
-			$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $row->checkin_id );
-			$api_batch++;
-
-			if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
-				$progress->tick();
-				continue;
-			}
-
-			$checkin_data = $response['checkin'];
-
-			if ( ! empty( $checkin_data['tagged_friends']['items'] ) ) {
-				\Kraft\Beer_Slurper\Companion\attach_companions( $checkin_data, (int) $row->comment_post_ID );
-				$updated++;
-			}
-
-			$progress->tick();
 		}
 
-		$progress->finish();
-		\WP_CLI::success( sprintf( 'Done. Attached companions from %d checkin(s).', $updated ) );
+		\WP_CLI::success( sprintf(
+			'Scheduled %d companion backfill jobs via Action Scheduler (staggered over %s).',
+			$queued,
+			human_time_diff( time(), time() + $delay )
+		) );
 	}
 
 	/**

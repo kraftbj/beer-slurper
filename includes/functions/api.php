@@ -83,8 +83,16 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 
 		$response = wp_safe_remote_get( $untappd_url );
 
-		// Increment rate limit counter after API call.
-		set_transient( 'beer_slurper_api_calls', $api_calls + 1, HOUR_IN_SECONDS );
+		// Sync rate limit counter from API response header when available.
+		$remaining_header = wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' );
+		if ( '' !== $remaining_header && false !== $remaining_header ) {
+			$remaining = (int) $remaining_header;
+			$used = max( 0, 100 - $remaining );
+			set_transient( 'beer_slurper_api_calls', $used, HOUR_IN_SECONDS );
+		} else {
+			// Fallback: increment our own counter.
+			set_transient( 'beer_slurper_api_calls', $api_calls + 1, HOUR_IN_SECONDS );
+		}
 
 		set_transient( 'beer_slurper_' . $request_hash, $response, HOUR_IN_SECONDS );
 	}
