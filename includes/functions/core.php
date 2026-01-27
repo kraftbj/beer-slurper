@@ -118,9 +118,6 @@ function setting_init() {
 	add_settings_field( 'beer-slurper-secret', __( 'Untappd Secret', 'beer_slurper' ), $n( 'setting_secret' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-secret' ) );
 	register_setting( 'beer-slurper-settings', 'beer-slurper-secret', 'strip_tags' );
 
-	add_settings_field( 'beer-slurper-user', __( 'User to Import', 'beer_slurper' ), $n( 'setting_user' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-user' ) );
-	register_setting( 'beer-slurper-settings', 'beer-slurper-user', 'sanitize_user' );
-
 	add_settings_field( 'beer-slurper-gallery', __( 'Auto-append Gallery', 'beer_slurper' ), $n( 'setting_gallery' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-gallery' ) );
 	register_setting( 'beer-slurper-settings', 'beer-slurper-gallery', 'boolval' );
 
@@ -240,31 +237,6 @@ function setting_secret(){
 }
 
 /**
- * Renders the Untappd User setting form field.
- *
- * Displays a message if the user is defined via constant, otherwise
- * renders a text input field with a note about current functionality.
- *
- * @since 1.0.0
- *
- * @uses _e()
- * @uses esc_attr()
- * @uses get_option()
- *
- * @return void
- */
-function setting_user(){
-	if ( defined( 'UNTAPPD_USER' ) ) {
-		_e( 'This setting has been set via code and must be changed there.', 'beer_slurper' );
-	}
-	else {
-		$html = '<input type="text" id="beer-slurper-user" name="beer-slurper-user" value="' . esc_attr( get_option( 'beer-slurper-user' ) ) . '" size="40" />';
-		$html .= '<br />Note: This doesn\'t actually do anything right now. Need to build out cron activation/deactivation based on this setting.';
-		echo $html;
-	}
-}
-
-/**
  * Renders the Gallery auto-append setting form field.
  *
  * Displays a checkbox to enable automatic gallery shortcode appending
@@ -292,9 +264,10 @@ function setting_gallery() {
  * @return void
  */
 function oauth_section_callback() {
-	$connected      = \Kraft\Beer_Slurper\OAuth\is_connected();
+	$connected       = \Kraft\Beer_Slurper\OAuth\is_connected();
 	$has_credentials = get_option( 'beer-slurper-key' ) && get_option( 'beer-slurper-secret' );
-	$redirect_url   = \Kraft\Beer_Slurper\OAuth\get_redirect_url();
+	$redirect_url    = \Kraft\Beer_Slurper\OAuth\get_redirect_url();
+	$username        = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
 
 	?>
 	<div class="beer-slurper-oauth-status">
@@ -309,7 +282,19 @@ function oauth_section_callback() {
 
 		<?php if ( $connected ) : ?>
 			<p class="beer-slurper-success">
-				<strong><?php _e( 'Status: Connected', 'beer_slurper' ); ?></strong>
+				<strong>
+					<?php
+					if ( $username ) {
+						printf(
+							/* translators: %s: Untappd username */
+							__( 'Status: Connected as %s', 'beer_slurper' ),
+							esc_html( $username )
+						);
+					} else {
+						_e( 'Status: Connected', 'beer_slurper' );
+					}
+					?>
+				</strong>
 			</p>
 			<?php
 			$disconnect_url = wp_nonce_url(

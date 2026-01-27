@@ -47,8 +47,8 @@ function import_new( $user ) {
 
 	$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, null, $since_id, '25' );
 
-	if ( is_wp_error( $checkins ) ) {
-		return $checkins;
+	if ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) {
+		return is_wp_error( $checkins ) ? $checkins : new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
 	}
 
 	if ( ! isset( $checkins['count'] ) || $checkins['count'] == 0 ) {

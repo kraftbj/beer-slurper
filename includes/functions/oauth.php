@@ -131,7 +131,22 @@ function handle_callback( $request ) {
 		exit;
 	}
 
-	update_option( 'beer-slurper-access-token', sanitize_text_field( $decoded['response']['access_token'] ) );
+	$access_token = sanitize_text_field( $decoded['response']['access_token'] );
+	update_option( 'beer-slurper-access-token', $access_token );
+
+	// Fetch the authenticated user's username from the API.
+	$user_response = wp_safe_remote_get(
+		add_query_arg( 'access_token', $access_token, 'https://api.untappd.com/v4/user/info/' )
+	);
+
+	if ( ! is_wp_error( $user_response ) ) {
+		$user_body    = wp_remote_retrieve_body( $user_response );
+		$user_decoded = json_decode( $user_body, true );
+
+		if ( is_array( $user_decoded ) && ! empty( $user_decoded['response']['user']['user_name'] ) ) {
+			update_option( 'beer-slurper-user', sanitize_user( $user_decoded['response']['user']['user_name'] ) );
+		}
+	}
 
 	wp_safe_redirect( get_settings_url() );
 	exit;
@@ -159,6 +174,7 @@ function disconnect() {
 	}
 
 	delete_option( 'beer-slurper-access-token' );
+	delete_option( 'beer-slurper-user' );
 
 	wp_safe_redirect( get_settings_url() );
 	exit;
