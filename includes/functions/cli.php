@@ -429,7 +429,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	public function spread_queue( $args, $assoc_args ) {
 		global $wpdb;
 
-		$table = $wpdb->prefix . 'actionscheduler_actions';
+		$table       = $wpdb->prefix . 'actionscheduler_actions';
 		$group_table = $wpdb->prefix . 'actionscheduler_groups';
 
 		// Resolve the group ID for our AS group.
@@ -459,60 +459,41 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			return;
 		}
 
-		// Calculate spread parameters.
-		$cost_per   = 5;
-		$per_hour   = (int) floor( \Kraft\Beer_Slurper\Queue\API_BUDGET_PER_HOUR / $cost_per );
-		$interval   = (int) floor( 3600 / $per_hour );
+		$params = \Kraft\Beer_Slurper\Queue\get_spread_params();
+		$now    = time();
 
-		$now        = time();
-		$window_end = get_transient( 'beer_slurper_api_window_end' );
-		$remaining  = \Kraft\Beer_Slurper\Queue\get_remaining_budget();
-
-		// How many checkins fit in the remaining current-window budget?
-		$current_window_slots = 0;
-		if ( $window_end && $window_end > $now && $remaining >= $cost_per ) {
-			$current_window_slots = (int) floor( $remaining / $cost_per );
-			$secs_left            = (int) ( $window_end - $now );
-			$current_interval     = $current_window_slots > 1
-				? (int) floor( $secs_left / $current_window_slots )
-				: $secs_left;
-
+		if ( $params['current_slots'] > 0 ) {
+			$window_end = get_transient( 'beer_slurper_api_window_end' );
 			\WP_CLI::log( sprintf(
-				'Active window: %d budget remaining (%d checkins), resets %s.',
-				$remaining,
-				$current_window_slots,
+				'Active window: %d slots, resets %s.',
+				$params['current_slots'],
 				date_i18n( 'Y-m-d H:i:s', $window_end )
 			) );
 		}
 
-		// First full-rate window starts at the window reset (or now if idle).
-		$full_start = ( $window_end && $window_end > $now ) ? (int) $window_end : $now;
-
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Spreading actions', $total );
 
 		foreach ( $action_ids as $index => $action_id ) {
-			if ( $index < $current_window_slots ) {
-				// Fit within the remaining current window.
-				$target_time = $now + ( $index * $current_interval );
-			} else {
-				// Full hourly windows starting from the reset.
-				$offset       = $index - $current_window_slots;
-				$hour_offset  = (int) floor( $offset / $per_hour );
-				$slot_in_hour = $offset % $per_hour;
-				$target_time  = $full_start + ( $hour_offset * 3600 ) + ( $slot_in_hour * $interval );
-			}
+			$delay       = \Kraft\Beer_Slurper\Queue\get_slot_delay( $index, $params );
+			$target_time = $now + $delay;
+			$gmt_date    = gmdate( 'Y-m-d H:i:s', $target_time );
+			$local_date  = get_date_from_gmt( $gmt_date );
 
-			$gmt_date   = gmdate( 'Y-m-d H:i:s', $target_time );
-			$local_date = get_date_from_gmt( $gmt_date );
+			// Build a new serialized schedule so the AS admin UI reflects
+			// the updated time (it reads from this column, not the date columns).
+			$schedule = new \ActionScheduler_SimpleSchedule(
+				new \DateTime( '@' . $target_time )
+			);
 
 			$wpdb->update(
 				$table,
 				array(
 					'scheduled_date_gmt'   => $gmt_date,
 					'scheduled_date_local' => $local_date,
+					'schedule'             => serialize( $schedule ),
 				),
 				array( 'action_id' => $action_id ),
-				array( '%s', '%s' ),
+				array( '%s', '%s', '%s' ),
 				array( '%d' )
 			);
 
@@ -521,17 +502,17 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 
 		$progress->finish();
 
-		$full_window_actions = max( 0, $total - $current_window_slots );
-		$full_hours          = (int) ceil( $full_window_actions / $per_hour );
-		$completion          = $full_start + ( $full_hours * 3600 );
+		$full_window_actions = max( 0, $total - $params['current_slots'] );
+		$full_hours          = (int) ceil( $full_window_actions / $params['per_hour'] );
+		$completion          = $params['full_start'] + ( $full_hours * 3600 );
 
 		\WP_CLI::log( '' );
 		\WP_CLI::log( sprintf( 'Total actions:       %d', $total ) );
-		if ( $current_window_slots > 0 ) {
-			\WP_CLI::log( sprintf( 'Current window:      %d checkins (budget permits)', $current_window_slots ) );
+		if ( $params['current_slots'] > 0 ) {
+			\WP_CLI::log( sprintf( 'Current window:      %d checkins', $params['current_slots'] ) );
 		}
-		\WP_CLI::log( sprintf( 'Full windows start:  %s', date_i18n( 'Y-m-d H:i:s', $full_start ) ) );
-		\WP_CLI::log( sprintf( 'Per hour:            %d (every %ds)', $per_hour, $interval ) );
+		\WP_CLI::log( sprintf( 'Full windows start:  %s', date_i18n( 'Y-m-d H:i:s', $params['full_start'] ) ) );
+		\WP_CLI::log( sprintf( 'Per hour:            %d (every %ds)', $params['per_hour'], $params['interval'] ) );
 		\WP_CLI::log( sprintf( 'Full hours needed:   %d', $full_hours ) );
 		\WP_CLI::log( sprintf( 'Est. completion:     %s', date_i18n( 'Y-m-d H:i:s', $completion ) ) );
 		\WP_CLI::success( 'Queue spread complete.' );

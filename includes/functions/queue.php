@@ -64,6 +64,13 @@ add_filter( 'action_scheduler_queue_runner_concurrent_batches', function () {
  * @return int Remaining API budget.
  */
 function get_remaining_budget() {
+	// If the window has elapsed, treat budget as fully available even if
+	// the api_calls transient hasn't expired yet (object-cache edge case).
+	$window_end = get_transient( 'beer_slurper_api_window_end' );
+	if ( false === $window_end || (int) $window_end <= time() ) {
+		return API_BUDGET_PER_HOUR;
+	}
+
 	$used = get_transient( 'beer_slurper_api_calls' );
 	if ( false === $used ) {
 		return API_BUDGET_PER_HOUR;
@@ -93,16 +100,22 @@ function has_budget( $needed = 1 ) {
  * @return void
  */
 function consume_budget( $count = 1 ) {
-	$used = get_transient( 'beer_slurper_api_calls' );
-	if ( false === $used ) {
-		$used = 0;
-	}
-	set_transient( 'beer_slurper_api_calls', (int) $used + $count, HOUR_IN_SECONDS );
+	$now        = time();
+	$window_end = get_transient( 'beer_slurper_api_window_end' );
 
-	// Ensure the window-end marker exists (works with object cache).
-	if ( false === get_transient( 'beer_slurper_api_window_end' ) ) {
-		set_transient( 'beer_slurper_api_window_end', time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS );
+	// Start a fresh window if none exists or the previous one elapsed.
+	if ( false === $window_end || (int) $window_end <= $now ) {
+		$window_end = $now + HOUR_IN_SECONDS;
+		set_transient( 'beer_slurper_api_window_end', $window_end, HOUR_IN_SECONDS );
+		$used = 0;
+	} else {
+		$used = (int) get_transient( 'beer_slurper_api_calls' );
 	}
+
+	// Use the remaining window time as TTL so the counter expires with
+	// the window — not HOUR_IN_SECONDS from now (which would slide).
+	$ttl = max( 1, (int) $window_end - $now );
+	set_transient( 'beer_slurper_api_calls', $used + $count, $ttl );
 }
 
 /**
@@ -208,12 +221,97 @@ function get_pending_checkin_count() {
 }
 
 /**
+ * Calculates the schedule parameters for spreading checkin actions.
+ *
+ * Returns the full-rate interval, per-hour count, the number of slots
+ * available in the current budget window, the interval for those slots,
+ * and the timestamp where full-rate windows begin.
+ *
+ * @return array {
+ *     @type int $per_hour          Checkins per full hourly window.
+ *     @type int $interval          Seconds between checkins in a full window.
+ *     @type int $current_slots     Slots available in the active window.
+ *     @type int $current_interval  Seconds between current-window slots.
+ *     @type int $full_start        Timestamp where full-rate windows begin.
+ * }
+ */
+function get_spread_params() {
+	$cost_per = 5;
+	$per_hour = (int) floor( API_BUDGET_PER_HOUR / $cost_per );
+	$interval = (int) floor( 3600 / $per_hour );
+	$now      = time();
+
+	$window_end = get_transient( 'beer_slurper_api_window_end' );
+	$remaining  = get_remaining_budget();
+
+	$current_slots    = 0;
+	$current_interval = $interval;
+
+	if ( $window_end && (int) $window_end > $now && $remaining >= $cost_per ) {
+		$secs_left = (int) ( (int) $window_end - $now );
+
+		// Only schedule current-window slots if there is enough time
+		// to space them at least $interval seconds apart.
+		$current_slots = min(
+			(int) floor( $remaining / $cost_per ),
+			(int) floor( $secs_left / $interval )
+		);
+
+		if ( $current_slots > 1 ) {
+			$current_interval = (int) floor( $secs_left / $current_slots );
+		} elseif ( 1 === $current_slots ) {
+			$current_interval = 0; // Single slot runs immediately.
+		}
+	}
+
+	$full_start = ( $window_end && (int) $window_end > $now )
+		? (int) $window_end
+		: $now;
+
+	return array(
+		'per_hour'         => $per_hour,
+		'interval'         => $interval,
+		'current_slots'    => $current_slots,
+		'current_interval' => $current_interval,
+		'full_start'       => $full_start,
+	);
+}
+
+/**
+ * Calculates the delay (from now) for a given queue slot number.
+ *
+ * Slot 0 is the first action to schedule. Already-pending actions
+ * should be counted so new actions get slot numbers after them.
+ *
+ * @param int   $slot   The zero-based slot number.
+ * @param array $params Spread parameters from get_spread_params().
+ *
+ * @return int Delay in seconds from now.
+ */
+function get_slot_delay( $slot, $params ) {
+	$now = time();
+
+	if ( $slot < $params['current_slots'] ) {
+		return $slot * $params['current_interval'];
+	}
+
+	$offset       = $slot - $params['current_slots'];
+	$hour_offset  = (int) floor( $offset / $params['per_hour'] );
+	$slot_in_hour = $offset % $params['per_hour'];
+
+	return ( $params['full_start'] - $now )
+		+ ( $hour_offset * 3600 )
+		+ ( $slot_in_hour * $params['interval'] );
+}
+
+/**
  * Queues a batch of checkins for processing.
  *
  * Each checkin is scheduled as its own action so that if one fails,
- * the rest still proceed. Actions within the current budget are staggered
- * by 2 seconds. Overflow items are scheduled after the rate limit resets
- * (1 hour), ensuring we use as much budget as possible without exceeding it.
+ * the rest still proceed. Actions are spread at 18 per hour (matching
+ * the API budget at 5 calls per checkin). Already-pending actions are
+ * counted so that repeated calls produce a contiguous, non-overlapping
+ * schedule.
  *
  * @param array  $checkins Array of checkin data arrays.
  * @param string $source   Source context ('import_old' or 'import_new').
@@ -221,23 +319,17 @@ function get_pending_checkin_count() {
  * @return int Number of actions queued.
  */
 function queue_checkin_batch( $checkins, $source = 'import' ) {
-	// Each checkin costs up to ~5 API calls:
-	// 1 checkin/view + 1 beer/info + 1 brewery/info (if new) + 1 parent + 1 collab.
-	// Most repeat checkins cost 2 (checkin/view + beer info, brewery already exists).
-	$cost_per = 5;
-
-	$budget = get_remaining_budget();
-	$queued = 0;
-	$delay  = 0;
-
-	// Reserve a small buffer so other work (daily maintenance, etc.) can proceed.
-	$usable = max( 0, $budget - 2 );
+	$existing = get_pending_checkin_count();
 
 	// Respect the pending-action cap.
-	$room = MAX_PENDING_CHECKINS - get_pending_checkin_count();
+	$room = MAX_PENDING_CHECKINS - $existing;
 	if ( $room <= 0 ) {
 		return 0;
 	}
+
+	$params = get_spread_params();
+	$slot   = $existing; // Start after already-pending actions.
+	$queued = 0;
 
 	foreach ( $checkins as $checkin ) {
 		if ( $queued >= $room ) {
@@ -253,16 +345,7 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 			continue;
 		}
 
-		if ( $usable >= $cost_per ) {
-			// Schedule within current budget window.
-			$usable -= $cost_per;
-		} else {
-			// Budget exhausted — jump to the next hourly window.
-			// Only jump once; subsequent items stagger from there.
-			if ( $delay < HOUR_IN_SECONDS ) {
-				$delay = HOUR_IN_SECONDS;
-			}
-		}
+		$delay = get_slot_delay( $slot, $params );
 
 		// Only store the checkin ID — the full payload is too large for
 		// Action Scheduler's args column. process_checkin() fetches the
@@ -276,7 +359,7 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 			$delay
 		);
 
-		$delay += 2; // Stagger by 2 seconds within each window.
+		$slot++;
 		$queued++;
 	}
 
