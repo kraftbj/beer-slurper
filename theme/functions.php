@@ -28,6 +28,20 @@ function pint_enqueue_styles() {
 add_action( 'wp_enqueue_scripts', 'pint_enqueue_styles' );
 
 /**
+ * Enqueue load-more script on pages with the beer grid.
+ */
+function pint_enqueue_load_more() {
+	wp_enqueue_script(
+		'pint-load-more',
+		get_theme_file_uri( 'assets/js/load-more.js' ),
+		array(),
+		wp_get_theme()->get( 'Version' ),
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'pint_enqueue_load_more' );
+
+/**
  * Register pattern category.
  */
 function pint_register_pattern_category() {
