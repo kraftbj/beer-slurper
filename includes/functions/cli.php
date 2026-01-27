@@ -117,20 +117,39 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			\WP_CLI::log( "Deleted {$term_count} {$label} term(s)." );
 		}
 
-		// 4. Delete options.
-		$deleted_options = $wpdb->query(
-			"DELETE FROM {$wpdb->options}
-			WHERE option_name LIKE 'beer_slurper_%'
-			OR option_name LIKE 'beer-slurper-%'"
+		// 4. Delete known options via delete_option() so the object cache is invalidated.
+		$known_options = array(
+			'beer-slurper-access-token',
+			'beer-slurper-user',
+			'beer-slurper-gallery',
 		);
+
+		// Find all beer_slurper_* options (dynamic per-user options like beer_slurper_kraft_import).
+		$dynamic_options = $wpdb->get_col(
+			"SELECT option_name FROM {$wpdb->options}
+			WHERE option_name LIKE 'beer_slurper_%'"
+		);
+		$all_options = array_merge( $known_options, $dynamic_options );
+
+		$deleted_options = 0;
+		foreach ( $all_options as $option_name ) {
+			if ( delete_option( $option_name ) ) {
+				$deleted_options++;
+			}
+		}
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery
-		\WP_CLI::log( "Deleted {$deleted_options} option(s)." );
+		\WP_CLI::log( "Deleted {$deleted_options} option(s) (API key/secret preserved)." );
 
 		// 5. Delete transients.
-		$wpdb->query(
-			"DELETE FROM {$wpdb->options}
-			WHERE option_name LIKE '%transient%beer_slurper%'"
+		$transient_names = $wpdb->get_col(
+			"SELECT option_name FROM {$wpdb->options}
+			WHERE option_name LIKE '_transient_beer_slurper_%'"
 		);
+		foreach ( $transient_names as $transient_option ) {
+			// Strip the '_transient_' prefix to get the transient name for delete_transient().
+			$transient_key = substr( $transient_option, strlen( '_transient_' ) );
+			delete_transient( $transient_key );
+		}
 
 		// 6. Clear cron hooks.
 		wp_clear_scheduled_hook( 'bs_hourly_importer' );

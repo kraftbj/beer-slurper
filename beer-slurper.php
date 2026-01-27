@@ -47,9 +47,15 @@
  * @package Kraft\Beer_Slurper
  */
 
-// Load Jetpack Autoloader for Action Scheduler and other dependencies.
+// Load Jetpack Autoloader for dependencies.
 if ( file_exists( __DIR__ . '/vendor/autoload_packages.php' ) ) {
 	require_once __DIR__ . '/vendor/autoload_packages.php';
+}
+
+// Action Scheduler is a wordpress-plugin type package with no Composer autoload
+// entry, so its bootstrap file must be loaded explicitly.
+if ( file_exists( __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php' ) ) {
+	require_once __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
 }
 
 // Useful global constants

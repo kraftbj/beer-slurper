@@ -202,24 +202,6 @@ function init_scheduled_actions( $user ) {
 }
 
 /**
- * Registers the Action Scheduler admin UI.
- *
- * When Action Scheduler is loaded as a library (not via WooCommerce),
- * the admin UI must be explicitly initialized. This adds the
- * "Scheduled Actions" page under Tools.
- *
- * @return void
- */
-function register_admin_ui() {
-	if ( ! class_exists( 'ActionScheduler_AdminView' ) ) {
-		return;
-	}
-
-	\ActionScheduler_AdminView::instance()->init();
-}
-add_action( 'init', __NAMESPACE__ . '\register_admin_ui' );
-
-/**
  * Cleans up Action Scheduler actions on deactivation.
  *
  * @return void
