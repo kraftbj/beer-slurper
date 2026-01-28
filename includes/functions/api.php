@@ -95,18 +95,22 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 			if ( $used < $prev_used ) {
 				delete_transient( 'beer_slurper_api_window_end' );
 			}
-
-			set_transient( 'beer_slurper_api_calls', $used, HOUR_IN_SECONDS );
 		} else {
 			// Fallback: increment our own counter.
-			set_transient( 'beer_slurper_api_calls', $api_calls + 1, HOUR_IN_SECONDS );
+			$used = $api_calls + 1;
 		}
 
-		// Store when this budget window expires (works with object cache).
-		// Set once per window; cleared on rollover above.
-		if ( false === get_transient( 'beer_slurper_api_window_end' ) ) {
-			set_transient( 'beer_slurper_api_window_end', time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS );
+		// Ensure window_end exists; get or create it.
+		$now        = time();
+		$window_end = get_transient( 'beer_slurper_api_window_end' );
+		if ( false === $window_end || (int) $window_end <= $now ) {
+			$window_end = $now + HOUR_IN_SECONDS;
+			set_transient( 'beer_slurper_api_window_end', $window_end, HOUR_IN_SECONDS );
 		}
+
+		// Sync api_calls TTL to the window so both expire together.
+		$ttl = max( 1, (int) $window_end - $now );
+		set_transient( 'beer_slurper_api_calls', $used, $ttl );
 
 		set_transient( 'beer_slurper_' . $request_hash, $response, HOUR_IN_SECONDS );
 	}
