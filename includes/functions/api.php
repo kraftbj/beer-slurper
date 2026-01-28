@@ -83,13 +83,11 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 
 		$response = wp_safe_remote_get( $untappd_url );
 
-		// Sync rate limit info from API response headers when available.
+		// Sync rate limit counter from API response header when available.
 		$remaining_header = wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' );
-		$reset_header     = wp_remote_retrieve_header( $response, 'x-ratelimit-reset' );
-
 		if ( '' !== $remaining_header && false !== $remaining_header ) {
 			$remaining = (int) $remaining_header;
-			$used      = max( 0, 100 - $remaining );
+			$used = max( 0, 100 - $remaining );
 
 			// Detect window rollover: remaining jumped above what we
 			// previously saw, meaning Untappd started a fresh window.
@@ -98,21 +96,14 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
 				delete_transient( 'beer_slurper_api_window_end' );
 			}
 
-			// Use reset header for accurate window end, fall back to estimate.
-			if ( '' !== $reset_header && false !== $reset_header ) {
-				$window_end = (int) $reset_header;
-				$ttl        = max( 1, $window_end - time() );
-				set_transient( 'beer_slurper_api_window_end', $window_end, $ttl );
-				set_transient( 'beer_slurper_api_calls', $used, $ttl );
-			} else {
-				set_transient( 'beer_slurper_api_calls', $used, HOUR_IN_SECONDS );
-			}
+			set_transient( 'beer_slurper_api_calls', $used, HOUR_IN_SECONDS );
 		} else {
 			// Fallback: increment our own counter.
 			set_transient( 'beer_slurper_api_calls', $api_calls + 1, HOUR_IN_SECONDS );
 		}
 
-		// Store when this budget window expires (fallback if no reset header).
+		// Store when this budget window expires (works with object cache).
+		// Set once per window; cleared on rollover above.
 		if ( false === get_transient( 'beer_slurper_api_window_end' ) ) {
 			set_transient( 'beer_slurper_api_window_end', time() + HOUR_IN_SECONDS, HOUR_IN_SECONDS );
 		}
