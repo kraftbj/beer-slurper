@@ -519,6 +519,126 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	}
 
 	/**
+	 * Re-queue failed checkin actions for another attempt.
+	 *
+	 * Finds all bs_process_checkin actions in "failed" status, extracts
+	 * the checkin IDs, schedules new properly-spread actions for them,
+	 * and deletes the old failed entries.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--dry-run]
+	 * : Show what would be re-queued without actually doing it.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp beer-slurper retry-failed
+	 *     wp beer-slurper retry-failed --dry-run
+	 *
+	 * @subcommand retry-failed
+	 */
+	public function retry_failed( $args, $assoc_args ) {
+		global $wpdb;
+
+		$dry_run     = \WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false );
+		$table       = $wpdb->prefix . 'actionscheduler_actions';
+		$group_table = $wpdb->prefix . 'actionscheduler_groups';
+
+		// Resolve the group ID for our AS group.
+		$group_id = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT group_id FROM {$group_table} WHERE slug = %s",
+			\Kraft\Beer_Slurper\Queue\AS_GROUP
+		) );
+
+		if ( ! $group_id ) {
+			\WP_CLI::error( 'Action Scheduler group not found.' );
+		}
+
+		// Fetch all failed checkin actions.
+		$failed = $wpdb->get_results( $wpdb->prepare(
+			"SELECT action_id, args FROM {$table}
+			WHERE hook = %s AND status = %s AND group_id = %d
+			ORDER BY scheduled_date_gmt ASC",
+			'bs_process_checkin',
+			'failed',
+			$group_id
+		) );
+
+		if ( empty( $failed ) ) {
+			\WP_CLI::success( 'No failed bs_process_checkin actions found.' );
+			return;
+		}
+
+		$total = count( $failed );
+		\WP_CLI::log( sprintf( 'Found %d failed action(s).', $total ) );
+
+		if ( $dry_run ) {
+			\WP_CLI::log( '' );
+			\WP_CLI::log( 'Checkin IDs that would be re-queued:' );
+			foreach ( $failed as $row ) {
+				$action_args = json_decode( $row->args, true );
+				$checkin_id  = $action_args['checkin_id'] ?? 'unknown';
+				\WP_CLI::log( sprintf( '  - %s (action %d)', $checkin_id, $row->action_id ) );
+			}
+			\WP_CLI::log( '' );
+			\WP_CLI::success( 'Dry run complete. No changes made.' );
+			return;
+		}
+
+		$params   = \Kraft\Beer_Slurper\Queue\get_spread_params();
+		$existing = \Kraft\Beer_Slurper\Queue\get_pending_checkin_count();
+		$slot     = $existing;
+		$queued   = 0;
+
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Re-queuing failed actions', $total );
+
+		foreach ( $failed as $row ) {
+			$action_args = json_decode( $row->args, true );
+			$checkin_id  = $action_args['checkin_id'] ?? null;
+			$source      = $action_args['source'] ?? 'retry';
+
+			if ( ! $checkin_id ) {
+				$progress->tick();
+				continue;
+			}
+
+			// Skip if this checkin was already imported (maybe succeeded on a later retry).
+			if ( \Kraft\Beer_Slurper\Post\find_existing_checkin( $checkin_id ) ) {
+				// Delete the stale failed action.
+				$wpdb->delete( $table, array( 'action_id' => $row->action_id ), array( '%d' ) );
+				$progress->tick();
+				continue;
+			}
+
+			$delay = \Kraft\Beer_Slurper\Queue\get_slot_delay( $slot, $params );
+
+			\Kraft\Beer_Slurper\Queue\schedule_action(
+				'bs_process_checkin',
+				array(
+					'checkin_id' => (int) $checkin_id,
+					'source'     => $source,
+				),
+				$delay
+			);
+
+			// Delete the old failed action.
+			$wpdb->delete( $table, array( 'action_id' => $row->action_id ), array( '%d' ) );
+
+			$slot++;
+			$queued++;
+			$progress->tick();
+		}
+
+		$progress->finish();
+
+		\WP_CLI::success( sprintf(
+			'Re-queued %d checkin(s) with proper spreading. %d skipped (already imported or invalid).',
+			$queued,
+			$total - $queued
+		) );
+	}
+
+	/**
 	 * Trigger a sync immediately.
 	 *
 	 * ## EXAMPLES
