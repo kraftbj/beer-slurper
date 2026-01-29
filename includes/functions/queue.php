@@ -447,6 +447,9 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 
 			if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
 				error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
+			} else {
+				// Success — check if we can accelerate the next action.
+				maybe_accelerate_next_checkin();
 			}
 			return;
 		}
@@ -478,6 +481,9 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 
 		if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
 			error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
+		} else {
+			// Success — check if we can accelerate the next action.
+			maybe_accelerate_next_checkin();
 		}
 	} finally {
 		release_checkin_lock( $slot );
@@ -655,6 +661,110 @@ function get_next_scheduled( $hook, $args = array() ) {
 
 	// as_next_scheduled_action returns false if nothing scheduled, or the timestamp.
 	return $timestamp ? (int) $timestamp : null;
+}
+
+/**
+ * Returns the next pending bs_process_checkin action.
+ *
+ * @return object|null Action row with action_id and scheduled_date_gmt, or null.
+ */
+function get_next_pending_checkin_action() {
+	global $wpdb;
+
+	$table       = $wpdb->prefix . 'actionscheduler_actions';
+	$group_table = $wpdb->prefix . 'actionscheduler_groups';
+
+	$group_id = (int) $wpdb->get_var( $wpdb->prepare(
+		"SELECT group_id FROM {$group_table} WHERE slug = %s",
+		AS_GROUP
+	) );
+
+	if ( ! $group_id ) {
+		return null;
+	}
+
+	return $wpdb->get_row( $wpdb->prepare(
+		"SELECT action_id, scheduled_date_gmt FROM {$table}
+		WHERE hook = %s AND status = %s AND group_id = %d
+		ORDER BY scheduled_date_gmt ASC
+		LIMIT 1",
+		'bs_process_checkin',
+		'pending',
+		$group_id
+	) );
+}
+
+/**
+ * Reschedules a single action to a new timestamp.
+ *
+ * Updates both the scheduled_date columns and the serialized schedule
+ * object so the AS admin UI reflects the change.
+ *
+ * @param int $action_id The action ID to reschedule.
+ * @param int $timestamp Unix timestamp for the new scheduled time.
+ *
+ * @return bool True on success, false on failure.
+ */
+function reschedule_action_by_id( $action_id, $timestamp ) {
+	global $wpdb;
+
+	$table      = $wpdb->prefix . 'actionscheduler_actions';
+	$gmt_date   = gmdate( 'Y-m-d H:i:s', $timestamp );
+	$local_date = get_date_from_gmt( $gmt_date );
+
+	$schedule = new \ActionScheduler_SimpleSchedule(
+		new \DateTime( '@' . $timestamp )
+	);
+
+	$updated = $wpdb->update(
+		$table,
+		array(
+			'scheduled_date_gmt'   => $gmt_date,
+			'scheduled_date_local' => $local_date,
+			'schedule'             => serialize( $schedule ),
+		),
+		array( 'action_id' => $action_id ),
+		array( '%s', '%s', '%s' ),
+		array( '%d' )
+	);
+
+	return false !== $updated;
+}
+
+/**
+ * Accelerates or adjusts the next pending checkin action based on budget.
+ *
+ * If budget remains, pulls the next action forward to run soon.
+ * If no budget and the next action is scheduled more than an hour out,
+ * moves it to run when the budget window resets.
+ *
+ * @return void
+ */
+function maybe_accelerate_next_checkin() {
+	$next = get_next_pending_checkin_action();
+
+	if ( ! $next ) {
+		return;
+	}
+
+	$now            = time();
+	$scheduled_time = strtotime( $next->scheduled_date_gmt . ' UTC' );
+
+	if ( has_budget( 5 ) ) {
+		// Budget available — if next action is more than 10 seconds out, pull it forward.
+		if ( $scheduled_time > $now + 10 ) {
+			reschedule_action_by_id( $next->action_id, $now + 5 );
+		}
+	} else {
+		// No budget — ensure next action runs when the window resets.
+		$window_end = get_transient( 'beer_slurper_api_window_end' );
+		$reset_time = $window_end ? (int) $window_end : $now + HOUR_IN_SECONDS;
+
+		// If scheduled more than 60 seconds after reset, pull it to reset time.
+		if ( $scheduled_time > $reset_time + 60 ) {
+			reschedule_action_by_id( $next->action_id, $reset_time );
+		}
+	}
 }
 
 /**
