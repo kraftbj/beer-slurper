@@ -467,13 +467,7 @@ function sync_status_section_callback() {
 					<?php echo esc_html( $formatted_next ); ?>
 				<?php elseif ( $user ) : ?>
 					<div class="beer-slurper-warning">
-						<?php
-						printf(
-							/* translators: %s: WP-CLI command */
-							__( 'Sync not scheduled. Try disconnecting and reconnecting, or run %s.', 'beer_slurper' ),
-							'<code>wp beer-slurper sync</code>'
-						);
-						?>
+						<?php _e( 'Sync not scheduled. Click "Sync Now" to restore.', 'beer_slurper' ); ?>
 					</div>
 				<?php else : ?>
 					<em><?php _e( 'N/A - No user configured', 'beer_slurper' ); ?></em>
@@ -749,6 +743,9 @@ function ajax_sync_now() {
 			'message' => __( 'No Untappd user configured.', 'beer_slurper' ),
 		) );
 	}
+
+	// Restore scheduled actions if they're missing.
+	\Kraft\Beer_Slurper\Queue\init_scheduled_actions( $user );
 
 	$result = \bs_import( $user );
 
