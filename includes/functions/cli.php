@@ -748,6 +748,133 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			\WP_CLI::success( 'Sync complete.' );
 		}
 	}
+
+	/**
+	 * Refresh taxonomy term metadata from the Untappd API.
+	 *
+	 * Queues Action Scheduler jobs to re-fetch metadata for breweries,
+	 * venues, or all taxonomies. Respects API rate limits.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <type>
+	 * : What to refresh. One of: breweries, venues, all
+	 *
+	 * [--dry-run]
+	 * : Show what would be queued without scheduling.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp beer-slurper refresh breweries
+	 *     wp beer-slurper refresh venues
+	 *     wp beer-slurper refresh all
+	 *     wp beer-slurper refresh breweries --dry-run
+	 *
+	 * @subcommand refresh
+	 */
+	public function refresh( $args, $assoc_args ) {
+		$type    = $args[0] ?? '';
+		$dry_run = \WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false );
+
+		if ( ! in_array( $type, array( 'breweries', 'venues', 'all' ), true ) ) {
+			\WP_CLI::error( 'Invalid type. Use: breweries, venues, or all' );
+		}
+
+		$types_to_refresh = ( 'all' === $type )
+			? array( 'breweries', 'venues' )
+			: array( $type );
+
+		$total_queued = 0;
+
+		foreach ( $types_to_refresh as $refresh_type ) {
+			$queued = $this->queue_refresh( $refresh_type, $dry_run );
+			$total_queued += $queued;
+		}
+
+		if ( $dry_run ) {
+			\WP_CLI::success( sprintf( 'Dry run complete. Would queue %d refresh job(s).', $total_queued ) );
+		} else {
+			\WP_CLI::success( sprintf( 'Queued %d refresh job(s) via Action Scheduler.', $total_queued ) );
+		}
+	}
+
+	/**
+	 * Queues refresh jobs for a specific taxonomy type.
+	 *
+	 * @param string $type    The type: 'breweries' or 'venues'.
+	 * @param bool   $dry_run Whether to skip actual scheduling.
+	 *
+	 * @return int Number of jobs queued.
+	 */
+	private function queue_refresh( $type, $dry_run ) {
+		$taxonomy = '';
+		$hook     = '';
+		$id_key   = '';
+
+		switch ( $type ) {
+			case 'breweries':
+				$taxonomy = BEER_SLURPER_TAX_BREWERY;
+				$hook     = 'bs_refresh_brewery';
+				$id_key   = 'brewery_id';
+				break;
+			case 'venues':
+				$taxonomy = BEER_SLURPER_TAX_VENUE;
+				$hook     = 'bs_refresh_venue';
+				$id_key   = 'venue_id';
+				break;
+			default:
+				return 0;
+		}
+
+		$terms = get_terms( array(
+			'taxonomy'   => $taxonomy,
+			'hide_empty' => false,
+			'number'     => 0,
+		) );
+
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			\WP_CLI::log( sprintf( 'No %s terms found.', $type ) );
+			return 0;
+		}
+
+		\WP_CLI::log( sprintf( 'Found %d %s to refresh.', count( $terms ), $type ) );
+
+		$params  = \Kraft\Beer_Slurper\Queue\get_spread_params();
+		$queued  = 0;
+
+		foreach ( $terms as $term ) {
+			$untappd_id = get_term_meta( $term->term_id, 'untappd_id', true );
+
+			if ( empty( $untappd_id ) ) {
+				continue;
+			}
+
+			if ( $dry_run ) {
+				\WP_CLI::log( sprintf(
+					'[DRY RUN] Would queue %s refresh for %s (term %d, untappd %s)',
+					$type,
+					$term->name,
+					$term->term_id,
+					$untappd_id
+				) );
+			} else {
+				$delay = \Kraft\Beer_Slurper\Queue\get_slot_delay( $queued, $params );
+
+				\Kraft\Beer_Slurper\Queue\schedule_action(
+					$hook,
+					array(
+						$id_key   => (int) $untappd_id,
+						'term_id' => $term->term_id,
+					),
+					$delay
+				);
+			}
+
+			$queued++;
+		}
+
+		return $queued;
+	}
 }
 
 \WP_CLI::add_command( 'beer-slurper', __NAMESPACE__ . '\Beer_Slurper_Command' );

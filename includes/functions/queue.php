@@ -613,6 +613,62 @@ function maintenance_badge_backfill() {
 add_action( 'bs_maintenance_badge_backfill', __NAMESPACE__ . '\maintenance_badge_backfill' );
 
 /**
+ * Processes a single brewery refresh job.
+ *
+ * @param int $brewery_id The Untappd brewery ID.
+ * @param int $term_id    The WordPress term ID.
+ *
+ * @return void
+ */
+function process_refresh_brewery( $brewery_id, $term_id ) {
+	if ( ! has_budget( 1 ) ) {
+		schedule_action(
+			'bs_refresh_brewery',
+			array( 'brewery_id' => $brewery_id, 'term_id' => $term_id ),
+			HOUR_IN_SECONDS
+		);
+		return;
+	}
+
+	$brewery = \Kraft\Beer_Slurper\API\get_brewery_info( $brewery_id );
+
+	if ( is_wp_error( $brewery ) || ! is_array( $brewery ) ) {
+		return;
+	}
+
+	\Kraft\Beer_Slurper\Brewery\save_brewery_meta( $term_id, $brewery );
+}
+add_action( 'bs_refresh_brewery', __NAMESPACE__ . '\process_refresh_brewery', 10, 2 );
+
+/**
+ * Processes a single venue refresh job.
+ *
+ * @param int $venue_id The Untappd venue ID.
+ * @param int $term_id  The WordPress term ID.
+ *
+ * @return void
+ */
+function process_refresh_venue( $venue_id, $term_id ) {
+	if ( ! has_budget( 1 ) ) {
+		schedule_action(
+			'bs_refresh_venue',
+			array( 'venue_id' => $venue_id, 'term_id' => $term_id ),
+			HOUR_IN_SECONDS
+		);
+		return;
+	}
+
+	$venue = \Kraft\Beer_Slurper\API\get_venue_info( $venue_id );
+
+	if ( is_wp_error( $venue ) || ! is_array( $venue ) ) {
+		return;
+	}
+
+	\Kraft\Beer_Slurper\Venue\save_venue_meta( $term_id, $venue_id, $venue );
+}
+add_action( 'bs_refresh_venue', __NAMESPACE__ . '\process_refresh_venue', 10, 2 );
+
+/**
  * Initializes Action Scheduler recurring tasks.
  *
  * Schedules the hourly import (with user arg) and daily maintenance.
@@ -767,6 +823,8 @@ function cleanup() {
 	cancel_all( 'bs_maintenance_brewery_backfill' );
 	cancel_all( 'bs_maintenance_venue_backfill' );
 	cancel_all( 'bs_maintenance_badge_backfill' );
+	cancel_all( 'bs_refresh_brewery' );
+	cancel_all( 'bs_refresh_venue' );
 
 	// Legacy hook names from older versions.
 	cancel_all( 'bs_as_daily_maintenance' );

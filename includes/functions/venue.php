@@ -40,7 +40,14 @@ function get_venue_term_id( $venue_id = null, $venue_data = null ) {
 		return $term_id;
 	}
 
-	return $term[0]->term_id;
+	$term_id = $term[0]->term_id;
+
+	// Refresh meta from checkin data if provided.
+	if ( is_array( $venue_data ) && ! empty( $venue_data['venue_name'] ) ) {
+		maybe_update_venue_meta( $term_id, $venue_id, $venue_data );
+	}
+
+	return $term_id;
 }
 
 /**
@@ -122,6 +129,62 @@ function save_venue_meta( $term_id, $venue_id, $venue_data ) {
 
 	foreach ( $meta_map as $key => $value ) {
 		if ( '' !== $value ) {
+			update_term_meta( $term_id, $key, $value );
+		}
+	}
+}
+
+/**
+ * Updates venue term meta only if the value has changed.
+ *
+ * @param int   $term_id    The term ID.
+ * @param int   $venue_id   The Untappd venue ID.
+ * @param array $venue_data The venue data from a checkin payload.
+ *
+ * @return void
+ */
+function maybe_update_venue_meta( $term_id, $venue_id, $venue_data ) {
+	$updates = array();
+
+	$location = isset( $venue_data['location'] ) ? $venue_data['location'] : array();
+
+	if ( isset( $location['venue_address'] ) && '' !== $location['venue_address'] ) {
+		$updates['venue_address'] = $location['venue_address'];
+	}
+	if ( isset( $location['venue_city'] ) && '' !== $location['venue_city'] ) {
+		$updates['venue_city'] = $location['venue_city'];
+	}
+	if ( isset( $location['venue_state'] ) && '' !== $location['venue_state'] ) {
+		$updates['venue_state'] = $location['venue_state'];
+	}
+	if ( isset( $location['venue_country'] ) && '' !== $location['venue_country'] ) {
+		$updates['venue_country'] = $location['venue_country'];
+	}
+	if ( isset( $location['lat'] ) && '' !== $location['lat'] ) {
+		$updates['venue_lat'] = (float) $location['lat'];
+	}
+	if ( isset( $location['lng'] ) && '' !== $location['lng'] ) {
+		$updates['venue_lng'] = (float) $location['lng'];
+	}
+
+	// URL from contact or top-level.
+	if ( isset( $venue_data['contact']['venue_url'] ) && '' !== $venue_data['contact']['venue_url'] ) {
+		$updates['venue_url'] = $venue_data['contact']['venue_url'];
+	} elseif ( isset( $venue_data['venue_url'] ) && '' !== $venue_data['venue_url'] ) {
+		$updates['venue_url'] = $venue_data['venue_url'];
+	}
+
+	if ( isset( $venue_data['primary_category'] ) && '' !== $venue_data['primary_category'] ) {
+		$updates['venue_category'] = $venue_data['primary_category'];
+	}
+	if ( isset( $venue_data['venue_icon']['sm'] ) ) {
+		$updates['venue_icon'] = $venue_data['venue_icon']['sm'];
+	}
+
+	// Only write if value differs.
+	foreach ( $updates as $key => $value ) {
+		$current = get_term_meta( $term_id, $key, true );
+		if ( $current !== $value ) {
 			update_term_meta( $term_id, $key, $value );
 		}
 	}

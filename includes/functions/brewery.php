@@ -47,7 +47,14 @@ function get_brewery_term_id( $breweryid = null, $brewery_data = null ){
 		return $term_id;
 	}
 
-	return $term[0]->term_id;
+	$term_id = $term[0]->term_id;
+
+	// Refresh meta from checkin data if provided (no API call, just use what we have).
+	if ( is_array( $brewery_data ) && ! empty( $brewery_data['brewery_name'] ) ) {
+		maybe_update_brewery_meta( $term_id, $brewery_data );
+	}
+
+	return $term_id;
 }
 
 /**
@@ -184,6 +191,70 @@ function save_brewery_meta( $term_id, $brewery ) {
 			if ( isset( $contact[ $api_key ] ) && '' !== $contact[ $api_key ] ) {
 				update_term_meta( $term_id, $meta_key, $contact[ $api_key ] );
 			}
+		}
+	}
+}
+
+/**
+ * Updates brewery term meta only if the value has changed.
+ *
+ * Used when processing checkins to keep data fresh without unnecessary writes.
+ *
+ * @param int   $term_id The term ID.
+ * @param array $brewery The brewery data from a checkin payload.
+ *
+ * @return void
+ */
+function maybe_update_brewery_meta( $term_id, $brewery ) {
+	$updates = array();
+
+	// Contact fields from checkin payload.
+	if ( isset( $brewery['contact'] ) && is_array( $brewery['contact'] ) ) {
+		$contact = $brewery['contact'];
+		if ( isset( $contact['url'] ) && '' !== $contact['url'] ) {
+			$updates['brewery_url'] = $contact['url'];
+		}
+		if ( isset( $contact['twitter'] ) && '' !== $contact['twitter'] ) {
+			$updates['brewery_twitter'] = $contact['twitter'];
+		}
+		if ( isset( $contact['facebook'] ) && '' !== $contact['facebook'] ) {
+			$updates['brewery_facebook'] = $contact['facebook'];
+		}
+		if ( isset( $contact['instagram'] ) && '' !== $contact['instagram'] ) {
+			$updates['brewery_instagram'] = $contact['instagram'];
+		}
+	}
+
+	// Location fields.
+	if ( isset( $brewery['location'] ) && is_array( $brewery['location'] ) ) {
+		$location = $brewery['location'];
+		if ( isset( $location['brewery_city'] ) && '' !== $location['brewery_city'] ) {
+			$updates['brewery_city'] = $location['brewery_city'];
+		}
+		if ( isset( $location['brewery_state'] ) && '' !== $location['brewery_state'] ) {
+			$updates['brewery_state'] = $location['brewery_state'];
+		}
+		if ( isset( $location['lat'] ) && '' !== $location['lat'] ) {
+			$updates['brewery_lat'] = $location['lat'];
+		}
+		if ( isset( $location['lng'] ) && '' !== $location['lng'] ) {
+			$updates['brewery_lng'] = $location['lng'];
+		}
+	}
+
+	// Simple fields.
+	if ( isset( $brewery['brewery_type'] ) && '' !== $brewery['brewery_type'] ) {
+		$updates['brewery_type'] = $brewery['brewery_type'];
+	}
+	if ( isset( $brewery['brewery_label'] ) && '' !== $brewery['brewery_label'] ) {
+		$updates['brewery_label'] = $brewery['brewery_label'];
+	}
+
+	// Only write if value differs from current.
+	foreach ( $updates as $key => $value ) {
+		$current = get_term_meta( $term_id, $key, true );
+		if ( $current !== $value ) {
+			update_term_meta( $term_id, $key, $value );
 		}
 	}
 }

@@ -32,7 +32,14 @@ function get_companion_term_id( $uid = null, $user_data = null ) {
 	) );
 
 	if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
-		return $terms[0]->term_id;
+		$term_id = $terms[0]->term_id;
+
+		// Refresh meta from checkin data if provided.
+		if ( is_array( $user_data ) && ! empty( $user_data['user_name'] ) ) {
+			maybe_update_companion_meta( $term_id, $user_data );
+		}
+
+		return $term_id;
 	}
 
 	return add_companion( $uid, $user_data );
@@ -92,6 +99,40 @@ function add_companion( $uid, $user_data = null ) {
 	}
 
 	return $term_id;
+}
+
+/**
+ * Updates companion term meta only if the value has changed.
+ *
+ * @param int   $term_id   The term ID.
+ * @param array $user_data The user data from a checkin payload.
+ *
+ * @return void
+ */
+function maybe_update_companion_meta( $term_id, $user_data ) {
+	$updates = array();
+
+	if ( ! empty( $user_data['user_name'] ) ) {
+		$updates['untappd_username'] = $user_data['user_name'];
+
+		// Use their personal URL if provided, otherwise Untappd profile.
+		$url = ! empty( $user_data['url'] )
+			? $user_data['url']
+			: 'https://untappd.com/user/' . $user_data['user_name'];
+		$updates['url'] = $url;
+	}
+
+	if ( ! empty( $user_data['user_avatar'] ) ) {
+		$updates['avatar_url'] = $user_data['user_avatar'];
+	}
+
+	// Only write if value differs.
+	foreach ( $updates as $key => $value ) {
+		$current = get_term_meta( $term_id, $key, true );
+		if ( $current !== $value ) {
+			update_term_meta( $term_id, $key, $value );
+		}
+	}
 }
 
 /**

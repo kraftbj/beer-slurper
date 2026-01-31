@@ -316,6 +316,23 @@ function get_brewery_info( $breweryid, $compact = true ){
 }
 
 /**
+ * Retrieves venue information from the Untappd API.
+ *
+ * @param int $venue_id The Untappd venue ID.
+ *
+ * @return array|WP_Error The venue data array or WP_Error on failure.
+ */
+function get_venue_info( $venue_id ) {
+	$info = get_untappd_data( 'venue/info', $venue_id );
+
+	if ( is_wp_error( $info ) || ! is_array( $info ) || ! isset( $info['venue'] ) ) {
+		return is_wp_error( $info ) ? $info : new \WP_Error( 'invalid_venue_response', __( 'Invalid venue response from API.', 'beer_slurper' ) );
+	}
+
+	return $info['venue'];
+}
+
+/**
  * Validates that an API endpoint is supported.
  *
  * Ensures the specified endpoint is in the list of known valid Untappd API
