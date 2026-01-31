@@ -64,6 +64,13 @@ function i18n() {
  */
 function init() {
 	default_settings(); // Converts PHP constants to settings.
+
+	// Ensure scheduled actions are registered if a user is configured.
+	$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
+	if ( $user ) {
+		\Kraft\Beer_Slurper\Queue\init_scheduled_actions( $user );
+	}
+
 	do_action( 'beer_slurper_init' );
 }
 
