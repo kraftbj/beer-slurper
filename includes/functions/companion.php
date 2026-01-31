@@ -81,6 +81,8 @@ function add_companion( $uid, $user_data = null ) {
 
 	if ( ! empty( $user_data['user_name'] ) ) {
 		update_term_meta( $term_id, 'untappd_username', $user_data['user_name'] );
+		// Build Untappd profile URL from username.
+		update_term_meta( $term_id, 'untappd_url', 'https://untappd.com/user/' . $user_data['user_name'] );
 	}
 	if ( ! empty( $user_data['user_avatar'] ) ) {
 		update_term_meta( $term_id, 'avatar_url', $user_data['user_avatar'] );
