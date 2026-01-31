@@ -541,7 +541,6 @@ function rate_limit_section_callback() {
 	if ( function_exists( 'as_get_scheduled_actions' ) ) {
 		$hooks = array(
 			'bs_process_checkin'              => __( 'Checkin imports', 'beer_slurper' ),
-			'bs_backfill_companion'           => __( 'Companion backfills', 'beer_slurper' ),
 			'bs_maintenance_stats'            => __( 'Stats refresh', 'beer_slurper' ),
 			'bs_maintenance_brewery_backfill' => __( 'Brewery backfills', 'beer_slurper' ),
 			'bs_maintenance_venue_backfill'   => __( 'Venue backfills', 'beer_slurper' ),

@@ -347,6 +347,16 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 
 		$delay = get_slot_delay( $slot, $params );
 
+		// Store tagged_friends in a transient since checkin/view doesn't return it.
+		// This is the only time we have this data (from user/checkins list response).
+		if ( ! empty( $checkin['tagged_friends']['items'] ) ) {
+			set_transient(
+				'bs_companions_' . $checkin['checkin_id'],
+				$checkin['tagged_friends']['items'],
+				WEEK_IN_SECONDS
+			);
+		}
+
 		// Only store the checkin ID — the full payload is too large for
 		// Action Scheduler's args column. process_checkin() fetches the
 		// data from the API when it runs.
@@ -482,6 +492,17 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 		if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
 			error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
 		} else {
+			// Attach companions from the transient we saved during queueing.
+			// checkin/view doesn't return tagged_friends, so we stash it earlier.
+			$companions = get_transient( 'bs_companions_' . $checkin_id );
+			if ( ! empty( $companions ) && is_int( $result ) ) {
+				$checkin_with_friends = array(
+					'tagged_friends' => array( 'items' => $companions ),
+				);
+				\Kraft\Beer_Slurper\Companion\attach_companions( $checkin_with_friends, $result );
+				delete_transient( 'bs_companions_' . $checkin_id );
+			}
+
 			// Success — check if we can accelerate the next action.
 			maybe_accelerate_next_checkin();
 		}
@@ -490,45 +511,6 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 	}
 }
 add_action( 'bs_process_checkin', __NAMESPACE__ . '\process_checkin', 10, 2 );
-
-/**
- * Processes a single companion backfill job.
- *
- * Fetches the checkin from the API and attaches any tagged friends
- * as companion taxonomy terms. Re-queues with delay if rate-limited.
- *
- * @param int $checkin_id The Untappd checkin ID.
- * @param int $post_id    The beer post ID.
- *
- * @return void
- */
-function process_companion_backfill( $checkin_id, $post_id ) {
-	if ( ! has_budget( 2 ) ) {
-		// Re-queue after the rate limit resets.
-		schedule_action(
-			'bs_backfill_companion',
-			array(
-				'checkin_id' => $checkin_id,
-				'post_id'    => $post_id,
-			),
-			HOUR_IN_SECONDS
-		);
-		return;
-	}
-
-	$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $checkin_id );
-
-	if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
-		return;
-	}
-
-	$checkin_data = $response['checkin'];
-
-	if ( ! empty( $checkin_data['tagged_friends']['items'] ) ) {
-		\Kraft\Beer_Slurper\Companion\attach_companions( $checkin_data, $post_id );
-	}
-}
-add_action( 'bs_backfill_companion', __NAMESPACE__ . '\process_companion_backfill', 10, 2 );
 
 /**
  * Performs the hourly import via Action Scheduler.
