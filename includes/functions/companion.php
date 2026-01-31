@@ -98,6 +98,14 @@ function add_companion( $uid, $user_data = null ) {
  * @return void
  */
 function attach_companions( $checkin, $post_id ) {
+	// Debug: log what keys are present in the checkin.
+	if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+		$has_tagged = isset( $checkin['tagged_friends'] ) ? 'yes' : 'no';
+		$count = isset( $checkin['tagged_friends']['count'] ) ? $checkin['tagged_friends']['count'] : 'n/a';
+		$items = isset( $checkin['tagged_friends']['items'] ) ? count( $checkin['tagged_friends']['items'] ) : 'n/a';
+		error_log( "Beer Slurper Companion: checkin {$checkin['checkin_id']} - tagged_friends present: {$has_tagged}, count: {$count}, items: {$items}" );
+	}
+
 	if ( empty( $checkin['tagged_friends']['items'] ) ) {
 		return;
 	}
