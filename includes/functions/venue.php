@@ -104,7 +104,10 @@ function save_venue_meta( $term_id, $venue_id, $venue_data ) {
 		'venue_lng'      => isset( $location['lng'] ) ? (float) $location['lng'] : '',
 	);
 
-	if ( isset( $venue_data['venue_url'] ) ) {
+	// URL may be at contact.venue_url or top-level venue_url.
+	if ( isset( $venue_data['contact']['venue_url'] ) && '' !== $venue_data['contact']['venue_url'] ) {
+		$meta_map['venue_url'] = $venue_data['contact']['venue_url'];
+	} elseif ( isset( $venue_data['venue_url'] ) && '' !== $venue_data['venue_url'] ) {
 		$meta_map['venue_url'] = $venue_data['venue_url'];
 	}
 	if ( isset( $venue_data['primary_category'] ) ) {
