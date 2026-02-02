@@ -59,22 +59,22 @@ class Core_Tests extends Base\TestCase {
 	 */
 	public function test_i18n() {
 		// Setup
-		\WP_Mock::wpFunction( 'get_locale', array(
+		\WP_Mock::userFunction( 'get_locale', array(
 			'times' => 1,
 			'args' => array(),
 			'return' => 'en_US',
 		) );
 		\WP_Mock::onFilter( 'plugin_locale' )->with( 'en_US', 'beer_slurper' )->reply( 'en_US' );
-		\WP_Mock::wpFunction( 'load_textdomain', array(
+		\WP_Mock::userFunction( 'load_textdomain', array(
 			'times' => 1,
 			'args' => array( 'beer_slurper', 'lang_dir/beer_slurper/beer_slurper-en_US.mo' ),
 		) );
-		\WP_Mock::wpFunction( 'plugin_basename', array(
+		\WP_Mock::userFunction( 'plugin_basename', array(
 			'times' => 1,
 			'args' => array( 'path' ),
 			'return' => 'path',
 		) );
-		\WP_Mock::wpFunction( 'load_plugin_textdomain', array(
+		\WP_Mock::userFunction( 'load_plugin_textdomain', array(
 			'times' => 1,
 			'args' => array( 'beer_slurper', false, 'path/languages/' ),
 		) );
@@ -111,7 +111,7 @@ class Core_Tests extends Base\TestCase {
 	 */
 	public function test_activate() {
 		// Setup
-		\WP_Mock::wpFunction( 'flush_rewrite_rules', array(
+		\WP_Mock::userFunction( 'flush_rewrite_rules', array(
 			'times' => 1
 		) );
 
@@ -125,15 +125,22 @@ class Core_Tests extends Base\TestCase {
 	/**
 	 * Tests deactivate() performs cleanup on plugin deactivation.
 	 *
-	 * Verifies that the deactivation function executes without errors.
-	 * Currently a placeholder for future cleanup operations.
+	 * Verifies that the deactivation function clears scheduled hooks
+	 * and runs queue cleanup.
 	 */
 	public function test_deactivate() {
 		// Setup
+		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Queue\cleanup', array(
+			'times' => 1,
+		) );
+		\WP_Mock::userFunction( 'wp_unschedule_hook', array(
+			'times' => 2,
+		) );
 
 		// Act
 		deactivate();
 
 		// Verify
+		$this->assertConditionsMet();
 	}
 }
