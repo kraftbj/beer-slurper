@@ -3,39 +3,22 @@
  * Base Test Case for Beer Slurper
  *
  * Provides a base test case class with common utilities and setup methods
- * for all Beer Slurper PHPUnit tests.
+ * for all Beer Slurper PHPUnit tests using WorDBless with SQLite.
  *
  * @package Kraft\Beer_Slurper
  */
 
 namespace Kraft\Beer_Slurper;
 
-use PHPUnit\Framework\TestResult;
-use WP_Mock;
-use WP_Mock\Tools\TestCase as BaseTestCase;
+use WorDBless\BaseTestCase;
 
 /**
  * Base test case class for Beer Slurper tests.
  *
- * Extends WP_Mock\Tools\TestCase to provide common functionality for all
- * plugin tests, including automatic file loading, namespace resolution,
- * and custom assertion helpers.
+ * Extends WorDBless BaseTestCase to provide common functionality
+ * for all plugin tests with SQLite database support.
  */
 class TestCase extends BaseTestCase {
-	/**
-	 * Runs the test case with global state preservation disabled.
-	 *
-	 * Disables global state preservation before running the test to prevent
-	 * issues with constants and global variables between test runs.
-	 *
-	 * @param TestResult|null $result The test result collector.
-	 * @return TestResult The test result.
-	 */
-	public function run( ?TestResult $result = null ): TestResult {
-		$this->setPreserveGlobalState( false );
-		return parent::run( $result );
-	}
-
 	/**
 	 * Array of test files to load before running tests.
 	 *
@@ -44,14 +27,23 @@ class TestCase extends BaseTestCase {
 	protected $testFiles = array();
 
 	/**
-	 * Sets up the test environment before each test.
+	 * Options created during a test that should be cleaned up.
 	 *
-	 * Loads any files specified in the $testFiles property and calls the
-	 * parent setUp method to initialize WP_Mock.
+	 * @var array
+	 */
+	protected $test_options = array();
+
+	/**
+	 * Sets up the test environment before each test.
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
+	protected function set_up(): void {
+		parent::set_up();
+
+		// Clean up test-specific options from previous tests
+		$this->cleanup_test_options();
+
 		if ( ! empty( $this->testFiles ) ) {
 			foreach ( $this->testFiles as $file ) {
 				if ( file_exists( PROJECT . $file ) ) {
@@ -59,34 +51,41 @@ class TestCase extends BaseTestCase {
 				}
 			}
 		}
-
-		parent::setUp();
 	}
 
 	/**
-	 * Asserts that all expected WordPress actions were called.
-	 *
-	 * Wraps WP_Mock::assertActionsCalled() to provide a cleaner assertion
-	 * interface and better error messages when expected actions are not called.
+	 * Tears down the test environment after each test.
 	 *
 	 * @return void
 	 */
-	public function assertActionsCalled(): void {
-		$actions_not_added = $expected_actions = 0;
-		try {
-			WP_Mock::assertActionsCalled();
-		} catch ( \Exception $e ) {
-			$actions_not_added = 1;
-			$expected_actions  = $e->getMessage();
-		}
-		$this->assertEmpty( $actions_not_added, $expected_actions );
+	protected function tear_down(): void {
+		// Clean up options created during this test
+		$this->cleanup_test_options();
+
+		parent::tear_down();
+	}
+
+	/**
+	 * Clean up test-specific options from the database.
+	 *
+	 * @return void
+	 */
+	protected function cleanup_test_options() {
+		global $wpdb;
+
+		// Delete beer_slurper options
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'beer_slurper%'" );
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'beer-slurper%'" );
+
+		// Clear cron/scheduled events for our hooks
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name = 'cron'" );
+
+		// Clear any object cache
+		wp_cache_flush();
 	}
 
 	/**
 	 * Resolves a function name to its fully qualified namespace.
-	 *
-	 * Takes a function name and prepends the current test class's namespace
-	 * to create a fully qualified function name for mocking purposes.
 	 *
 	 * @param string $function The function name to namespace.
 	 * @return string The fully qualified function name with namespace.
@@ -102,31 +101,8 @@ class TestCase extends BaseTestCase {
 			return $function;
 		}
 
-		// $thisNamespace is constructed by exploding the current class name on
-		// namespace separators, running array_slice on that array starting at 0
-		// and ending one element from the end (chops the class name off) and
-		// imploding that using namespace separators as the glue.
 		$thisNamespace = implode( '\\', array_slice( explode( '\\', $thisClassName ), 0, - 1 ) );
 
 		return "$thisNamespace\\$function";
-	}
-
-	/**
-	 * Prepares the PHPUnit template for process isolation.
-	 *
-	 * Sets up the template with global variables needed for process isolation
-	 * to work correctly with constants. This ensures the bootstrap file is
-	 * properly referenced in isolated test processes.
-	 *
-	 * @see http://kpayne.me/2012/07/02/phpunit-process-isolation-and-constant-already-defined/
-	 *
-	 * @param \Text_Template $template The PHPUnit template to prepare.
-	 * @return void
-	 */
-	public function prepareTemplate( \Text_Template $template ) {
-		$template->setVar( [
-			'globals' => '$GLOBALS[\'__PHPUNIT_BOOTSTRAP\'] = \'' . $GLOBALS['__PHPUNIT_BOOTSTRAP'] . '\';',
-		] );
-		parent::prepareTemplate( $template );
 	}
 }

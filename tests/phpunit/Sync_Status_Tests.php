@@ -10,6 +10,8 @@
 
 namespace Kraft\Beer_Slurper\Sync_Status;
 
+use Kraft\Beer_Slurper as Base;
+
 /**
  * Tests for the Sync Status helper functions.
  *
@@ -17,14 +19,8 @@ namespace Kraft\Beer_Slurper\Sync_Status;
  * retrieval, error recording and clearing, success recording, user
  * configuration, and backfill status detection.
  *
- * References:
- *   - http://phpunit.de/manual/current/en/index.html
- *   - https://github.com/padraic/mockery
- *   - https://github.com/10up/wp_mock
+ * Uses WorDBless to provide real WordPress option functions.
  */
-
-use Kraft\Beer_Slurper as Base;
-
 class Sync_Status_Tests extends Base\TestCase {
 
 	protected $testFiles = [
@@ -39,12 +35,7 @@ class Sync_Status_Tests extends Base\TestCase {
 	 */
 	public function test_get_last_sync_time_returns_timestamp() {
 		$timestamp = 1705766400;
-
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_last_sync' ),
-			'return' => $timestamp,
-		) );
+		update_option( 'beer_slurper_last_sync', $timestamp );
 
 		$result = get_last_sync_time();
 
@@ -58,12 +49,6 @@ class Sync_Status_Tests extends Base\TestCase {
 	 * does not exist or is empty.
 	 */
 	public function test_get_last_sync_time_returns_null_when_not_set() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_last_sync' ),
-			'return' => false,
-		) );
-
 		$result = get_last_sync_time();
 
 		$this->assertNull( $result );
@@ -80,12 +65,7 @@ class Sync_Status_Tests extends Base\TestCase {
 			'code'    => 'api_error',
 			'message' => 'API request failed',
 		);
-
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_last_sync_error' ),
-			'return' => $error_data,
-		) );
+		update_option( 'beer_slurper_last_sync_error', $error_data );
 
 		$result = get_last_sync_error();
 
@@ -99,12 +79,6 @@ class Sync_Status_Tests extends Base\TestCase {
 	 * option does not exist or is empty.
 	 */
 	public function test_get_last_sync_error_returns_null_when_not_set() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_last_sync_error' ),
-			'return' => false,
-		) );
-
 		$result = get_last_sync_error();
 
 		$this->assertNull( $result );
@@ -117,15 +91,12 @@ class Sync_Status_Tests extends Base\TestCase {
 	 * option from the database.
 	 */
 	public function test_clear_sync_error_deletes_option() {
-		\WP_Mock::userFunction( 'delete_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_last_sync_error' ),
-			'return' => true,
-		) );
+		update_option( 'beer_slurper_last_sync_error', array( 'code' => 'test' ) );
 
 		$result = clear_sync_error();
 
 		$this->assertTrue( $result );
+		$this->assertFalse( get_option( 'beer_slurper_last_sync_error' ) );
 	}
 
 	/**
@@ -136,22 +107,13 @@ class Sync_Status_Tests extends Base\TestCase {
 	 */
 	public function test_record_sync_success_updates_timestamp_and_clears_error() {
 		$timestamp = 1705766400;
-
-		\WP_Mock::userFunction( 'update_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_last_sync', $timestamp, false ),
-			'return' => true,
-		) );
-
-		\WP_Mock::userFunction( 'delete_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_last_sync_error' ),
-			'return' => true,
-		) );
+		update_option( 'beer_slurper_last_sync_error', array( 'code' => 'old_error' ) );
 
 		$result = record_sync_success( $timestamp );
 
 		$this->assertTrue( $result );
+		$this->assertEquals( $timestamp, get_option( 'beer_slurper_last_sync' ) );
+		$this->assertFalse( get_option( 'beer_slurper_last_sync_error' ) );
 	}
 
 	/**
@@ -161,11 +123,7 @@ class Sync_Status_Tests extends Base\TestCase {
 	 * when the UNTAPPD_USER constant is not defined.
 	 */
 	public function test_get_configured_user_returns_option_when_no_constant() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer-slurper-user' ),
-			'return' => 'testuser',
-		) );
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$result = get_configured_user();
 
@@ -179,12 +137,6 @@ class Sync_Status_Tests extends Base\TestCase {
 	 * nor the option has a configured Untappd username.
 	 */
 	public function test_get_configured_user_returns_null_when_not_configured() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer-slurper-user' ),
-			'return' => false,
-		) );
-
 		$result = get_configured_user();
 
 		$this->assertNull( $result );
@@ -197,11 +149,7 @@ class Sync_Status_Tests extends Base\TestCase {
 	 * by checking the user-specific import option.
 	 */
 	public function test_is_backfilling_returns_true_when_importing() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_testuser_import' ),
-			'return' => true,
-		) );
+		update_option( 'beer_slurper_testuser_import', true );
 
 		$result = is_backfilling( 'testuser' );
 
@@ -215,12 +163,6 @@ class Sync_Status_Tests extends Base\TestCase {
 	 * is active for the specified user.
 	 */
 	public function test_is_backfilling_returns_false_when_caught_up() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_testuser_import' ),
-			'return' => false,
-		) );
-
 		$result = is_backfilling( 'testuser' );
 
 		$this->assertFalse( $result );

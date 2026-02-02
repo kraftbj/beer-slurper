@@ -17,18 +17,23 @@
     "prefer-stable": true,
     "config": {
         "allow-plugins": {
-            "automattic/jetpack-autoloader": true
+            "automattic/jetpack-autoloader": true,
+            "roots/wordpress-core-installer": true
         }
     },
 	"require": {
 		"php": ">=7.4",
 		"woocommerce/action-scheduler": "^3.9",
-		"automattic/jetpack-autoloader": "^3.1"
+		"automattic/jetpack-autoloader": "^5.0"
 	},
     "require-dev": {
-	    "antecedent/patchwork": "^2.1",
-        "phpunit/phpunit"     : "*@stable",
-	    "brianium/paratest"   : "*@stable",
-        "10up/wp_mock"        : "dev-trunk"
+        "phpunit/phpunit"         : "^9.6",
+        "brianium/paratest"       : "^6.11",
+        "automattic/wordbless"    : "^0.6",
+        "yoast/phpunit-polyfills" : "^3.0"
+    },
+    "scripts": {
+        "post-install-cmd": "WorDBless\\Composer\\InstallDropin::copy",
+        "post-update-cmd": "WorDBless\\Composer\\InstallDropin::copy"
     }
 }
