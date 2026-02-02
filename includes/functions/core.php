@@ -1050,6 +1050,9 @@ function import_section_callback() {
 	</div>
 
 	<script>
+	if ( typeof ajaxurl === 'undefined' ) {
+		var ajaxurl = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
+	}
 	jQuery(document).ready(function($) {
 		var dropzone = $('#beer-slurper-dropzone');
 		var fileInput = $('#beer-slurper-import-file');
@@ -1087,6 +1090,12 @@ function import_section_callback() {
 		});
 
 		function handleFile(file) {
+			if (typeof ajaxurl === 'undefined') {
+				console.error('Beer Slurper: ajaxurl not defined');
+				results.removeClass('success').addClass('error').show();
+				messageEl.text('<?php echo esc_js( __('Configuration error. Please reload the page.', 'beer_slurper' ) ); ?>');
+				return;
+			}
 			var formData = new FormData();
 			formData.append('action', 'beer_slurper_import');
 			formData.append('nonce', $('#beer_slurper_import_nonce').val());
@@ -1121,7 +1130,11 @@ function import_section_callback() {
 						messageEl.text(response.data.message);
 
 						if (response.data.errors && response.data.errors.length) {
-							errorsEl.html('<strong><?php echo esc_js( __( 'Warnings:', 'beer_slurper' ) ); ?></strong><br>' + response.data.errors.join('<br>'));
+							var warningsList = $('<ul style="margin: 5px 0 0 20px;"></ul>');
+							response.data.errors.forEach(function(e) {
+								$('<li></li>').text(e).appendTo(warningsList);
+							});
+							errorsEl.empty().append($('<strong></strong>').text('<?php echo esc_js( __( 'Warnings:', 'beer_slurper' ) ); ?>')).append(warningsList);
 						} else {
 							errorsEl.html('');
 						}
