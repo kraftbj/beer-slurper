@@ -21,6 +21,9 @@ namespace Kraft\Beer_Slurper\Sync_Status;
  *   - http://phpunit.de/manual/current/en/index.html
  *   - https://github.com/padraic/mockery
  *   - https://github.com/10up/wp_mock
+ *
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
 
 use Kraft\Beer_Slurper as Base;
