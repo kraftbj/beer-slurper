@@ -86,7 +86,7 @@ function import_csv( $file_path ) {
 	}
 
 	// Read header row.
-	$header = fgetcsv( $handle );
+	$header = fgetcsv( $handle, 0, ',', '"', '' );
 
 	if ( false === $header || empty( $header ) ) {
 		fclose( $handle );
@@ -121,7 +121,7 @@ function import_csv( $file_path ) {
 	$batch_size  = 25;
 	$row_number  = 1;
 
-	while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+	while ( ( $row = fgetcsv( $handle, 0, ',', '"', '' ) ) !== false ) {
 		$row_number++;
 		$results['total']++;
 

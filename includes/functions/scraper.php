@@ -485,7 +485,7 @@ function parse_user_checkins( $html, $username ) {
 	libxml_use_internal_errors( true );
 
 	$doc = new \DOMDocument();
-	$doc->loadHTML( mb_convert_encoding( $html, 'HTML-ENTITIES', 'UTF-8' ), LIBXML_NOWARNING | LIBXML_NOERROR );
+	$doc->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR );
 
 	libxml_clear_errors();
 
@@ -795,7 +795,7 @@ function parse_beer_page( $html, $beer_id ) {
 	libxml_use_internal_errors( true );
 
 	$doc = new \DOMDocument();
-	$doc->loadHTML( mb_convert_encoding( $html, 'HTML-ENTITIES', 'UTF-8' ), LIBXML_NOWARNING | LIBXML_NOERROR );
+	$doc->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR );
 
 	libxml_clear_errors();
 
