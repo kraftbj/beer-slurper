@@ -15,6 +15,7 @@ namespace Kraft\Beer_Slurper\Walker;
  *
  * Fetches and imports checkins that occurred after the last recorded
  * checkin ID. If no previous sync exists, initiates historical import.
+ * Supports both API and scraper data sources based on configuration.
  *
  * @since 1.0.0
  *
@@ -23,6 +24,7 @@ namespace Kraft\Beer_Slurper\Walker;
  * @uses is_wp_error()                          Checks for API errors.
  * @uses update_option()                        Saves new sync position.
  * @uses \Kraft\Beer_Slurper\API\get_checkins() Fetches checkin data from API.
+ * @uses \Kraft\Beer_Slurper\Scraper\get_user_checkins() Fetches checkins via scraping.
  * @uses \Kraft\Beer_Slurper\Post\insert_beer() Creates beer posts from checkins.
  *
  * @param string $user The Untappd username.
@@ -35,6 +37,13 @@ function import_new( $user ) {
 
 	if ( empty( $user ) ) {
 		return new \WP_Error( 'invalid_user', __( 'Invalid or empty username provided.', 'beer_slurper' ) );
+	}
+
+	$data_source = \Kraft\Beer_Slurper\Scraper\get_data_source();
+
+	// Use scraper if configured and no API credentials.
+	if ( 'scraper' === $data_source || ( 'hybrid' === $data_source && ! has_api_credentials() ) ) {
+		return import_new_via_scraper( $user );
 	}
 
 	// check for an option of the since_id for the $user indicated.
@@ -63,6 +72,12 @@ function import_new( $user ) {
 		$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, null, null, '25' );
 	}
 
+	// Hybrid mode: fall back to scraper if API fails completely.
+	if ( 'hybrid' === $data_source && ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) ) {
+		error_log( 'Beer Slurper: API failed, falling back to scraper for user ' . $user );
+		return import_new_via_scraper( $user );
+	}
+
 	if ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) {
 		return is_wp_error( $checkins ) ? $checkins : new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
 	}
@@ -87,6 +102,83 @@ function import_new( $user ) {
 
 	$message = $checkins['count'] . " beer(s) queued for import ({$queued} within current budget).";
 	return $message;
+}
+
+/**
+ * Imports new checkins using the web scraper.
+ *
+ * Used when API credentials are not available or in scraper-only mode.
+ * Scrapes the user's public profile for recent checkins.
+ *
+ * Note: Scraping only retrieves ~25 most recent checkins and provides
+ * less detailed data than the API (no badges, companions, descriptions).
+ *
+ * @since 1.1.0
+ *
+ * @param string $user The Untappd username.
+ *
+ * @return string|WP_Error Success message with count, or WP_Error on failure.
+ */
+function import_new_via_scraper( $user ) {
+	$checkins = \Kraft\Beer_Slurper\Scraper\get_user_checkins( $user );
+
+	if ( is_wp_error( $checkins ) ) {
+		return $checkins;
+	}
+
+	if ( ! isset( $checkins['checkins']['items'] ) || empty( $checkins['checkins']['items'] ) ) {
+		return __( 'No checkins found via scraper.', 'beer_slurper' );
+	}
+
+	$items    = $checkins['checkins']['items'];
+	$imported = 0;
+	$skipped  = 0;
+
+	foreach ( $items as $checkin ) {
+		// Skip if we've already imported this checkin.
+		if ( ! empty( $checkin['checkin_id'] ) && \Kraft\Beer_Slurper\Post\find_existing_checkin( $checkin['checkin_id'] ) ) {
+			$skipped++;
+			continue;
+		}
+
+		// Mark as scraped for tracking.
+		$checkin['_import_source'] = 'scraper';
+
+		// Process the checkin directly (scraper doesn't need rate limiting).
+		$result = \Kraft\Beer_Slurper\Post\insert_beer( $checkin );
+
+		if ( ! is_wp_error( $result ) ) {
+			$imported++;
+
+			// Store import source.
+			update_post_meta( $result, '_beer_slurper_import_source', 'scraper' );
+		}
+	}
+
+	// Update since_id if we imported anything.
+	if ( $imported > 0 && ! empty( $items[0]['checkin_id'] ) ) {
+		update_option( 'beer_slurper_' . $user . '_since', $items[0]['checkin_id'], false );
+	}
+
+	$message = sprintf(
+		__( '%d checkin(s) imported via scraper, %d skipped (already imported).', 'beer_slurper' ),
+		$imported,
+		$skipped
+	);
+
+	return $message;
+}
+
+/**
+ * Checks if API credentials are available.
+ *
+ * @return bool True if API credentials exist.
+ */
+function has_api_credentials() {
+	$has_oauth = \Kraft\Beer_Slurper\OAuth\is_connected();
+	$has_keys  = get_option( 'beer-slurper-key' ) && get_option( 'beer-slurper-secret' );
+
+	return $has_oauth || $has_keys;
 }
 
 

@@ -106,6 +106,8 @@ require_once BEER_SLURPER_INC . 'functions/walker.php';
 require_once BEER_SLURPER_INC . 'functions/sync-status.php';
 require_once BEER_SLURPER_INC . 'functions/queue.php';
 require_once BEER_SLURPER_INC . 'functions/taxonomy-admin.php';
+require_once BEER_SLURPER_INC . 'functions/scraper.php';
+require_once BEER_SLURPER_INC . 'functions/import-export.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once BEER_SLURPER_INC . 'functions/cli.php';
