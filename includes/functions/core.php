@@ -133,6 +133,15 @@ function setting_init() {
 
 	// API Rate Limit section
 	add_settings_section( 'api_rate_limit', __( 'API Rate Limit', 'beer_slurper' ), $n( 'rate_limit_section_callback' ), 'beer-slurper-settings' );
+
+	// Data Source section (for users without API access)
+	add_settings_section( 'data_source_settings', __( 'Data Source', 'beer_slurper' ), $n( 'data_source_section_callback' ), 'beer-slurper-settings' );
+
+	add_settings_field( 'beer-slurper-data-source', __( 'Data Source Mode', 'beer_slurper' ), $n( 'setting_data_source' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-data-source' ) );
+	register_setting( 'beer-slurper-settings', 'beer_slurper_data_source', 'sanitize_text_field' );
+
+	// Import section
+	add_settings_section( 'import_settings', __( 'Import from Untappd Export', 'beer_slurper' ), $n( 'import_section_callback' ), 'beer-slurper-settings' );
 }
 
 /**
@@ -759,4 +768,330 @@ function ajax_sync_now() {
 	wp_send_json_success( array(
 		'message' => __( 'Sync completed successfully.', 'beer_slurper' ),
 	) );
+}
+
+/**
+ * Renders the Data Source settings section.
+ *
+ * Explains the different data source options and their tradeoffs.
+ *
+ * @return void
+ */
+function data_source_section_callback() {
+	?>
+	<p class="description">
+		<?php _e( 'Choose how Beer Slurper fetches data from Untappd. API access provides the richest data but requires credentials. Scraping works without credentials but has limitations.', 'beer_slurper' ); ?>
+	</p>
+	<p>
+		<a href="#data-differences" style="text-decoration: underline;">
+			<?php _e( 'See data differences between modes →', 'beer_slurper' ); ?>
+		</a>
+	</p>
+	<?php
+}
+
+/**
+ * Renders the Data Source Mode setting field.
+ *
+ * @return void
+ */
+function setting_data_source() {
+	$current = get_option( 'beer_slurper_data_source', 'api' );
+	$has_api = \Kraft\Beer_Slurper\OAuth\is_connected() || ( get_option( 'beer-slurper-key' ) && get_option( 'beer-slurper-secret' ) );
+
+	$options = array(
+		'api'     => array(
+			'label'       => __( 'API Only', 'beer_slurper' ),
+			'description' => __( 'Full data including badges, companions, and detailed metadata. Requires API credentials.', 'beer_slurper' ),
+			'disabled'    => ! $has_api,
+		),
+		'hybrid'  => array(
+			'label'       => __( 'API + Scraper Fallback', 'beer_slurper' ),
+			'description' => __( 'Uses API when available, falls back to scraping if API fails. Best of both worlds.', 'beer_slurper' ),
+			'disabled'    => false,
+		),
+		'scraper' => array(
+			'label'       => __( 'Scraper Only (No API Required)', 'beer_slurper' ),
+			'description' => __( 'Works without API credentials. Limited to recent checkins (~25) and basic data.', 'beer_slurper' ),
+			'disabled'    => false,
+		),
+	);
+
+	echo '<fieldset>';
+
+	foreach ( $options as $value => $option ) {
+		$disabled = $option['disabled'] ? ' disabled' : '';
+		$checked  = checked( $current, $value, false );
+
+		// If current selection is disabled, fall back to hybrid.
+		if ( $option['disabled'] && $current === $value ) {
+			$checked = '';
+		}
+
+		printf(
+			'<label style="display: block; margin-bottom: 10px;%s">
+				<input type="radio" name="beer_slurper_data_source" value="%s"%s%s />
+				<strong>%s</strong>
+				<br /><span class="description" style="margin-left: 24px;">%s</span>
+			</label>',
+			$option['disabled'] ? ' opacity: 0.5;' : '',
+			esc_attr( $value ),
+			$checked,
+			$disabled,
+			esc_html( $option['label'] ),
+			esc_html( $option['description'] )
+		);
+	}
+
+	if ( ! $has_api ) {
+		echo '<p class="description" style="color: #d63638; margin-top: 10px;">';
+		_e( '⚠️ API credentials not configured. "API Only" mode is unavailable.', 'beer_slurper' );
+		echo '</p>';
+	}
+
+	echo '</fieldset>';
+
+	// Data differences reference.
+	?>
+	<div id="data-differences" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd;">
+		<h4 style="margin-top: 0;"><?php _e( 'Data Availability by Source', 'beer_slurper' ); ?></h4>
+		<table class="widefat" style="margin-top: 10px;">
+			<thead>
+				<tr>
+					<th><?php _e( 'Data', 'beer_slurper' ); ?></th>
+					<th><?php _e( 'API', 'beer_slurper' ); ?></th>
+					<th><?php _e( 'Export Import', 'beer_slurper' ); ?></th>
+					<th><?php _e( 'Scraper', 'beer_slurper' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr><td><?php _e( 'Checkin (rating, comment, date)', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
+				<tr><td><?php _e( 'Beer name & style', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
+				<tr><td><?php _e( 'Beer ABV & IBU', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>❌</td></tr>
+				<tr><td><?php _e( 'Beer description & label', 'beer_slurper' ); ?></td><td>✅</td><td>❌</td><td>❌</td></tr>
+				<tr><td><?php _e( 'Brewery name & location', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
+				<tr><td><?php _e( 'Brewery details (logo, social, coords)', 'beer_slurper' ); ?></td><td>✅</td><td>❌</td><td>❌</td></tr>
+				<tr><td><?php _e( 'Venue name & coordinates', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>⚠️</td></tr>
+				<tr><td><?php _e( 'Venue details (address, category)', 'beer_slurper' ); ?></td><td>✅</td><td>❌</td><td>❌</td></tr>
+				<tr><td><?php _e( 'Photos', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
+				<tr style="background: #fff3cd;"><td><strong><?php _e( 'Badges', 'beer_slurper' ); ?></strong></td><td>✅</td><td>❌</td><td>❌</td></tr>
+				<tr style="background: #fff3cd;"><td><strong><?php _e( 'Tagged Friends (Companions)', 'beer_slurper' ); ?></strong></td><td>✅</td><td>❌</td><td>❌</td></tr>
+				<tr><td><?php _e( 'Historical backfill', 'beer_slurper' ); ?></td><td>✅ <?php _e( 'Full', 'beer_slurper' ); ?></td><td>✅ <?php _e( 'Full', 'beer_slurper' ); ?></td><td>⚠️ ~25</td></tr>
+			</tbody>
+		</table>
+		<p class="description" style="margin-top: 10px;">
+			<?php _e( '⚠️ = Partial data. Highlighted rows show features only available with API access.', 'beer_slurper' ); ?>
+		</p>
+	</div>
+	<?php
+}
+
+/**
+ * Renders the Import section for uploading Untappd export files.
+ *
+ * @return void
+ */
+function import_section_callback() {
+	$enrichable_count = \Kraft\Beer_Slurper\Import\get_enrichable_count();
+
+	?>
+	<style>
+		.beer-slurper-import { margin-top: 10px; }
+		.beer-slurper-import-dropzone {
+			border: 2px dashed #c3c4c7;
+			border-radius: 4px;
+			padding: 30px;
+			text-align: center;
+			background: #f9f9f9;
+			margin-bottom: 15px;
+			transition: all 0.2s ease;
+		}
+		.beer-slurper-import-dropzone.dragover {
+			border-color: #2271b1;
+			background: #f0f6fc;
+		}
+		.beer-slurper-import-dropzone input[type="file"] {
+			display: none;
+		}
+		.beer-slurper-import-dropzone label {
+			cursor: pointer;
+			color: #2271b1;
+			text-decoration: underline;
+		}
+		.beer-slurper-import-progress {
+			display: none;
+			margin-top: 15px;
+		}
+		.beer-slurper-import-progress .progress-bar {
+			width: 100%;
+			height: 20px;
+			background: #f0f0f1;
+			border-radius: 3px;
+			overflow: hidden;
+		}
+		.beer-slurper-import-progress .progress-bar-fill {
+			height: 100%;
+			background: #2271b1;
+			width: 0%;
+			transition: width 0.3s ease;
+		}
+		.beer-slurper-import-results {
+			margin-top: 15px;
+			padding: 15px;
+			border-radius: 4px;
+			display: none;
+		}
+		.beer-slurper-import-results.success {
+			background: #d1e7dd;
+			border: 1px solid #a3cfbb;
+		}
+		.beer-slurper-import-results.error {
+			background: #f8d7da;
+			border: 1px solid #f5c2c7;
+		}
+	</style>
+
+	<div class="beer-slurper-import">
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: Link to Untappd settings */
+				__( 'Import your checkin history from an Untappd data export. You can request your data from %s (Untappd Insider) or via a GDPR data request.', 'beer_slurper' ),
+				'<a href="https://untappd.com/user" target="_blank">untappd.com/user → Account Settings</a>'
+			);
+			?>
+		</p>
+
+		<div class="beer-slurper-import-dropzone" id="beer-slurper-dropzone">
+			<p>
+				<?php _e( 'Drag and drop your Untappd export file here, or', 'beer_slurper' ); ?>
+				<label for="beer-slurper-import-file"><?php _e( 'browse to select a file', 'beer_slurper' ); ?></label>
+			</p>
+			<p class="description"><?php _e( 'Supported formats: CSV, JSON', 'beer_slurper' ); ?></p>
+			<input type="file" id="beer-slurper-import-file" accept=".csv,.json" />
+		</div>
+
+		<div class="beer-slurper-import-progress" id="beer-slurper-import-progress">
+			<p><?php _e( 'Importing...', 'beer_slurper' ); ?> <span id="beer-slurper-import-status"></span></p>
+			<div class="progress-bar">
+				<div class="progress-bar-fill" id="beer-slurper-progress-fill"></div>
+			</div>
+		</div>
+
+		<div class="beer-slurper-import-results" id="beer-slurper-import-results">
+			<p id="beer-slurper-import-message"></p>
+			<div id="beer-slurper-import-errors" style="margin-top: 10px; font-size: 12px;"></div>
+		</div>
+
+		<?php if ( $enrichable_count > 0 ) : ?>
+			<div class="notice notice-info inline" style="margin-top: 15px;">
+				<p>
+					<?php
+					printf(
+						/* translators: %d: Number of imported checkins */
+						__( '%d checkins were imported from export and could be enriched with API data (badges, detailed metadata).', 'beer_slurper' ),
+						$enrichable_count
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
+
+		<?php wp_nonce_field( 'beer_slurper_import', 'beer_slurper_import_nonce' ); ?>
+	</div>
+
+	<script>
+	jQuery(document).ready(function($) {
+		var dropzone = $('#beer-slurper-dropzone');
+		var fileInput = $('#beer-slurper-import-file');
+		var progress = $('#beer-slurper-import-progress');
+		var results = $('#beer-slurper-import-results');
+		var progressFill = $('#beer-slurper-progress-fill');
+		var statusText = $('#beer-slurper-import-status');
+		var messageEl = $('#beer-slurper-import-message');
+		var errorsEl = $('#beer-slurper-import-errors');
+
+		// Drag and drop handling
+		dropzone.on('dragover dragenter', function(e) {
+			e.preventDefault();
+			e.stopPropagation();
+			$(this).addClass('dragover');
+		});
+
+		dropzone.on('dragleave dragend drop', function(e) {
+			e.preventDefault();
+			e.stopPropagation();
+			$(this).removeClass('dragover');
+		});
+
+		dropzone.on('drop', function(e) {
+			var files = e.originalEvent.dataTransfer.files;
+			if (files.length) {
+				handleFile(files[0]);
+			}
+		});
+
+		fileInput.on('change', function() {
+			if (this.files.length) {
+				handleFile(this.files[0]);
+			}
+		});
+
+		function handleFile(file) {
+			var formData = new FormData();
+			formData.append('action', 'beer_slurper_import');
+			formData.append('nonce', $('#beer_slurper_import_nonce').val());
+			formData.append('import_file', file);
+
+			progress.show();
+			results.hide();
+			progressFill.css('width', '10%');
+			statusText.text('<?php echo esc_js( __( 'Uploading...', 'beer_slurper' ) ); ?>');
+
+			$.ajax({
+				url: ajaxurl,
+				type: 'POST',
+				data: formData,
+				processData: false,
+				contentType: false,
+				xhr: function() {
+					var xhr = new window.XMLHttpRequest();
+					xhr.upload.addEventListener('progress', function(e) {
+						if (e.lengthComputable) {
+							var pct = Math.round((e.loaded / e.total) * 50);
+							progressFill.css('width', pct + '%');
+						}
+					});
+					return xhr;
+				},
+				success: function(response) {
+					progressFill.css('width', '100%');
+
+					if (response.success) {
+						results.removeClass('error').addClass('success').show();
+						messageEl.text(response.data.message);
+
+						if (response.data.errors && response.data.errors.length) {
+							errorsEl.html('<strong><?php echo esc_js( __( 'Warnings:', 'beer_slurper' ) ); ?></strong><br>' + response.data.errors.join('<br>'));
+						} else {
+							errorsEl.html('');
+						}
+					} else {
+						results.removeClass('success').addClass('error').show();
+						messageEl.text(response.data.message || '<?php echo esc_js( __( 'Import failed.', 'beer_slurper' ) ); ?>');
+						errorsEl.html('');
+					}
+
+					progress.hide();
+				},
+				error: function() {
+					progress.hide();
+					results.removeClass('success').addClass('error').show();
+					messageEl.text('<?php echo esc_js( __( 'An error occurred during import.', 'beer_slurper' ) ); ?>');
+				}
+			});
+		}
+	});
+	</script>
+	<?php
 }
