@@ -41,6 +41,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 \WorDBless\Load::load( 'sqlite' );
 
 /*
+ * Enable term meta support.
+ *
+ * WordPress checks db_version to determine if term meta is supported (added in WP 4.4).
+ * WorDBless doesn't set this option, so WordPress disables term meta operations.
+ * We set it to a modern WP version to enable full term meta functionality.
+ */
+if ( ! get_option( 'db_version' ) ) {
+	update_option( 'db_version', 58975 );
+}
+
+/*
  * Project directory constant.
  *
  * Defines the path to the includes directory for loading project files.
@@ -67,6 +78,27 @@ if ( ! defined( 'BEER_SLURPER_PATH' ) ) {
 
 if ( ! defined( 'BEER_SLURPER_INC' ) ) {
 	define( 'BEER_SLURPER_INC', __DIR__ . '/includes/' );
+}
+
+// Load plugin constants needed for tests
+// Note: BEER_SLURPER_PATH and BEER_SLURPER_INC are already defined above
+if ( ! defined( 'BEER_SLURPER_CPT' ) ) {
+	define( 'BEER_SLURPER_CPT', 'beerlog_beer' );
+}
+if ( ! defined( 'BEER_SLURPER_TAX_STYLE' ) ) {
+	define( 'BEER_SLURPER_TAX_STYLE', 'beerlog_style' );
+}
+if ( ! defined( 'BEER_SLURPER_TAX_BREWERY' ) ) {
+	define( 'BEER_SLURPER_TAX_BREWERY', 'beerlog_brewery' );
+}
+if ( ! defined( 'BEER_SLURPER_TAX_VENUE' ) ) {
+	define( 'BEER_SLURPER_TAX_VENUE', 'beerlog_venue' );
+}
+if ( ! defined( 'BEER_SLURPER_TAX_BADGE' ) ) {
+	define( 'BEER_SLURPER_TAX_BADGE', 'beerlog_badge' );
+}
+if ( ! defined( 'BEER_SLURPER_TAX_COMPANION' ) ) {
+	define( 'BEER_SLURPER_TAX_COMPANION', 'beerlog_companion' );
 }
 
 require_once __DIR__ . '/tests/phpunit/test-tools/TestCase.php';
