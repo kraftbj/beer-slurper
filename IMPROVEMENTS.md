@@ -14,10 +14,10 @@ A prioritized list of improvements for the Beer Slurper WordPress plugin.
 
 ---
 
-## High Priority - 4/5 COMPLETE
+## High Priority - 5/5 COMPLETE
 
 - [x] **Implement cron deactivation** - Added `wp_clear_scheduled_hook()` to deactivate()
-- [ ] **Add comprehensive test coverage** - 15 tests exist across 2 classes, needs expansion
+- [x] **Add comprehensive test coverage** - 263 tests across 15 test classes (unit, integration, E2E, CLI)
 - [x] **Add rate limiting for API calls** - Implemented with transients (90 calls/hour)
 - [x] **Fix typo in validate_endpoint parameter** - Fixed `$paramteter` to `$parameter`
 - [x] **Add error logging** - Added `error_log()` to API failure points
@@ -36,7 +36,7 @@ A prioritized list of improvements for the Beer Slurper WordPress plugin.
 
 ---
 
-## Low Priority - 6/9 COMPLETE
+## Low Priority - 7/9 COMPLETE
 
 - [x] **Add inline documentation** - Added PHPDoc/JSDoc to all PHP and JS files
 - [x] **Implement excerpt generation** - Added using `wp_trim_words()`
@@ -45,7 +45,7 @@ A prioritized list of improvements for the Beer Slurper WordPress plugin.
 - [x] **Create admin UI for import control** - Sync Now button, status dashboard, API budget viz, pending jobs queue
 - [x] **Add CLI commands** - 8 commands: reset, status, backfill-companions, prime-queue, spread-queue, retry-failed, sync, refresh
 - [x] ~~**Implement JavaScript tests**~~ - Removed (JS build removed)
-- [ ] **Add CI/CD pipeline** - Deferred (requires infrastructure decisions)
+- [x] **Add CI/CD pipeline** - GitHub Actions workflow runs PHPUnit on master and all PRs
 - [ ] **Consider webhook support** - Deferred (depends on Untappd API capabilities)
 
 ---
@@ -70,13 +70,11 @@ A prioritized list of improvements for the Beer Slurper WordPress plugin.
 
 ## Summary
 
-**Completed:** 28 items
-**Remaining:** 6 items
+**Completed:** 30 items
+**Remaining:** 4 items
 
 ### Remaining Items (Substantial Effort)
-- Add comprehensive test coverage (15 tests exist, needs expansion)
 - Implement async image processing
-- Add CI/CD pipeline
 - Consider webhook support (depends on Untappd API capabilities)
 - Use array storage for related options
 - Add contributing guidelines
