@@ -105,12 +105,16 @@ function import_new( $user ) {
 }
 
 /**
- * Imports new checkins using the web scraper.
+ * Imports new checkins using RSS feed or web scraper.
  *
  * Used when API credentials are not available or in scraper-only mode.
- * Scrapes the user's public profile for recent checkins.
+ * Prefers RSS feed (official, structured) over page scraping.
  *
- * Note: Scraping only retrieves ~25 most recent checkins and provides
+ * Data source priority:
+ * 1. RSS feed (if URL configured) - official, structured, polite
+ * 2. Page scraping (fallback) - works without RSS URL setup
+ *
+ * Note: Both methods only retrieve ~25 most recent checkins and provide
  * less detailed data than the API (no badges, companions, descriptions).
  *
  * @since 1.1.0
@@ -120,7 +124,25 @@ function import_new( $user ) {
  * @return string|WP_Error Success message with count, or WP_Error on failure.
  */
 function import_new_via_scraper( $user ) {
-	$checkins = \Kraft\Beer_Slurper\Scraper\get_user_checkins( $user );
+	$source = 'scraper';
+
+	// Try RSS first if configured (preferred method).
+	$rss_url = \Kraft\Beer_Slurper\Scraper\get_rss_url();
+
+	if ( $rss_url && \Kraft\Beer_Slurper\Scraper\is_valid_rss_url( $rss_url ) ) {
+		$checkins = \Kraft\Beer_Slurper\Scraper\get_checkins_from_rss( $rss_url );
+		$source   = 'rss';
+
+		// If RSS fails, fall back to page scraping.
+		if ( is_wp_error( $checkins ) ) {
+			error_log( 'Beer Slurper: RSS fetch failed, falling back to scraper - ' . $checkins->get_error_message() );
+			$checkins = \Kraft\Beer_Slurper\Scraper\get_user_checkins( $user );
+			$source   = 'scraper';
+		}
+	} else {
+		// No RSS configured, use page scraping.
+		$checkins = \Kraft\Beer_Slurper\Scraper\get_user_checkins( $user );
+	}
 
 	if ( is_wp_error( $checkins ) ) {
 		return $checkins;
@@ -141,8 +163,8 @@ function import_new_via_scraper( $user ) {
 			continue;
 		}
 
-		// Mark as scraped for tracking.
-		$checkin['_import_source'] = 'scraper';
+		// Mark source for tracking.
+		$checkin['_import_source'] = $source;
 
 		// Process the checkin directly (scraper doesn't need rate limiting).
 		$result = \Kraft\Beer_Slurper\Post\insert_beer( $checkin );
@@ -151,7 +173,7 @@ function import_new_via_scraper( $user ) {
 			$imported++;
 
 			// Store import source.
-			update_post_meta( $result, '_beer_slurper_import_source', 'scraper' );
+			update_post_meta( $result, '_beer_slurper_import_source', $source );
 		}
 	}
 
@@ -160,9 +182,12 @@ function import_new_via_scraper( $user ) {
 		update_option( 'beer_slurper_' . $user . '_since', $items[0]['checkin_id'], false );
 	}
 
+	$source_label = ( 'rss' === $source ) ? 'RSS feed' : 'scraper';
 	$message = sprintf(
-		__( '%d checkin(s) imported via scraper, %d skipped (already imported).', 'beer_slurper' ),
+		/* translators: 1: imported count, 2: source (RSS/scraper), 3: skipped count */
+		__( '%1$d checkin(s) imported via %2$s, %3$d skipped (already imported).', 'beer_slurper' ),
 		$imported,
+		$source_label,
 		$skipped
 	);
 

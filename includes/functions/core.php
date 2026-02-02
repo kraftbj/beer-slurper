@@ -140,6 +140,12 @@ function setting_init() {
 	add_settings_field( 'beer-slurper-data-source', __( 'Data Source Mode', 'beer_slurper' ), $n( 'setting_data_source' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-data-source' ) );
 	register_setting( 'beer-slurper-settings', 'beer_slurper_data_source', 'sanitize_text_field' );
 
+	add_settings_field( 'beer-slurper-rss-url', __( 'RSS Feed URL', 'beer_slurper' ), $n( 'setting_rss_url' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-rss-url' ) );
+	register_setting( 'beer-slurper-settings', 'beer_slurper_rss_url', array(
+		'type'              => 'string',
+		'sanitize_callback' => 'esc_url_raw',
+	) );
+
 	// Import section
 	add_settings_section( 'import_settings', __( 'Import from Untappd Export', 'beer_slurper' ), $n( 'import_section_callback' ), 'beer-slurper-settings' );
 }
@@ -885,6 +891,47 @@ function setting_data_source() {
 			<?php _e( '⚠️ = Partial data. Highlighted rows show features only available with API access.', 'beer_slurper' ); ?>
 		</p>
 	</div>
+	<?php
+}
+
+/**
+ * Renders the RSS Feed URL setting field.
+ *
+ * @return void
+ */
+function setting_rss_url() {
+	$rss_url = get_option( 'beer_slurper_rss_url', '' );
+	$is_valid = ! empty( $rss_url ) && \Kraft\Beer_Slurper\Scraper\is_valid_rss_url( $rss_url );
+
+	?>
+	<input
+		type="url"
+		id="beer-slurper-rss-url"
+		name="beer_slurper_rss_url"
+		value="<?php echo esc_attr( $rss_url ); ?>"
+		class="regular-text"
+		placeholder="https://untappd.com/rss/user/USERNAME?key=YOUR_KEY"
+	/>
+
+	<?php if ( $rss_url && $is_valid ) : ?>
+		<span style="color: #00a32a; margin-left: 8px;">✓ <?php _e( 'Valid RSS URL', 'beer_slurper' ); ?></span>
+	<?php elseif ( $rss_url && ! $is_valid ) : ?>
+		<span style="color: #d63638; margin-left: 8px;">✗ <?php _e( 'Invalid RSS URL format', 'beer_slurper' ); ?></span>
+	<?php endif; ?>
+
+	<p class="description" style="margin-top: 8px;">
+		<?php
+		printf(
+			/* translators: %s: Link to Untappd settings */
+			__( 'Find your personal RSS feed URL at %s under "RSS Private Feed URL". It includes a unique key for your account.', 'beer_slurper' ),
+			'<a href="https://untappd.com/account/settings" target="_blank">untappd.com/account/settings</a>'
+		);
+		?>
+	</p>
+	<p class="description">
+		<strong><?php _e( 'Why RSS?', 'beer_slurper' ); ?></strong>
+		<?php _e( 'RSS is an official Untappd feature for accessing your checkins. Using RSS instead of scraping web pages is more reliable and respectful to Untappd\'s servers.', 'beer_slurper' ); ?>
+	</p>
 	<?php
 }
 
