@@ -10,8 +10,8 @@
 
 namespace Kraft\Beer_Slurper;
 
-use PHPUnit_Framework_TestResult;
-use Text_Template;
+use PHPUnit\Framework\TestResult;
+use SebastianBergmann\Template\Template;
 use WP_Mock;
 use WP_Mock\Tools\TestCase as BaseTestCase;
 
@@ -29,10 +29,10 @@ class TestCase extends BaseTestCase {
 	 * Disables global state preservation before running the test to prevent
 	 * issues with constants and global variables between test runs.
 	 *
-	 * @param PHPUnit_Framework_TestResult|null $result The test result collector.
-	 * @return PHPUnit_Framework_TestResult The test result.
+	 * @param TestResult|null $result The test result collector.
+	 * @return TestResult The test result.
 	 */
-	public function run( PHPUnit_Framework_TestResult $result = null ) {
+	public function run( ?TestResult $result = null ): TestResult {
 		$this->setPreserveGlobalState( false );
 		return parent::run( $result );
 	}
@@ -52,7 +52,7 @@ class TestCase extends BaseTestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp() {
+	public function setUp(): void {
 		if ( ! empty( $this->testFiles ) ) {
 			foreach ( $this->testFiles as $file ) {
 				if ( file_exists( PROJECT . $file ) ) {
@@ -72,7 +72,7 @@ class TestCase extends BaseTestCase {
 	 *
 	 * @return void
 	 */
-	public function assertActionsCalled() {
+	public function assertActionsCalled(): void {
 		$actions_not_added = $expected_actions = 0;
 		try {
 			WP_Mock::assertActionsCalled();
@@ -121,10 +121,10 @@ class TestCase extends BaseTestCase {
 	 *
 	 * @see http://kpayne.me/2012/07/02/phpunit-process-isolation-and-constant-already-defined/
 	 *
-	 * @param \Text_Template $template The PHPUnit template to prepare.
+	 * @param Template $template The PHPUnit template to prepare.
 	 * @return void
 	 */
-	public function prepareTemplate( \Text_Template $template ) {
+	public function prepareTemplate( Template $template ): void {
 		$template->setVar( [
 			'globals' => '$GLOBALS[\'__PHPUNIT_BOOTSTRAP\'] = \'' . $GLOBALS['__PHPUNIT_BOOTSTRAP'] . '\';',
 		] );
