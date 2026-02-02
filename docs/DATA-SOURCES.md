@@ -28,10 +28,26 @@ The original mode. Requires Untappd API credentials (Client ID and Secret).
 
 ### 2. Scraper Only (No API Required)
 
-For users without API access. Scrapes public Untappd profile pages.
+For users without API access. Uses RSS feed (preferred) or page scraping.
+
+**How it works:**
+1. **RSS Feed (preferred)** - If you configure your RSS URL, Beer Slurper polls it for new checkins. This is the "polite" method using Untappd's official RSS feature.
+2. **Page Scraping (fallback)** - If no RSS URL is configured, falls back to scraping your public profile page.
+
+**Setting up RSS (recommended):**
+1. Go to [untappd.com/account/settings](https://untappd.com/account/settings)
+2. Find "RSS Private Feed URL"
+3. Copy the full URL (includes your personal key)
+4. Paste it into Beer Slurper settings
+
+**Why RSS is better than scraping:**
+- RSS is an official Untappd feature with its own TOS
+- Structured data (XML) vs parsing HTML
+- More reliable - won't break when Untappd updates their website
+- More respectful to Untappd's servers
 
 **Features:**
-- Works without any credentials
+- Works without API credentials
 - Automatic sync of recent checkins
 - Limited to ~25 most recent checkins per sync
 
