@@ -73,7 +73,7 @@ function get_checkins_from_rss( $rss_url ) {
 	}
 
 	// Validate URL format.
-	if ( ! filter_var( $rss_url, FILTER_VALIDATE_URL ) || ! str_contains( $rss_url, 'untappd.com/rss/' ) ) {
+	if ( ! filter_var( $rss_url, FILTER_VALIDATE_URL ) || strpos( $rss_url, 'untappd.com/rss/' ) === false ) {
 		return new \WP_Error( 'invalid_rss_url', __( 'Invalid Untappd RSS feed URL.', 'beer_slurper' ) );
 	}
 
@@ -264,7 +264,7 @@ function parse_rss_item( $item ) {
 	// Check for photo enclosure.
 	if ( isset( $item->enclosure ) ) {
 		$photo_url = (string) $item->enclosure['url'];
-		if ( $photo_url && ! str_contains( $photo_url, 'placeholder' ) ) {
+		if ( $photo_url && strpos( $photo_url, 'placeholder' ) === false ) {
 			$checkin['media']['items'][] = array(
 				'photo' => array(
 					'photo_img_og' => $photo_url,
@@ -313,7 +313,7 @@ function parse_rss_description( $checkin, $description ) {
 	// Extract photo from img tag if not already set from enclosure.
 	if ( empty( $checkin['media']['items'] ) && preg_match( '/<img[^>]+src=["\']([^"\']+)["\']/', $description, $matches ) ) {
 		$photo_url = $matches[1];
-		if ( ! str_contains( $photo_url, 'placeholder' ) && ! str_contains( $photo_url, 'badge' ) ) {
+		if ( strpos( $photo_url, 'placeholder' ) === false && strpos( $photo_url, 'badge' ) === false ) {
 			$checkin['media']['items'][] = array(
 				'photo' => array(
 					'photo_img_og' => $photo_url,
@@ -507,7 +507,7 @@ function parse_user_checkins( $html, $username ) {
 	$checkins = array();
 
 	foreach ( $checkin_nodes as $node ) {
-		$checkin = parse_single_checkin( $node, $xpath, $doc );
+		$checkin = parse_single_checkin( $node, $xpath );
 
 		if ( $checkin && ! empty( $checkin['checkin_id'] ) ) {
 			$checkins[] = $checkin;
@@ -531,11 +531,10 @@ function parse_user_checkins( $html, $username ) {
  *
  * @param \DOMElement $node  The checkin DOM node.
  * @param \DOMXPath   $xpath The XPath object for queries.
- * @param \DOMDocument $doc  The DOM document.
  *
  * @return array|null Checkin data array, or null if parsing failed.
  */
-function parse_single_checkin( $node, $xpath, $doc ) {
+function parse_single_checkin( $node, $xpath ) {
 	$checkin = array(
 		'checkin_id'      => null,
 		'beer'            => array(),
@@ -666,7 +665,7 @@ function parse_single_checkin( $node, $xpath, $doc ) {
 		$photo_original = $photo_element->item( 0 )->getAttribute( 'data-original' );
 		$photo_url      = $photo_original ? $photo_original : $photo_src;
 
-		if ( $photo_url && ! str_contains( $photo_url, 'placeholder' ) ) {
+		if ( $photo_url && strpos( $photo_url, 'placeholder' ) === false ) {
 			$checkin['media']['items'][] = array(
 				'photo' => array(
 					'photo_img_og' => $photo_url,
@@ -724,10 +723,10 @@ function parse_relative_time( $time_text ) {
 	if ( preg_match( '/(\d+)\s*month/', $time_text, $matches ) ) {
 		return gmdate( 'Y-m-d H:i:s', $now - ( (int) $matches[1] * 2592000 ) );
 	}
-	if ( str_contains( $time_text, 'yesterday' ) ) {
+	if ( strpos( $time_text, 'yesterday' ) !== false ) {
 		return gmdate( 'Y-m-d H:i:s', $now - 86400 );
 	}
-	if ( str_contains( $time_text, 'just now' ) || str_contains( $time_text, 'moment' ) ) {
+	if ( strpos( $time_text, 'just now' ) !== false || strpos( $time_text, 'moment' ) !== false ) {
 		return gmdate( 'Y-m-d H:i:s', $now );
 	}
 
