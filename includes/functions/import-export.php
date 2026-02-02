@@ -182,6 +182,10 @@ function import_csv( $file_path ) {
  * @return array|WP_Error Import results, or WP_Error on failure.
  */
 function import_json( $file_path ) {
+	if ( filesize( $file_path ) > 10485760 ) {
+		error_log( 'Beer Slurper: Large JSON import file (' . size_format( filesize( $file_path ) ) . '). This may use significant memory.' );
+	}
+
 	$content = file_get_contents( $file_path );
 
 	if ( false === $content ) {
@@ -312,8 +316,8 @@ function csv_row_to_checkin( $row ) {
 				'venue_city'    => isset( $row['venue_city'] ) ? $row['venue_city'] : '',
 				'venue_state'   => isset( $row['venue_state'] ) ? $row['venue_state'] : '',
 				'venue_country' => isset( $row['venue_country'] ) ? $row['venue_country'] : '',
-				'lat'           => isset( $row['venue_lat'] ) && '' !== $row['venue_lat'] ? (float) $row['venue_lat'] : '',
-				'lng'           => isset( $row['venue_lng'] ) && '' !== $row['venue_lng'] ? (float) $row['venue_lng'] : '',
+				'lat'           => isset( $row['venue_lat'] ) && '' !== $row['venue_lat'] ? (float) $row['venue_lat'] : null,
+				'lng'           => isset( $row['venue_lng'] ) && '' !== $row['venue_lng'] ? (float) $row['venue_lng'] : null,
 			),
 		);
 
@@ -442,11 +446,51 @@ function ajax_handle_import() {
 		) );
 	}
 
-	// Run the import.
-	$results = import_file( $temp_file );
+	// Server-side MIME detection if finfo is available.
+	if ( function_exists( 'finfo_open' ) ) {
+		$finfo     = finfo_open( FILEINFO_MIME_TYPE );
+		$mime_type = finfo_file( $finfo, $temp_file );
+		finfo_close( $finfo );
 
-	// Clean up temp file.
-	wp_delete_file( $temp_file );
+		$allowed_mimes = array( 'text/csv', 'text/plain', 'application/json', 'application/csv' );
+		if ( ! in_array( $mime_type, $allowed_mimes, true ) ) {
+			wp_delete_file( $temp_file );
+			wp_send_json_error( array(
+				'message' => __( 'Invalid file type detected. Please upload a CSV or JSON file.', 'beer_slurper' ),
+			) );
+		}
+	}
+
+	// Basic content validation.
+	$content_sample = file_get_contents( $temp_file, false, null, 0, 1024 );
+	if ( false !== $content_sample ) {
+		$content_sample = ltrim( $content_sample );
+		if ( 'json' === $file_type['ext'] ) {
+			// JSON files should start with { or [.
+			if ( '' !== $content_sample && '{' !== $content_sample[0] && '[' !== $content_sample[0] ) {
+				wp_delete_file( $temp_file );
+				wp_send_json_error( array(
+					'message' => __( 'Invalid JSON file. File does not appear to contain valid JSON.', 'beer_slurper' ),
+				) );
+			}
+		} elseif ( 'csv' === $file_type['ext'] ) {
+			// CSV files should contain a delimiter (comma, semicolon, or tab).
+			if ( '' !== $content_sample && false === strpos( $content_sample, ',' ) && false === strpos( $content_sample, ';' ) && false === strpos( $content_sample, "\t" ) ) {
+				wp_delete_file( $temp_file );
+				wp_send_json_error( array(
+					'message' => __( 'Invalid CSV file. File does not appear to contain valid CSV data.', 'beer_slurper' ),
+				) );
+			}
+		}
+	}
+
+	// Run the import with try-finally to ensure temp file cleanup.
+	try {
+		$results = import_file( $temp_file );
+	} finally {
+		// Clean up temp file.
+		wp_delete_file( $temp_file );
+	}
 
 	if ( is_wp_error( $results ) ) {
 		wp_send_json_error( array(
@@ -492,7 +536,7 @@ function get_enrichable_count() {
 			WHERE p.post_type = %s
 			AND pm.meta_key = '_beer_slurper_import_source'
 			AND pm.meta_value = 'untappd_export'",
-			BEER_SLURPER_CPT
+			\BEER_SLURPER_CPT
 		)
 	);
 }
