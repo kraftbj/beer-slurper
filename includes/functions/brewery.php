@@ -80,6 +80,18 @@ function get_brewery_term_id( $breweryid = null, $brewery_data = null ){
  * @return int|\WP_Error The term ID on success, or WP_Error on failure.
  */
 function add_brewery( $breweryid, $brewery_data = null ){
+	// Recursion guard: track breweries currently being processed to prevent
+	// infinite loops when brewery ownership has circular references.
+	static $processing = array();
+
+	if ( isset( $processing[ $breweryid ] ) ) {
+		// Already processing this brewery - break the cycle.
+		error_log( 'Beer Slurper: Circular brewery ownership detected for brewery ' . $breweryid );
+		return new \WP_Error( 'circular_ownership', __( 'Circular brewery ownership detected.', 'beer_slurper' ) );
+	}
+
+	$processing[ $breweryid ] = true;
+
 	// Try full API call first to get owners/parent data
 	$brewery = \Kraft\Beer_Slurper\API\get_brewery_info( $breweryid );
 
@@ -90,12 +102,14 @@ function add_brewery( $breweryid, $brewery_data = null ){
 			$brewery = $brewery_data;
 		} else {
 			error_log( 'Beer Slurper: Failed to get brewery info - ' . ( is_wp_error( $brewery ) ? $brewery->get_error_message() : 'invalid response' ) );
+			unset( $processing[ $breweryid ] );
 			return is_wp_error( $brewery ) ? $brewery : new \WP_Error( 'invalid_brewery', __( 'Invalid brewery data from API.', 'beer_slurper' ) );
 		}
 	}
 
 	if ( ! is_array( $brewery ) || ! isset( $brewery['brewery_name'] ) ) {
 		error_log( 'Beer Slurper: Invalid brewery data structure' );
+		unset( $processing[ $breweryid ] );
 		return new \WP_Error( 'invalid_brewery', __( 'Invalid brewery data from API.', 'beer_slurper' ) );
 	}
 
@@ -118,10 +132,12 @@ function add_brewery( $breweryid, $brewery_data = null ){
 		if ( $term->get_error_code() === 'term_exists' ) {
 			$existing_term = get_term_by( 'slug', $brewery_slug, apply_filters( 'beer_slurper_tax_brewery', BEER_SLURPER_TAX_BREWERY ) );
 			if ( $existing_term ) {
+				unset( $processing[ $breweryid ] );
 				return $existing_term->term_id;
 			}
 		}
 		error_log( 'Beer Slurper: Failed to insert brewery term - ' . $term->get_error_message() );
+		unset( $processing[ $breweryid ] );
 		return $term;
 	}
 
@@ -129,6 +145,7 @@ function add_brewery( $breweryid, $brewery_data = null ){
 	update_term_meta( $term_id, 'untappd_id', isset( $brewery['brewery_id'] ) ? $brewery['brewery_id'] : $breweryid );
 	save_brewery_meta( $term_id, $brewery );
 
+	unset( $processing[ $breweryid ] );
 	return $term_id;
 }
 

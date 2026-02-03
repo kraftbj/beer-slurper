@@ -40,6 +40,7 @@ function insert_checkin( $checkin, $post_id ) {
 		'comment_author'   => isset( $checkin['user']['user_name'] ) ? $checkin['user']['user_name'] : '',
 		'comment_approved' => 1,
 		'comment_post_ID'  => $post_id,
+		'comment_agent'    => 'Beer Slurper', // Prevents null user agent warning in CLI/cron.
 	);
 
 	$comment_id = wp_insert_comment( $comment_data );
