@@ -437,7 +437,7 @@ function sync_status_section_callback() {
 					<?php
 					$date_format = get_option( 'date_format' );
 					$time_format = get_option( 'time_format' );
-					$formatted_date = date_i18n( $date_format . ' ' . $time_format, $last_sync );
+					$formatted_date = wp_date( $date_format . ' ' . $time_format, $last_sync );
 					$relative_time = \Kraft\Beer_Slurper\Sync_Status\get_relative_time( $last_sync );
 					?>
 					<?php echo esc_html( $formatted_date ); ?> (<?php echo esc_html( $relative_time ); ?>)
@@ -462,7 +462,7 @@ function sync_status_section_callback() {
 					<?php
 					$date_format = get_option( 'date_format' );
 					$time_format = get_option( 'time_format' );
-					$formatted_next = date_i18n( $date_format . ' ' . $time_format, $next_sync );
+					$formatted_next = wp_date( $date_format . ' ' . $time_format, $next_sync );
 					?>
 					<?php echo esc_html( $formatted_next ); ?>
 				<?php elseif ( $user ) : ?>

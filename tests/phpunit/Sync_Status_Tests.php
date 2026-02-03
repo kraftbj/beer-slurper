@@ -167,4 +167,93 @@ class Sync_Status_Tests extends Base\TestCase {
 
 		$this->assertFalse( $result );
 	}
+
+	/**
+	 * Tests get_relative_time() returns correct relative time regardless of site timezone.
+	 *
+	 * This test would have failed before the fix when get_relative_time() used
+	 * current_time('timestamp') instead of time(). The old code compared a UTC
+	 * timestamp against a timezone-adjusted value, causing incorrect results
+	 * like "5 hours ago" when the actual time was only minutes ago.
+	 */
+	public function test_get_relative_time_uses_utc_comparison() {
+		// Set site to UTC-5 (Eastern Standard Time offset)
+		update_option( 'gmt_offset', -5 );
+
+		// Create a timestamp for 10 minutes ago (in UTC, which is what we store)
+		$ten_minutes_ago = time() - ( 10 * MINUTE_IN_SECONDS );
+
+		$result = get_relative_time( $ten_minutes_ago );
+
+		// The result should say "10 mins ago", not "5 hours ago"
+		// With the old buggy code using current_time('timestamp'), this would fail
+		// because current_time('timestamp') returns time() + (gmt_offset * HOUR_IN_SECONDS)
+		// which for UTC-5 would be 5 hours behind, making the diff ~5 hours instead of 10 mins
+		$this->assertStringContainsString( 'min', $result, 'Relative time should be in minutes, not hours' );
+		$this->assertStringContainsString( 'ago', $result );
+		$this->assertStringNotContainsString( 'hour', $result, 'Should not show hours for a 10-minute-old timestamp' );
+	}
+
+	/**
+	 * Tests get_relative_time() with positive timezone offset.
+	 *
+	 * Verifies correct behavior for sites east of UTC (e.g., UTC+5).
+	 * This would also fail with the old current_time('timestamp') approach.
+	 */
+	public function test_get_relative_time_with_positive_offset() {
+		// Set site to UTC+5
+		update_option( 'gmt_offset', 5 );
+
+		// Create a timestamp for 5 minutes ago (in UTC)
+		$five_minutes_ago = time() - ( 5 * MINUTE_IN_SECONDS );
+
+		$result = get_relative_time( $five_minutes_ago );
+
+		// Should show minutes, not hours
+		$this->assertStringContainsString( 'min', $result );
+		$this->assertStringContainsString( 'ago', $result );
+		$this->assertStringNotContainsString( 'hour', $result );
+	}
+
+	/**
+	 * Tests get_relative_time() calculates correctly for longer durations.
+	 *
+	 * Verifies the function works correctly for timestamps hours ago,
+	 * ensuring the timezone offset doesn't compound the error.
+	 */
+	public function test_get_relative_time_hours_ago_with_offset() {
+		// Set site to UTC-8 (Pacific)
+		update_option( 'gmt_offset', -8 );
+
+		// Create a timestamp for exactly 2 hours ago
+		$two_hours_ago = time() - ( 2 * HOUR_IN_SECONDS );
+
+		$result = get_relative_time( $two_hours_ago );
+
+		// Should show "2 hours ago", not "10 hours ago" (2 + 8 offset)
+		$this->assertStringContainsString( 'hour', $result );
+		$this->assertStringContainsString( 'ago', $result );
+		// Extract the number - should be around 2, not 10
+		preg_match( '/(\d+)\s*hour/', $result, $matches );
+		$this->assertNotEmpty( $matches, 'Should contain a number of hours' );
+		$hours = (int) $matches[1];
+		$this->assertLessThanOrEqual( 2, $hours, 'Should show approximately 2 hours, not offset-adjusted time' );
+	}
+
+	/**
+	 * Tests get_relative_time() works correctly with UTC timezone.
+	 *
+	 * Baseline test to ensure function works when site is set to UTC.
+	 */
+	public function test_get_relative_time_with_utc_timezone() {
+		// Set site to UTC (no offset)
+		update_option( 'gmt_offset', 0 );
+
+		$thirty_minutes_ago = time() - ( 30 * MINUTE_IN_SECONDS );
+
+		$result = get_relative_time( $thirty_minutes_ago );
+
+		$this->assertStringContainsString( 'min', $result );
+		$this->assertStringContainsString( 'ago', $result );
+	}
 }
