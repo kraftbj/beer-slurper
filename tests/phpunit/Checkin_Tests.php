@@ -249,9 +249,9 @@ class Checkin_Tests extends Base\TestCase {
 	}
 
 	/**
-	 * Tests exclude_checkin_from_default_comments filter.
+	 * Tests that checkin comments and regular comments can coexist.
 	 */
-	public function test_checkin_excluded_from_default_comments() {
+	public function test_checkin_and_regular_comments_coexist() {
 		// Create a beer post and a checkin comment
 		$post_id = $this->create_beer_post();
 		$checkin = ApiFixtures::checkin( array( 'checkin_id' => 88880001 ) );

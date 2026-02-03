@@ -39,6 +39,29 @@ class MockHttpClient {
 	private static $request_log = array();
 
 	/**
+	 * HTTP status code to message mapping.
+	 *
+	 * @var array
+	 */
+	private static $status_messages = array(
+		200 => 'OK',
+		201 => 'Created',
+		204 => 'No Content',
+		301 => 'Moved Permanently',
+		302 => 'Found',
+		304 => 'Not Modified',
+		400 => 'Bad Request',
+		401 => 'Unauthorized',
+		403 => 'Forbidden',
+		404 => 'Not Found',
+		405 => 'Method Not Allowed',
+		429 => 'Too Many Requests',
+		500 => 'Internal Server Error',
+		502 => 'Bad Gateway',
+		503 => 'Service Unavailable',
+	);
+
+	/**
 	 * Initializes the mock HTTP client.
 	 *
 	 * Hooks into the WordPress HTTP API to intercept requests.
@@ -103,12 +126,23 @@ class MockHttpClient {
 			array(
 				'response' => array(
 					'code'    => $code,
-					'message' => 'OK',
+					'message' => self::get_status_message( $code ),
 				),
 				'headers'  => $headers,
 				'body'     => json_encode( $data ),
 			)
 		);
+	}
+
+	/**
+	 * Gets the HTTP status message for a given code.
+	 *
+	 * @param int $code HTTP status code.
+	 *
+	 * @return string The status message, or 'Unknown' if not found.
+	 */
+	private static function get_status_message( $code ) {
+		return self::$status_messages[ $code ] ?? 'Unknown';
 	}
 
 	/**

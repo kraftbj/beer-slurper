@@ -80,17 +80,20 @@ class Core_Tests extends Base\TestCase {
 	}
 
 	/**
-	 * Tests activate() runs without errors.
+	 * Tests activate() fires beer_slurper_init action.
 	 *
-	 * Verifies that the activation function can be called
-	 * and completes without throwing exceptions.
+	 * Verifies that the activation function calls init() which fires
+	 * the beer_slurper_init action hook.
 	 */
 	public function test_activate() {
-		// activate() flushes rewrite rules - with WorDBless this should complete without error
+		$init_fired = false;
+		add_action( 'beer_slurper_init', function() use ( &$init_fired ) {
+			$init_fired = true;
+		} );
+
 		activate();
 
-		// If we get here without exceptions, the test passes
-		$this->assertTrue( true );
+		$this->assertTrue( $init_fired, 'beer_slurper_init action should have fired during activation' );
 	}
 
 	/**

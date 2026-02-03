@@ -17,8 +17,7 @@
     "prefer-stable": true,
     "config": {
         "allow-plugins": {
-            "automattic/jetpack-autoloader": true,
-            "roots/wordpress-core-installer": true
+            "automattic/jetpack-autoloader": true
         }
     },
 	"require": {

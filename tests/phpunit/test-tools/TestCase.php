@@ -33,13 +33,6 @@ class TestCase extends BaseTestCase {
 	protected $testFiles = array();
 
 	/**
-	 * Options created during a test that should be cleaned up.
-	 *
-	 * @var array
-	 */
-	protected $test_options = array();
-
-	/**
 	 * Whether to use the mock HTTP client.
 	 *
 	 * @var bool
@@ -410,6 +403,9 @@ class TestCase extends BaseTestCase {
 	 */
 	protected function assertPostHasTerms( $post_id, $taxonomy, $term_ids ) {
 		$actual = wp_get_object_terms( $post_id, $taxonomy, array( 'fields' => 'ids' ) );
-		$this->assertEquals( sort( $term_ids ), sort( $actual ), "Post does not have expected {$taxonomy} terms." );
+		$expected = $term_ids;
+		sort( $expected );
+		sort( $actual );
+		$this->assertEquals( $expected, $actual, "Post does not have expected {$taxonomy} terms." );
 	}
 }
