@@ -195,5 +195,5 @@ function get_untappd_total_checkins() {
  * @return string Human-readable relative time.
  */
 function get_relative_time( $timestamp ) {
-	return human_time_diff( $timestamp, current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'beer_slurper' );
+	return human_time_diff( $timestamp, time() ) . ' ' . __( 'ago', 'beer_slurper' );
 }
