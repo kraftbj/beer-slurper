@@ -78,19 +78,27 @@ class Companion_Tests extends Base\TestCase {
 	}
 
 	/**
-	 * Tests add_companion() returns false without user data.
+	 * Tests add_companion() creates placeholder term without user data.
 	 */
-	public function test_add_companion_returns_false_without_data() {
-		$result = add_companion( 12345, null );
-		$this->assertFalse( $result );
+	public function test_add_companion_creates_placeholder_without_data() {
+		$term_id = add_companion( 12345, null );
+		$this->assertIsInt( $term_id );
+
+		$term = get_term( $term_id, BEER_SLURPER_TAX_COMPANION );
+		$this->assertEquals( 'Untappd User 12345', $term->name );
+		$this->assertEquals( 'untappd-user-12345', $term->slug );
 	}
 
 	/**
-	 * Tests add_companion() returns false without username.
+	 * Tests add_companion() creates placeholder term without username.
 	 */
-	public function test_add_companion_returns_false_without_username() {
-		$result = add_companion( 12345, array( 'uid' => 12345 ) );
-		$this->assertFalse( $result );
+	public function test_add_companion_creates_placeholder_without_username() {
+		$term_id = add_companion( 67890, array( 'uid' => 67890 ) );
+		$this->assertIsInt( $term_id );
+
+		$term = get_term( $term_id, BEER_SLURPER_TAX_COMPANION );
+		$this->assertEquals( 'Untappd User 67890', $term->name );
+		$this->assertEquals( 'untappd-user-67890', $term->slug );
 	}
 
 	/**
