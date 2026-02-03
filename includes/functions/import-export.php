@@ -64,6 +64,18 @@ function import_file( $file_path, $format = null ) {
 		$format    = in_array( $extension, array( 'json' ), true ) ? 'json' : 'csv';
 	}
 
+	// If extension detection failed or was ambiguous, check file content.
+	if ( 'csv' === $format ) {
+		$content_sample = file_get_contents( $file_path, false, null, 0, 100 );
+		if ( false !== $content_sample ) {
+			$content_sample = ltrim( $content_sample );
+			// JSON files start with { or [.
+			if ( ! empty( $content_sample ) && ( '{' === $content_sample[0] || '[' === $content_sample[0] ) ) {
+				$format = 'json';
+			}
+		}
+	}
+
 	if ( 'json' === $format ) {
 		return import_json( $file_path );
 	}
@@ -73,6 +85,9 @@ function import_file( $file_path, $format = null ) {
 
 /**
  * Imports checkins from a CSV file.
+ *
+ * Parses the CSV, validates checkins, and queues them for background
+ * processing via Action Scheduler to avoid timeouts on large imports.
  *
  * @param string $file_path Path to the CSV file.
  *
@@ -110,31 +125,26 @@ function import_csv( $file_path ) {
 		);
 	}
 
-	$results = array(
-		'total'    => 0,
-		'imported' => 0,
-		'skipped'  => 0,
-		'errors'   => array(),
-	);
-
-	$batch       = array();
-	$batch_size  = 25;
-	$row_number  = 1;
+	$valid_checkins = array();
+	$errors         = array();
+	$skipped        = 0;
+	$total          = 0;
+	$row_number     = 1;
 
 	while ( ( $row = fgetcsv( $handle, 0, ',', '"', '' ) ) !== false ) {
 		$row_number++;
-		$results['total']++;
+		$total++;
 
 		// Skip empty rows.
 		if ( empty( array_filter( $row ) ) ) {
-			$results['skipped']++;
+			$skipped++;
 			continue;
 		}
 
 		// Map row to associative array.
 		if ( count( $row ) !== count( $header ) ) {
-			$results['errors'][] = sprintf( __( 'Row %d: Column count mismatch.', 'beer_slurper' ), $row_number );
-			$results['skipped']++;
+			$errors[] = sprintf( __( 'Row %d: Column count mismatch.', 'beer_slurper' ), $row_number );
+			$skipped++;
 			continue;
 		}
 
@@ -144,38 +154,35 @@ function import_csv( $file_path ) {
 		$checkin = csv_row_to_checkin( $data );
 
 		if ( is_wp_error( $checkin ) ) {
-			$results['errors'][] = sprintf( __( 'Row %d: %s', 'beer_slurper' ), $row_number, $checkin->get_error_message() );
-			$results['skipped']++;
+			$errors[] = sprintf( __( 'Row %d: %s', 'beer_slurper' ), $row_number, $checkin->get_error_message() );
+			$skipped++;
 			continue;
 		}
 
-		$batch[] = $checkin;
-
-		// Process batch when full.
-		if ( count( $batch ) >= $batch_size ) {
-			$batch_results = process_checkin_batch( $batch );
-			$results['imported'] += $batch_results['imported'];
-			$results['skipped']  += $batch_results['skipped'];
-			$results['errors']    = array_merge( $results['errors'], $batch_results['errors'] );
-			$batch = array();
-		}
+		// Mark source for tracking.
+		$checkin['_import_source'] = 'untappd_export';
+		$valid_checkins[] = $checkin;
 	}
 
 	fclose( $handle );
 
-	// Process remaining batch.
-	if ( ! empty( $batch ) ) {
-		$batch_results = process_checkin_batch( $batch );
-		$results['imported'] += $batch_results['imported'];
-		$results['skipped']  += $batch_results['skipped'];
-		$results['errors']    = array_merge( $results['errors'], $batch_results['errors'] );
-	}
+	// Queue valid checkins for background processing.
+	$queued = queue_import_batches( $valid_checkins );
 
-	return $results;
+	return array(
+		'total'    => $total,
+		'imported' => 0, // Will be updated by background processing.
+		'skipped'  => $skipped,
+		'queued'   => $queued,
+		'errors'   => $errors,
+	);
 }
 
 /**
  * Imports checkins from a JSON file.
+ *
+ * Parses the JSON, validates checkins, and queues them for background
+ * processing via Action Scheduler to avoid timeouts on large imports.
  *
  * @param string $file_path Path to the JSON file.
  *
@@ -214,52 +221,38 @@ function import_json( $file_path ) {
 		return new \WP_Error( 'unknown_format', __( 'Unrecognized JSON structure.', 'beer_slurper' ) );
 	}
 
-	$results = array(
-		'total'    => count( $checkins ),
-		'imported' => 0,
-		'skipped'  => 0,
-		'errors'   => array(),
-	);
-
-	$batch      = array();
-	$batch_size = 25;
+	// Convert and validate all checkins upfront.
+	$valid_checkins = array();
+	$errors         = array();
 
 	foreach ( $checkins as $index => $item ) {
 		// Detect if this is CSV-style flat format or API-style nested format.
 		if ( isset( $item['beer_name'] ) && ! isset( $item['beer'] ) ) {
-			// CSV-style flat format.
 			$checkin = csv_row_to_checkin( $item );
 		} else {
-			// API-style nested format - use as-is.
 			$checkin = $item;
 		}
 
 		if ( is_wp_error( $checkin ) ) {
-			$results['errors'][] = sprintf( __( 'Item %d: %s', 'beer_slurper' ), $index + 1, $checkin->get_error_message() );
-			$results['skipped']++;
+			$errors[] = sprintf( __( 'Item %d: %s', 'beer_slurper' ), $index + 1, $checkin->get_error_message() );
 			continue;
 		}
 
-		$batch[] = $checkin;
-
-		if ( count( $batch ) >= $batch_size ) {
-			$batch_results = process_checkin_batch( $batch );
-			$results['imported'] += $batch_results['imported'];
-			$results['skipped']  += $batch_results['skipped'];
-			$results['errors']    = array_merge( $results['errors'], $batch_results['errors'] );
-			$batch = array();
-		}
+		// Mark source for tracking.
+		$checkin['_import_source'] = 'untappd_export';
+		$valid_checkins[] = $checkin;
 	}
 
-	// Process remaining batch.
-	if ( ! empty( $batch ) ) {
-		$batch_results = process_checkin_batch( $batch );
-		$results['imported'] += $batch_results['imported'];
-		$results['skipped']  += $batch_results['skipped'];
-		$results['errors']    = array_merge( $results['errors'], $batch_results['errors'] );
-	}
+	// Queue valid checkins for background processing.
+	$queued = queue_import_batches( $valid_checkins );
 
-	return $results;
+	return array(
+		'total'    => count( $checkins ),
+		'imported' => 0, // Will be updated by background processing.
+		'skipped'  => count( $errors ),
+		'queued'   => $queued,
+		'errors'   => $errors,
+	);
 }
 
 /**
@@ -504,6 +497,20 @@ function ajax_handle_import() {
 		$error_summary[] = sprintf( __( '... and %d more errors.', 'beer_slurper' ), count( $results['errors'] ) - 10 );
 	}
 
+	// Check if this was a queued import (background processing).
+	if ( isset( $results['queued'] ) && $results['queued'] > 0 ) {
+		wp_send_json_success( array(
+			'message'  => sprintf(
+				__( 'Import queued: %d checkins will be processed in the background. Check back in a few minutes.', 'beer_slurper' ),
+				$results['queued']
+			),
+			'queued'   => $results['queued'],
+			'total'    => $results['total'],
+			'skipped'  => $results['skipped'],
+			'errors'   => $error_summary,
+		) );
+	}
+
 	wp_send_json_success( array(
 		'message'  => sprintf(
 			__( 'Import complete: %d imported, %d skipped out of %d total.', 'beer_slurper' ),
@@ -518,6 +525,113 @@ function ajax_handle_import() {
 	) );
 }
 add_action( 'wp_ajax_beer_slurper_import', __NAMESPACE__ . '\ajax_handle_import' );
+
+/**
+ * Queues checkins for background import via Action Scheduler.
+ *
+ * Splits checkins into batches and schedules each batch as a separate
+ * action to process in the background, preventing timeout issues.
+ *
+ * @param array $checkins Array of validated checkin data.
+ * @param int   $batch_size Number of checkins per batch. Default 25.
+ *
+ * @return int Number of checkins queued.
+ */
+function queue_import_batches( $checkins, $batch_size = 25 ) {
+	if ( empty( $checkins ) || ! function_exists( 'as_schedule_single_action' ) ) {
+		return 0;
+	}
+
+	$batches = array_chunk( $checkins, $batch_size );
+	$delay   = 0;
+
+	foreach ( $batches as $batch ) {
+		// Store batch in a transient (Action Scheduler args have size limits).
+		$batch_id = 'bs_import_batch_' . wp_generate_uuid4();
+		set_transient( $batch_id, $batch, HOUR_IN_SECONDS );
+
+		// Schedule the batch with staggered delays (10 seconds apart).
+		as_schedule_single_action(
+			time() + $delay,
+			'beer_slurper_process_import_batch',
+			array( 'batch_id' => $batch_id ),
+			'beer-slurper'
+		);
+
+		$delay += 10; // Stagger batches by 10 seconds.
+	}
+
+	// Store import progress for status tracking.
+	update_option( 'beer_slurper_import_progress', array(
+		'total'     => count( $checkins ),
+		'processed' => 0,
+		'imported'  => 0,
+		'skipped'   => 0,
+		'errors'    => array(),
+		'started'   => time(),
+	), false );
+
+	return count( $checkins );
+}
+
+/**
+ * Processes a single batch of checkins from the import queue.
+ *
+ * This is the Action Scheduler callback that runs in the background.
+ *
+ * @param string $batch_id The transient key containing the batch data.
+ *
+ * @return void
+ */
+function process_import_batch( $batch_id ) {
+	$batch = get_transient( $batch_id );
+
+	if ( false === $batch || ! is_array( $batch ) ) {
+		\beer_slurper_log( 'Beer Slurper Import: Batch not found or expired - ' . $batch_id );
+		return;
+	}
+
+	// Delete the transient now that we've retrieved it.
+	delete_transient( $batch_id );
+
+	$results = process_checkin_batch( $batch );
+
+	// Update progress tracking.
+	$progress = get_option( 'beer_slurper_import_progress', array() );
+	if ( is_array( $progress ) ) {
+		$progress['processed'] = ( $progress['processed'] ?? 0 ) + count( $batch );
+		$progress['imported']  = ( $progress['imported'] ?? 0 ) + $results['imported'];
+		$progress['skipped']   = ( $progress['skipped'] ?? 0 ) + $results['skipped'];
+		$progress['errors']    = array_merge( $progress['errors'] ?? array(), $results['errors'] );
+		$progress['last_update'] = time();
+		update_option( 'beer_slurper_import_progress', $progress, false );
+	}
+
+	\beer_slurper_log( sprintf(
+		'Beer Slurper Import: Batch processed - %d imported, %d skipped',
+		$results['imported'],
+		$results['skipped']
+	) );
+}
+add_action( 'beer_slurper_process_import_batch', __NAMESPACE__ . '\process_import_batch' );
+
+/**
+ * Gets the current import progress.
+ *
+ * @return array|null Progress data or null if no import is running.
+ */
+function get_import_progress() {
+	return get_option( 'beer_slurper_import_progress', null );
+}
+
+/**
+ * Clears the import progress tracking.
+ *
+ * @return void
+ */
+function clear_import_progress() {
+	delete_option( 'beer_slurper_import_progress' );
+}
 
 /**
  * Gets the count of checkins that could be enriched with API data.

@@ -35,6 +35,10 @@ function setup() {
 	add_action( 'admin_enqueue_scripts', $n( 'enqueue_admin_assets' ) );
 	add_action( 'wp_ajax_beer_slurper_sync_now', $n( 'ajax_sync_now' ) );
 
+	// Trigger sync when username is set/changed (for non-OAuth users).
+	add_action( 'update_option_beer-slurper-user', $n( 'on_username_updated' ), 10, 2 );
+	add_action( 'add_option_beer-slurper-user', $n( 'on_username_added' ), 10, 2 );
+
 	do_action( 'beer_slurper_loaded' );
 }
 
@@ -144,6 +148,12 @@ function setting_init() {
 	register_setting( 'beer-slurper-settings', 'beer_slurper_rss_url', array(
 		'type'              => 'string',
 		'sanitize_callback' => 'esc_url_raw',
+	) );
+
+	add_settings_field( 'beer-slurper-scraper-user', __( 'Untappd Username', 'beer_slurper' ), $n( 'setting_scraper_username' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-scraper-user' ) );
+	register_setting( 'beer-slurper-settings', 'beer-slurper-user', array(
+		'type'              => 'string',
+		'sanitize_callback' => 'sanitize_user',
 	) );
 
 	// Import section
@@ -933,6 +943,110 @@ function setting_rss_url() {
 		<?php _e( 'RSS is an official Untappd feature for accessing your checkins. Using RSS instead of scraping web pages is more reliable and respectful to Untappd\'s servers.', 'beer_slurper' ); ?>
 	</p>
 	<?php
+}
+
+/**
+ * Renders the Untappd Username setting field for scraper/RSS mode.
+ *
+ * This field is required when using scraper or hybrid mode without OAuth.
+ * If OAuth is connected, the username is automatically set from the API.
+ *
+ * @return void
+ */
+function setting_scraper_username() {
+	$username      = get_option( 'beer-slurper-user', '' );
+	$is_connected  = \Kraft\Beer_Slurper\OAuth\is_connected();
+	$data_source   = get_option( 'beer_slurper_data_source', 'api' );
+	$is_scraper    = in_array( $data_source, array( 'scraper', 'hybrid' ), true );
+
+	?>
+	<input
+		type="text"
+		id="beer-slurper-scraper-user"
+		name="beer-slurper-user"
+		value="<?php echo esc_attr( $username ); ?>"
+		class="regular-text"
+		placeholder="your_untappd_username"
+		<?php echo $is_connected ? 'readonly' : ''; ?>
+	/>
+
+	<?php if ( $is_connected ) : ?>
+		<span class="description" style="margin-left: 8px;">
+			<?php _e( '(Set automatically via OAuth)', 'beer_slurper' ); ?>
+		</span>
+	<?php elseif ( $username ) : ?>
+		<span style="color: #00a32a; margin-left: 8px;">&#10003;</span>
+	<?php endif; ?>
+
+	<p class="description" style="margin-top: 8px;">
+		<?php _e( 'Your Untappd username. Required for RSS/scraper mode when not using OAuth.', 'beer_slurper' ); ?>
+	</p>
+
+	<?php if ( ! $username && $is_scraper && ! $is_connected ) : ?>
+		<p class="description" style="color: #d63638;">
+			<strong><?php _e( 'Username required:', 'beer_slurper' ); ?></strong>
+			<?php _e( 'Please enter your Untappd username to enable syncing.', 'beer_slurper' ); ?>
+		</p>
+	<?php endif; ?>
+	<?php
+}
+
+/**
+ * Handles username option being updated.
+ *
+ * Triggers initial sync and sets up scheduled actions when the username
+ * is changed (for non-OAuth users using scraper/RSS mode).
+ *
+ * @param mixed $old_value The old option value.
+ * @param mixed $new_value The new option value.
+ *
+ * @return void
+ */
+function on_username_updated( $old_value, $new_value ) {
+	// Only trigger if username actually changed and is not empty.
+	if ( empty( $new_value ) || $old_value === $new_value ) {
+		return;
+	}
+
+	// Don't trigger if OAuth is connected (OAuth handles its own setup).
+	if ( \Kraft\Beer_Slurper\OAuth\is_connected() ) {
+		return;
+	}
+
+	$username = sanitize_user( $new_value );
+
+	// Set up scheduled actions for this user.
+	\Kraft\Beer_Slurper\Queue\init_scheduled_actions( $username );
+
+	// Start the import process.
+	\bs_start_import( $username );
+}
+
+/**
+ * Handles username option being added for the first time.
+ *
+ * @param string $option The option name.
+ * @param mixed  $value  The option value.
+ *
+ * @return void
+ */
+function on_username_added( $option, $value ) {
+	if ( empty( $value ) ) {
+		return;
+	}
+
+	// Don't trigger if OAuth is connected.
+	if ( \Kraft\Beer_Slurper\OAuth\is_connected() ) {
+		return;
+	}
+
+	$username = sanitize_user( $value );
+
+	// Set up scheduled actions for this user.
+	\Kraft\Beer_Slurper\Queue\init_scheduled_actions( $username );
+
+	// Start the import process.
+	\bs_start_import( $username );
 }
 
 /**
