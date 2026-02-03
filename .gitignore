@@ -9,3 +9,4 @@ build
 wordpress
 .phpunit.result.cache
 .phpunit.cache
+.env
