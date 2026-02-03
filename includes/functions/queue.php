@@ -1055,24 +1055,36 @@ function attach_companions_to_existing( $items ) {
 		return 0;
 	}
 
-	// Batch query: find all matching posts in a single query.
-	global $wpdb;
 	$checkin_ids = array_keys( $checkins_with_companions );
-	$placeholders = implode( ',', array_fill( 0, count( $checkin_ids ), '%s' ) );
 
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders are safe
-	$results = $wpdb->get_results( $wpdb->prepare(
-		"SELECT post_id, meta_value AS checkin_id
-		FROM {$wpdb->postmeta}
-		WHERE meta_key = '_beer_slurper_untappd_id'
-		AND meta_value IN ($placeholders)",
-		...$checkin_ids
+	// Batch query: find all matching posts using WP_Query.
+	$query = new \WP_Query( array(
+		'post_type'              => BEER_SLURPER_CPT,
+		'posts_per_page'         => -1,
+		'fields'                 => 'ids',
+		'meta_query'             => array(
+			array(
+				'key'     => '_beer_slurper_untappd_id',
+				'value'   => $checkin_ids,
+				'compare' => 'IN',
+			),
+		),
+		'no_found_rows'          => true,
+		'update_post_term_cache' => false,
 	) );
 
-	// Build lookup: checkin_id => post_id.
+	if ( empty( $query->posts ) ) {
+		return 0;
+	}
+
+	// Prime meta cache for all returned posts (single query).
+	update_postmeta_cache( $query->posts );
+
+	// Build lookup: checkin_id => post_id (meta calls hit cache).
 	$checkin_to_post = array();
-	foreach ( $results as $row ) {
-		$checkin_to_post[ $row->checkin_id ] = (int) $row->post_id;
+	foreach ( $query->posts as $post_id ) {
+		$cid = get_post_meta( $post_id, '_beer_slurper_untappd_id', true );
+		$checkin_to_post[ $cid ] = $post_id;
 	}
 
 	// Attach companions using the lookup.
