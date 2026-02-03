@@ -468,39 +468,6 @@ function sync_status_section_callback() {
 		.beer-slurper-stats-table th { background: #f0f0f1; }
 		#beer-slurper-sync-now { margin-top: 15px; }
 		#beer-slurper-sync-message { margin-left: 10px; display: inline-block; }
-		.beer-slurper-operation-banner {
-			padding: 15px;
-			border-radius: 4px;
-			margin-bottom: 15px;
-		}
-		.beer-slurper-operation-banner.backfill {
-			background: #e7f5ff;
-			border: 1px solid #74c0fc;
-		}
-		.beer-slurper-operation-banner.import {
-			background: #fff3cd;
-			border: 1px solid #ffecb5;
-		}
-		.beer-slurper-operation-banner.complete {
-			background: #d1e7dd;
-			border: 1px solid #a3cfbb;
-		}
-		.beer-slurper-operation-banner .progress-bar {
-			width: 100%;
-			height: 20px;
-			background: #f0f0f1;
-			border-radius: 3px;
-			overflow: hidden;
-			margin-top: 10px;
-		}
-		.beer-slurper-operation-banner .progress-bar-fill {
-			height: 100%;
-			transition: width 0.3s ease;
-		}
-		.beer-slurper-operation-banner.backfill .progress-bar-fill { background: #339af0; }
-		.beer-slurper-operation-banner.import .progress-bar-fill { background: #ffc107; }
-		.beer-slurper-operation-banner.complete .progress-bar-fill { background: #198754; }
-		.beer-slurper-operation-banner .dismiss-btn { margin-top: 10px; }
 	</style>
 
 	<div class="beer-slurper-sync-status">
@@ -510,7 +477,6 @@ function sync_status_section_callback() {
 			// Use actual DB count if higher than tracked (handles tracking sync issues).
 			$tracked_processed = $import_progress['processed'] ?? 0;
 			$display_processed = max( $tracked_processed, $local_checkins );
-			$import_pct = round( ( $display_processed / $import_progress['total'] ) * 100 );
 
 			// Complete if no pending batches AND (tracked OR actual count) meets total.
 			$is_import_complete = 0 === $pending_import_batches && (
@@ -518,60 +484,52 @@ function sync_status_section_callback() {
 				$local_checkins >= $import_progress['total']
 			);
 			?>
-			<div class="beer-slurper-operation-banner <?php echo $is_import_complete ? 'complete' : 'import'; ?>" id="beer-slurper-import-banner">
-				<strong><?php echo $is_import_complete ? __( 'Import Complete', 'beer_slurper' ) : __( 'Import in Progress', 'beer_slurper' ); ?></strong>
+			<div class="notice <?php echo $is_import_complete ? 'notice-success' : 'notice-info'; ?>" id="beer-slurper-import-banner">
 				<p id="beer-slurper-import-status">
 					<?php
 					if ( $is_import_complete ) {
 						printf(
-							/* translators: %d: total checkins imported */
-							__( '%d checkins imported successfully', 'beer_slurper' ),
-							$local_checkins
+							/* translators: %s: total checkins imported */
+							__( 'Import complete. %s checkins imported.', 'beer_slurper' ),
+							number_format_i18n( $local_checkins )
 						);
 					} else {
 						printf(
 							/* translators: 1: processed count, 2: total count, 3: pending batches */
-							__( 'Processed %1$d of %2$d checkins (%3$d batches remaining)', 'beer_slurper' ),
-							$display_processed,
-							$import_progress['total'],
+							__( 'Import in progress: %1$s of %2$s checkins processed. %3$d batches remaining.', 'beer_slurper' ),
+							number_format_i18n( $display_processed ),
+							number_format_i18n( $import_progress['total'] ),
 							$pending_import_batches
 						);
 					}
 					?>
+					<?php if ( $is_import_complete ) : ?>
+						<button type="button" class="button button-link" id="beer-slurper-dismiss-import" style="margin-left: 10px;">
+							<?php _e( 'Dismiss', 'beer_slurper' ); ?>
+						</button>
+					<?php endif; ?>
 				</p>
-				<div class="progress-bar">
-					<div class="progress-bar-fill" id="beer-slurper-import-fill" style="width: <?php echo esc_attr( $import_pct ); ?>%;"></div>
-				</div>
-				<?php if ( $is_import_complete ) : ?>
-					<button type="button" class="button dismiss-btn" id="beer-slurper-dismiss-import">
-						<?php _e( 'Dismiss', 'beer_slurper' ); ?>
-					</button>
-				<?php endif; ?>
 			</div>
 		<?php elseif ( $is_backfilling ) : ?>
-			<div class="beer-slurper-operation-banner backfill" id="beer-slurper-backfill-banner">
-				<strong><?php _e( 'Backfilling History', 'beer_slurper' ); ?></strong>
+			<div class="notice notice-info" id="beer-slurper-backfill-banner">
 				<p id="beer-slurper-backfill-status">
 					<?php
 					if ( $untappd_checkins > 0 ) {
 						printf(
 							/* translators: 1: local count, 2: untappd total */
-							__( 'Imported %1$s of %2$s checkins from Untappd', 'beer_slurper' ),
+							__( 'Backfilling history: %1$s of %2$s checkins imported from Untappd.', 'beer_slurper' ),
 							number_format_i18n( $local_checkins ),
 							number_format_i18n( $untappd_checkins )
 						);
 					} else {
 						printf(
 							/* translators: %s: local checkin count */
-							__( '%s checkins imported so far', 'beer_slurper' ),
+							__( 'Backfilling history: %s checkins imported so far.', 'beer_slurper' ),
 							number_format_i18n( $local_checkins )
 						);
 					}
 					?>
 				</p>
-				<div class="progress-bar">
-					<div class="progress-bar-fill" style="width: <?php echo esc_attr( $backfill_pct ); ?>%;"></div>
-				</div>
 			</div>
 		<?php endif; ?>
 

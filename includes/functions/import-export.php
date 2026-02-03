@@ -631,6 +631,12 @@ function get_import_progress() {
  */
 function clear_import_progress() {
 	delete_option( 'beer_slurper_import_progress' );
+
+	// Also clear the backfill flag if set (JSON import doesn't use API backfill).
+	$user = \Kraft\Beer_Slurper\Sync_Status\get_configured_user();
+	if ( $user ) {
+		delete_option( 'beer_slurper_' . $user . '_import' );
+	}
 }
 
 /**
