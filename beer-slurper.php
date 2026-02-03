@@ -97,6 +97,7 @@ require_once BEER_SLURPER_INC . 'functions/venue.php';
 require_once BEER_SLURPER_INC . 'functions/badge.php';
 require_once BEER_SLURPER_INC . 'functions/checkin.php';
 require_once BEER_SLURPER_INC . 'functions/companion.php';
+require_once BEER_SLURPER_INC . 'functions/toast.php';
 require_once BEER_SLURPER_INC . 'functions/stats.php';
 require_once BEER_SLURPER_INC . 'functions/oauth.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';

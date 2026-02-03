@@ -146,6 +146,9 @@ function insert_beer( $checkin, $nodup = true ){ // @todo do this better with mo
 	 // Insert checkin as a comment on the beer post.
 	 \Kraft\Beer_Slurper\Checkin\insert_checkin( $checkin, $post_id );
 
+	 // Attach toasts (likes) to the beer post.
+	 \Kraft\Beer_Slurper\Toast\attach_toasts( $checkin, $post_id );
+
 	 return $post_id;
 }
 

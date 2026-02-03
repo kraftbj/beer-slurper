@@ -347,12 +347,12 @@ function queue_checkin_batch( $checkins, $source = 'import' ) {
 
 		$delay = get_slot_delay( $slot, $params );
 
-		// Store tagged_friends in a transient since checkin/view doesn't return it.
+		// Store toasts in a transient since checkin/view doesn't return them.
 		// This is the only time we have this data (from user/checkins list response).
-		if ( ! empty( $checkin['tagged_friends']['items'] ) ) {
+		if ( ! empty( $checkin['toasts']['items'] ) ) {
 			set_transient(
-				'bs_companions_' . $checkin['checkin_id'],
-				$checkin['tagged_friends']['items'],
+				'bs_toasts_' . $checkin['checkin_id'],
+				$checkin['toasts']['items'],
 				WEEK_IN_SECONDS
 			);
 		}
@@ -492,15 +492,15 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 		if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
 			error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
 		} else {
-			// Attach companions from the transient we saved during queueing.
-			// checkin/view doesn't return tagged_friends, so we stash it earlier.
-			$companions = get_transient( 'bs_companions_' . $checkin_id );
-			if ( ! empty( $companions ) && is_int( $result ) ) {
-				$checkin_with_friends = array(
-					'tagged_friends' => array( 'items' => $companions ),
+			// Attach toasts from the transient we saved during queueing.
+			// checkin/view doesn't return toasts, so we stash it earlier.
+			$toasts = get_transient( 'bs_toasts_' . $checkin_id );
+			if ( ! empty( $toasts ) && is_int( $result ) ) {
+				$checkin_with_toasts = array(
+					'toasts' => array( 'items' => $toasts ),
 				);
-				\Kraft\Beer_Slurper\Companion\attach_companions( $checkin_with_friends, $result );
-				delete_transient( 'bs_companions_' . $checkin_id );
+				\Kraft\Beer_Slurper\Toast\attach_toasts( $checkin_with_toasts, $result );
+				delete_transient( 'bs_toasts_' . $checkin_id );
 			}
 
 			// Success — check if we can accelerate the next action.
@@ -1002,11 +1002,8 @@ function process_prime_queue_page( $user, $page, $max_pages, $session_id ) {
 		}
 	}
 
-	// Queue for processing — this also attaches companions via transients.
+	// Queue for processing.
 	$queued = queue_checkin_batch( $items, 'import_old' );
-
-	// Also attach companions to any already-imported checkins found in this page.
-	attach_companions_to_existing( $items );
 
 	// Update state.
 	$state['total_fetched'] += $count;
@@ -1031,73 +1028,92 @@ function process_prime_queue_page( $user, $page, $max_pages, $session_id ) {
 add_action( 'bs_prime_queue_page', __NAMESPACE__ . '\process_prime_queue_page', 10, 4 );
 
 /**
- * Attaches companions to already-imported checkins from a page of results.
+ * Processes a single toast backfill job.
  *
- * When fetching checkin history, some checkins may already be imported
- * (from previous runs). This attaches their companions without re-importing.
+ * Fetches the full checkin data from the API and attaches toasts
+ * to the corresponding beer post.
  *
- * @param array $items Array of checkin data from the API.
+ * @param int    $checkin_id The Untappd checkin ID.
+ * @param string $session_id Session ID for logging.
  *
- * @return int Number of checkins that had companions attached.
+ * @return void
  */
-function attach_companions_to_existing( $items ) {
-	$attached = 0;
-
-	// Collect checkin IDs that have companions to attach.
-	$checkins_with_companions = array();
-	foreach ( $items as $checkin ) {
-		if ( ! empty( $checkin['checkin_id'] ) && ! empty( $checkin['tagged_friends']['items'] ) ) {
-			$checkins_with_companions[ $checkin['checkin_id'] ] = $checkin;
-		}
-	}
-
-	if ( empty( $checkins_with_companions ) ) {
-		return 0;
-	}
-
-	$checkin_ids = array_keys( $checkins_with_companions );
-
-	// Batch query: find all matching posts using WP_Query.
-	$query = new \WP_Query( array(
-		'post_type'              => BEER_SLURPER_CPT,
-		'posts_per_page'         => -1,
-		'fields'                 => 'ids',
-		'meta_query'             => array(
+function process_backfill_toast( $checkin_id, $session_id = '' ) {
+	if ( ! has_budget( 1 ) ) {
+		schedule_action(
+			'bs_backfill_toast',
 			array(
-				'key'     => '_beer_slurper_untappd_id',
-				'value'   => $checkin_ids,
-				'compare' => 'IN',
+				'checkin_id' => (int) $checkin_id,
+				'session_id' => $session_id,
 			),
-		),
-		'no_found_rows'          => true,
-		'update_post_term_cache' => false,
-	) );
-
-	if ( empty( $query->posts ) ) {
-		return 0;
+			HOUR_IN_SECONDS
+		);
+		return;
 	}
 
-	// Prime meta cache for all returned posts (single query).
-	update_postmeta_cache( $query->posts );
+	// Find the beer post for this checkin.
+	$post_id = get_post_id_for_checkin( $checkin_id );
 
-	// Build lookup: checkin_id => post_id (meta calls hit cache).
-	$checkin_to_post = array();
-	foreach ( $query->posts as $post_id ) {
-		$cid = get_post_meta( $post_id, '_beer_slurper_untappd_id', true );
-		$checkin_to_post[ $cid ] = $post_id;
+	if ( ! $post_id ) {
+		error_log( sprintf(
+			'Beer Slurper: backfill-toast skipped checkin %d - no matching post found.',
+			$checkin_id
+		) );
+		return;
 	}
 
-	// Attach companions using the lookup.
-	foreach ( $checkins_with_companions as $checkin_id => $checkin ) {
-		if ( ! isset( $checkin_to_post[ $checkin_id ] ) ) {
-			continue;
-		}
+	// Fetch full checkin data from API.
+	$response = \Kraft\Beer_Slurper\API\get_untappd_data( 'checkin/view', $checkin_id );
 
-		\Kraft\Beer_Slurper\Companion\attach_companions( $checkin, $checkin_to_post[ $checkin_id ] );
-		$attached++;
+	if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
+		$msg = is_wp_error( $response ) ? $response->get_error_message() : 'Empty response';
+		error_log( sprintf(
+			'Beer Slurper: backfill-toast failed to fetch checkin %d - %s',
+			$checkin_id,
+			$msg
+		) );
+		return;
 	}
 
-	return $attached;
+	$checkin = $response['checkin'];
+
+	// Attach toasts.
+	$attached = \Kraft\Beer_Slurper\Toast\attach_toasts( $checkin, $post_id );
+
+	if ( $attached > 0 ) {
+		error_log( sprintf(
+			'Beer Slurper: backfill-toast attached %d toasts to post %d (checkin %d)',
+			$attached,
+			$post_id,
+			$checkin_id
+		) );
+	}
+}
+add_action( 'bs_backfill_toast', __NAMESPACE__ . '\process_backfill_toast', 10, 2 );
+
+/**
+ * Gets the beer post ID for a given checkin ID.
+ *
+ * @param int $checkin_id The Untappd checkin ID.
+ *
+ * @return int|false The post ID, or false if not found.
+ */
+function get_post_id_for_checkin( $checkin_id ) {
+	global $wpdb;
+
+	$post_id = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT c.comment_post_ID FROM {$wpdb->comments} c
+			INNER JOIN {$wpdb->commentmeta} cm ON c.comment_ID = cm.comment_id
+			WHERE c.comment_type = 'beer_checkin'
+			AND cm.meta_key = '_beer_slurper_checkin_id'
+			AND cm.meta_value = %s
+			LIMIT 1",
+			$checkin_id
+		)
+	);
+
+	return $post_id ? (int) $post_id : false;
 }
 
 /**
@@ -1126,186 +1142,6 @@ function finalize_prime_queue_session( $user, $state, $state_key, $reason ) {
 }
 
 /**
- * Processes a single page of the backfill-companions operation.
- *
- * Fetches one page of checkins from the API, matches to local posts,
- * and attaches companions.
- *
- * @param string $user       The Untappd username.
- * @param int    $page       Current page number (1-indexed).
- * @param int    $max_pages  Maximum pages to fetch (0 = unlimited).
- * @param string $session_id Unique session ID for this run.
- * @param string $max_id     Pagination cursor (max_id from previous page).
- *
- * @return void
- */
-function process_backfill_companions_page( $user, $page, $max_pages, $session_id, $max_id = null ) {
-	$state_key = 'beer_slurper_backfill_state_' . $session_id;
-
-	// Initialize or retrieve session state (use transient for better performance).
-	$state = get_transient( $state_key );
-	if ( false === $state ) {
-		$state = array(
-			'total_matched'    => 0,
-			'total_companions' => 0,
-			'total_attached'   => 0,
-			'total_skipped'    => 0,
-			'started'          => time(),
-			'checkin_lookup'   => null,
-		);
-	}
-
-	// Build lookup on first page (or if not cached).
-	if ( null === $state['checkin_lookup'] ) {
-		global $wpdb;
-		$rows = $wpdb->get_results(
-			"SELECT c.comment_post_ID AS post_id, cm.meta_value AS checkin_id
-			FROM {$wpdb->comments} c
-			INNER JOIN {$wpdb->commentmeta} cm ON c.comment_ID = cm.comment_id
-			WHERE c.comment_type = 'beer_checkin'
-			AND cm.meta_key = '_beer_slurper_checkin_id'"
-		);
-
-		$state['checkin_lookup'] = array();
-		foreach ( $rows as $row ) {
-			$state['checkin_lookup'][ $row->checkin_id ] = (int) $row->post_id;
-		}
-
-		if ( empty( $state['checkin_lookup'] ) ) {
-			error_log( 'Beer Slurper: backfill-companions - no local checkins found.' );
-			delete_transient( $state_key );
-			return;
-		}
-
-		set_transient( $state_key, $state, DAY_IN_SECONDS );
-	}
-
-	// Check budget.
-	if ( ! has_budget( 1 ) ) {
-		schedule_next_page_fetch( 'bs_backfill_companions_page', array(
-			'user'       => $user,
-			'page'       => $page,
-			'max_pages'  => $max_pages,
-			'session_id' => $session_id,
-			'max_id'     => $max_id,
-		) );
-		return;
-	}
-
-	// Check page limit.
-	if ( $max_pages > 0 && $page > $max_pages ) {
-		finalize_backfill_companions_session( $user, $state, $state_key, 'Reached page limit.' );
-		return;
-	}
-
-	$response = \Kraft\Beer_Slurper\API\get_checkins( $user, $max_id, null, '25' );
-
-	if ( is_wp_error( $response ) ) {
-		error_log( 'Beer Slurper: backfill-companions page ' . $page . ' API error: ' . $response->get_error_message() );
-		finalize_backfill_companions_session( $user, $state, $state_key, 'API error: ' . $response->get_error_message() );
-		return;
-	}
-
-	if ( ! is_array( $response ) || empty( $response['checkins']['items'] ) ) {
-		finalize_backfill_companions_session( $user, $state, $state_key, 'Reached end of checkin history.' );
-		return;
-	}
-
-	$items = $response['checkins']['items'];
-	$count = count( $items );
-
-	foreach ( $items as $checkin ) {
-		$cid = (string) ( $checkin['checkin_id'] ?? '' );
-
-		if ( ! isset( $state['checkin_lookup'][ $cid ] ) ) {
-			continue;
-		}
-
-		$post_id = $state['checkin_lookup'][ $cid ];
-		$state['total_matched']++;
-
-		if ( empty( $checkin['tagged_friends']['items'] ) ) {
-			continue;
-		}
-
-		$friend_count = count( $checkin['tagged_friends']['items'] );
-		$state['total_companions'] += $friend_count;
-
-		// Try to attach each companion and track success/failure.
-		$attached_this = 0;
-		foreach ( $checkin['tagged_friends']['items'] as $item ) {
-			if ( empty( $item['user']['uid'] ) ) {
-				$state['total_skipped']++;
-				continue;
-			}
-
-			$term_id = \Kraft\Beer_Slurper\Companion\get_companion_term_id( $item['user']['uid'], $item['user'] );
-			if ( $term_id ) {
-				wp_set_object_terms( $post_id, (int) $term_id, BEER_SLURPER_TAX_COMPANION, true );
-				$attached_this++;
-			} else {
-				$state['total_skipped']++;
-				// Log the failure for debugging.
-				error_log( sprintf(
-					'Beer Slurper: Failed to create companion for uid %s (user_name: %s) on checkin %s',
-					$item['user']['uid'] ?? 'unknown',
-					$item['user']['user_name'] ?? 'missing',
-					$cid
-				) );
-			}
-		}
-		$state['total_attached'] += $attached_this;
-	}
-
-	set_transient( $state_key, $state, DAY_IN_SECONDS );
-
-	// Update pagination cursor.
-	$new_max_id = $response['pagination']['max_id'] ?? null;
-
-	if ( $count < 25 || empty( $new_max_id ) ) {
-		finalize_backfill_companions_session( $user, $state, $state_key, 'Reached end of checkin history.' );
-		return;
-	}
-
-	// Schedule next page.
-	schedule_next_page_fetch( 'bs_backfill_companions_page', array(
-		'user'       => $user,
-		'page'       => $page + 1,
-		'max_pages'  => $max_pages,
-		'session_id' => $session_id,
-		'max_id'     => $new_max_id,
-	) );
-}
-add_action( 'bs_backfill_companions_page', __NAMESPACE__ . '\process_backfill_companions_page', 10, 5 );
-
-/**
- * Finalizes a backfill-companions session and logs the result.
- *
- * @param string $user      The Untappd username.
- * @param array  $state     Session state with totals.
- * @param string $state_key Option key for the session state.
- * @param string $reason    Reason for completion.
- *
- * @return void
- */
-function finalize_backfill_companions_session( $user, $state, $state_key, $reason ) {
-	$elapsed = time() - ( $state['started'] ?? time() );
-
-	error_log( sprintf(
-		'Beer Slurper: backfill-companions complete for %s. %s Matched %d checkins, found %d companions, attached %d, skipped %d in %d seconds.',
-		$user,
-		$reason,
-		$state['total_matched'],
-		$state['total_companions'],
-		$state['total_attached'],
-		$state['total_skipped'],
-		$elapsed
-	) );
-
-	delete_transient( $state_key );
-}
-
-/**
  * Cleans up all Action Scheduler actions on deactivation or reset.
  *
  * @return void
@@ -1316,9 +1152,8 @@ function cleanup() {
 	}
 
 	cancel_all( 'bs_process_checkin' );
-	cancel_all( 'bs_backfill_companion' );
+	cancel_all( 'bs_backfill_toast' );
 	cancel_all( 'bs_prime_queue_page' );
-	cancel_all( 'bs_backfill_companions_page' );
 	cancel_all( 'bs_hourly_import' );
 	cancel_all( 'bs_daily_maintenance' );
 	cancel_all( 'bs_maintenance_stats' );
@@ -1331,8 +1166,7 @@ function cleanup() {
 	// Legacy hook names from older versions.
 	cancel_all( 'bs_as_daily_maintenance' );
 
-	// Session state transients (beer_slurper_prime_state_*, beer_slurper_backfill_state_*)
-	// are not cleaned up here because:
+	// Session state transients (beer_slurper_prime_state_*) are not cleaned up here because:
 	// 1. They have DAY_IN_SECONDS TTL and will self-expire
 	// 2. With object caching, transients may not be in the database
 	// 3. Direct SQL queries would miss object-cached transients
