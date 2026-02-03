@@ -733,6 +733,37 @@ function get_next_pending_checkin_action() {
 }
 
 /**
+ * Returns the next pending bs_backfill_toast action.
+ *
+ * @return object|null Action row with action_id and scheduled_date_gmt, or null.
+ */
+function get_next_pending_toast_backfill_action() {
+	global $wpdb;
+
+	$table       = $wpdb->prefix . 'actionscheduler_actions';
+	$group_table = $wpdb->prefix . 'actionscheduler_groups';
+
+	$group_id = (int) $wpdb->get_var( $wpdb->prepare(
+		"SELECT group_id FROM {$group_table} WHERE slug = %s",
+		AS_GROUP
+	) );
+
+	if ( ! $group_id ) {
+		return null;
+	}
+
+	return $wpdb->get_row( $wpdb->prepare(
+		"SELECT action_id, scheduled_date_gmt FROM {$table}
+		WHERE hook = %s AND status = %s AND group_id = %d
+		ORDER BY scheduled_date_gmt ASC
+		LIMIT 1",
+		'bs_backfill_toast',
+		'pending',
+		$group_id
+	) );
+}
+
+/**
  * Reschedules a single action to a new timestamp.
  *
  * Updates both the scheduled_date columns and the serialized schedule
@@ -789,6 +820,42 @@ function maybe_accelerate_next_checkin() {
 	$scheduled_time = strtotime( $next->scheduled_date_gmt . ' UTC' );
 
 	if ( has_budget( 5 ) ) {
+		// Budget available — if next action is more than 10 seconds out, pull it forward.
+		if ( $scheduled_time > $now + 10 ) {
+			reschedule_action_by_id( $next->action_id, $now + 5 );
+		}
+	} else {
+		// No budget — ensure next action runs when the window resets.
+		$window_end = get_transient( 'beer_slurper_api_window_end' );
+		$reset_time = $window_end ? (int) $window_end : $now + HOUR_IN_SECONDS;
+
+		// If scheduled more than 60 seconds after reset, pull it to reset time.
+		if ( $scheduled_time > $reset_time + 60 ) {
+			reschedule_action_by_id( $next->action_id, $reset_time );
+		}
+	}
+}
+
+/**
+ * Accelerates or adjusts the next pending toast backfill action based on budget.
+ *
+ * If budget remains, pulls the next action forward to run soon.
+ * If no budget and the next action is scheduled more than an hour out,
+ * moves it to run when the budget window resets.
+ *
+ * @return void
+ */
+function maybe_accelerate_next_toast_backfill() {
+	$next = get_next_pending_toast_backfill_action();
+
+	if ( ! $next ) {
+		return;
+	}
+
+	$now            = time();
+	$scheduled_time = strtotime( $next->scheduled_date_gmt . ' UTC' );
+
+	if ( has_budget( 1 ) ) {
 		// Budget available — if next action is more than 10 seconds out, pull it forward.
 		if ( $scheduled_time > $now + 10 ) {
 			reschedule_action_by_id( $next->action_id, $now + 5 );
@@ -1088,6 +1155,9 @@ function process_backfill_toast( $checkin_id, $session_id = '' ) {
 			$checkin_id
 		) );
 	}
+
+	// Success — check if we can accelerate the next action.
+	maybe_accelerate_next_toast_backfill();
 }
 add_action( 'bs_backfill_toast', __NAMESPACE__ . '\process_backfill_toast', 10, 2 );
 
