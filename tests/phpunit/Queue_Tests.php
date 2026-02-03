@@ -301,4 +301,115 @@ class Queue_Tests extends Base\TestCase {
 			$this->markTestSkipped( 'Action Scheduler is loaded.' );
 		}
 	}
+
+	/**
+	 * Tests get_page_spread_params() returns expected structure.
+	 */
+	public function test_get_page_spread_params_returns_structure() {
+		$params = get_page_spread_params();
+
+		$this->assertArrayHasKey( 'per_hour', $params );
+		$this->assertArrayHasKey( 'interval', $params );
+		$this->assertArrayHasKey( 'current_slots', $params );
+		$this->assertArrayHasKey( 'current_interval', $params );
+		$this->assertArrayHasKey( 'full_start', $params );
+	}
+
+	/**
+	 * Tests get_page_spread_params() calculates per_hour for single API call cost.
+	 */
+	public function test_get_page_spread_params_calculates_per_hour() {
+		$params = get_page_spread_params();
+
+		// At 1 call per page, 90 budget = 90 per hour
+		$this->assertEquals( 90, $params['per_hour'] );
+	}
+
+	/**
+	 * Tests get_page_spread_params() calculates current_slots with budget.
+	 */
+	public function test_get_page_spread_params_current_slots_with_budget() {
+		set_transient( 'beer_slurper_api_calls', 0, HOUR_IN_SECONDS );
+		set_transient( 'beer_slurper_api_window_end', time() + 1800, HOUR_IN_SECONDS ); // 30 min left
+
+		$params = get_page_spread_params();
+
+		// With full budget and 30 min left, should have slots available
+		$this->assertGreaterThan( 0, $params['current_slots'] );
+	}
+
+	/**
+	 * Tests get_page_spread_params() returns zero current_slots when budget exhausted.
+	 */
+	public function test_get_page_spread_params_no_slots_when_exhausted() {
+		set_transient( 'beer_slurper_api_calls', 90, HOUR_IN_SECONDS );
+		set_transient( 'beer_slurper_api_window_end', time() + 1800, HOUR_IN_SECONDS );
+
+		$params = get_page_spread_params();
+
+		$this->assertEquals( 0, $params['current_slots'] );
+	}
+
+	/**
+	 * Tests schedule_next_page_fetch() returns null without Action Scheduler.
+	 */
+	public function test_schedule_next_page_fetch_without_as() {
+		if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
+			$result = schedule_next_page_fetch( 'test_hook', array() );
+			$this->assertNull( $result );
+		} else {
+			$this->markTestSkipped( 'Action Scheduler is loaded.' );
+		}
+	}
+
+	/**
+	 * Tests attach_companions_to_existing() returns 0 for empty items.
+	 */
+	public function test_attach_companions_to_existing_empty_items() {
+		$result = attach_companions_to_existing( array() );
+
+		$this->assertEquals( 0, $result );
+	}
+
+	/**
+	 * Tests attach_companions_to_existing() skips items without checkin_id.
+	 */
+	public function test_attach_companions_to_existing_skips_without_checkin_id() {
+		$items = array(
+			array( 'tagged_friends' => array( 'items' => array( array( 'user' => array( 'uid' => 123 ) ) ) ) ),
+		);
+
+		$result = attach_companions_to_existing( $items );
+
+		$this->assertEquals( 0, $result );
+	}
+
+	/**
+	 * Tests attach_companions_to_existing() skips items without tagged_friends.
+	 */
+	public function test_attach_companions_to_existing_skips_without_friends() {
+		$items = array(
+			array( 'checkin_id' => 12345 ),
+		);
+
+		$result = attach_companions_to_existing( $items );
+
+		$this->assertEquals( 0, $result );
+	}
+
+	/**
+	 * Tests attach_companions_to_existing() skips non-existent checkins.
+	 */
+	public function test_attach_companions_to_existing_skips_nonexistent() {
+		$items = array(
+			array(
+				'checkin_id'      => 99999999,
+				'tagged_friends'  => array( 'items' => array( array( 'user' => array( 'uid' => 123 ) ) ) ),
+			),
+		);
+
+		$result = attach_companions_to_existing( $items );
+
+		$this->assertEquals( 0, $result );
+	}
 }

@@ -942,12 +942,15 @@ function process_prime_queue_page( $user, $page, $max_pages, $session_id ) {
 	$option_prefix = 'beer_slurper_' . $user;
 	$state_key     = 'beer_slurper_prime_state_' . $session_id;
 
-	// Initialize or retrieve session state.
-	$state = get_option( $state_key, array(
-		'total_fetched' => 0,
-		'total_queued'  => 0,
-		'started'       => time(),
-	) );
+	// Initialize or retrieve session state (use transient for better performance).
+	$state = get_transient( $state_key );
+	if ( false === $state ) {
+		$state = array(
+			'total_fetched' => 0,
+			'total_queued'  => 0,
+			'started'       => time(),
+		);
+	}
 
 	// Check budget.
 	if ( ! has_budget( 1 ) ) {
@@ -1008,7 +1011,7 @@ function process_prime_queue_page( $user, $page, $max_pages, $session_id ) {
 	// Update state.
 	$state['total_fetched'] += $count;
 	$state['total_queued']  += $queued;
-	update_option( $state_key, $state, false );
+	set_transient( $state_key, $state, DAY_IN_SECONDS );
 
 	// Check if we've reached the end.
 	if ( $count < 25 || empty( $new_max_id ) ) {
@@ -1091,7 +1094,7 @@ function finalize_prime_queue_session( $user, $state, $state_key, $reason ) {
 		$elapsed
 	) );
 
-	delete_option( $state_key );
+	delete_transient( $state_key );
 }
 
 /**
@@ -1111,15 +1114,18 @@ function finalize_prime_queue_session( $user, $state, $state_key, $reason ) {
 function process_backfill_companions_page( $user, $page, $max_pages, $session_id, $max_id = null ) {
 	$state_key = 'beer_slurper_backfill_state_' . $session_id;
 
-	// Initialize or retrieve session state.
-	$state = get_option( $state_key, array(
-		'total_matched'    => 0,
-		'total_companions' => 0,
-		'total_attached'   => 0,
-		'total_skipped'    => 0,
-		'started'          => time(),
-		'checkin_lookup'   => null,
-	) );
+	// Initialize or retrieve session state (use transient for better performance).
+	$state = get_transient( $state_key );
+	if ( false === $state ) {
+		$state = array(
+			'total_matched'    => 0,
+			'total_companions' => 0,
+			'total_attached'   => 0,
+			'total_skipped'    => 0,
+			'started'          => time(),
+			'checkin_lookup'   => null,
+		);
+	}
 
 	// Build lookup on first page (or if not cached).
 	if ( null === $state['checkin_lookup'] ) {
@@ -1139,11 +1145,11 @@ function process_backfill_companions_page( $user, $page, $max_pages, $session_id
 
 		if ( empty( $state['checkin_lookup'] ) ) {
 			error_log( 'Beer Slurper: backfill-companions - no local checkins found.' );
-			delete_option( $state_key );
+			delete_transient( $state_key );
 			return;
 		}
 
-		update_option( $state_key, $state, false );
+		set_transient( $state_key, $state, DAY_IN_SECONDS );
 	}
 
 	// Check budget.
@@ -1223,7 +1229,7 @@ function process_backfill_companions_page( $user, $page, $max_pages, $session_id
 		$state['total_attached'] += $attached_this;
 	}
 
-	update_option( $state_key, $state, false );
+	set_transient( $state_key, $state, DAY_IN_SECONDS );
 
 	// Update pagination cursor.
 	$new_max_id = $response['pagination']['max_id'] ?? null;
@@ -1268,7 +1274,7 @@ function finalize_backfill_companions_session( $user, $state, $state_key, $reaso
 		$elapsed
 	) );
 
-	delete_option( $state_key );
+	delete_transient( $state_key );
 }
 
 /**
