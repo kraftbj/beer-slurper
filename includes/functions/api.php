@@ -37,7 +37,7 @@ namespace Kraft\Beer_Slurper\API;
  * @return array|false|WP_Error Complete Untappd response with useful data in 'response' key,
  *                              false on invalid JSON, or WP_Error on failure.
  */
-function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
+function get_untappd_data_raw( $endpoint, $parameter = null, ?array $args = null, $ver = 'v4' ){
 	$untappd_url    = 'https://api.untappd.com/' . $ver . '/';
 	$untappd_key    = get_option( 'beer-slurper-key' );
 	$untappd_secret = get_option( 'beer-slurper-secret' );
@@ -161,7 +161,7 @@ function get_untappd_data_raw( $endpoint, $parameter = null, array $args = null,
  * @return array|false|WP_Error The response data array, false on invalid response,
  *                              or WP_Error on failure.
  */
-function get_untappd_data( $endpoint, $parameter = null, array $args = null, $ver = 'v4' ){
+function get_untappd_data( $endpoint, $parameter = null, ?array $args = null, $ver = 'v4' ){
 	$response = get_untappd_data_raw( $endpoint, $parameter, $args, $ver );
 	if ( is_wp_error( $response ) || ! is_array( $response ) || ! isset( $response['response'] ) ) {
 		return $response;
