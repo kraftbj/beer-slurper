@@ -118,7 +118,27 @@ function setting_init() {
 		return __NAMESPACE__ . "\\$function";
 	};
 
-	add_settings_section( 'untappd_settings', 'Untappd Settings', null, 'beer-slurper-settings');
+	// Data Source section FIRST - determines what other sections to show.
+	add_settings_section( 'data_source_settings', __( 'Data Source', 'beer_slurper' ), $n( 'data_source_section_callback' ), 'beer-slurper-settings' );
+
+	add_settings_field( 'beer-slurper-data-source', __( 'Data Source Mode', 'beer_slurper' ), $n( 'setting_data_source' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-data-source' ) );
+	register_setting( 'beer-slurper-settings', 'beer_slurper_data_source', 'sanitize_text_field' );
+
+	// Scraper-specific fields (RSS URL and Username) - shown only when scraper mode.
+	add_settings_field( 'beer-slurper-rss-url', __( 'RSS Feed URL', 'beer_slurper' ), $n( 'setting_rss_url' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-rss-url', 'class' => 'beer-slurper-scraper-field' ) );
+	register_setting( 'beer-slurper-settings', 'beer_slurper_rss_url', array(
+		'type'              => 'string',
+		'sanitize_callback' => 'esc_url_raw',
+	) );
+
+	add_settings_field( 'beer-slurper-scraper-user', __( 'Untappd Username', 'beer_slurper' ), $n( 'setting_scraper_username' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-scraper-user', 'class' => 'beer-slurper-scraper-field' ) );
+	register_setting( 'beer-slurper-settings', 'beer-slurper-user', array(
+		'type'              => 'string',
+		'sanitize_callback' => 'sanitize_user',
+	) );
+
+	// API Settings section - shown only when API mode.
+	add_settings_section( 'untappd_settings', __( 'API Settings', 'beer_slurper' ), null, 'beer-slurper-settings');
 
 	add_settings_field( 'beer-slurper-key', __( 'Untappd Key', 'beer_slurper' ), $n( 'setting_key' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-key' ) );
 	register_setting( 'beer-slurper-settings', 'beer-slurper-key', 'strip_tags' );
@@ -129,34 +149,16 @@ function setting_init() {
 	add_settings_field( 'beer-slurper-gallery', __( 'Auto-append Gallery', 'beer_slurper' ), $n( 'setting_gallery' ), 'beer-slurper-settings', 'untappd_settings', array( 'label_for' => 'beer-slurper-gallery' ) );
 	register_setting( 'beer-slurper-settings', 'beer-slurper-gallery', 'boolval' );
 
-	// Untappd Connection section
+	// Untappd Connection section - shown only when API mode.
 	add_settings_section( 'untappd_connection', __( 'Untappd Connection', 'beer_slurper' ), $n( 'oauth_section_callback' ), 'beer-slurper-settings' );
 
-	// Sync Status section
+	// Sync Status section - always visible.
 	add_settings_section( 'sync_status_settings', __( 'Sync Status', 'beer_slurper' ), $n( 'sync_status_section_callback' ), 'beer-slurper-settings' );
 
-	// API Rate Limit section
+	// API Rate Limit section - shown only when API mode.
 	add_settings_section( 'api_rate_limit', __( 'API Rate Limit', 'beer_slurper' ), $n( 'rate_limit_section_callback' ), 'beer-slurper-settings' );
 
-	// Data Source section (for users without API access)
-	add_settings_section( 'data_source_settings', __( 'Data Source', 'beer_slurper' ), $n( 'data_source_section_callback' ), 'beer-slurper-settings' );
-
-	add_settings_field( 'beer-slurper-data-source', __( 'Data Source Mode', 'beer_slurper' ), $n( 'setting_data_source' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-data-source' ) );
-	register_setting( 'beer-slurper-settings', 'beer_slurper_data_source', 'sanitize_text_field' );
-
-	add_settings_field( 'beer-slurper-rss-url', __( 'RSS Feed URL', 'beer_slurper' ), $n( 'setting_rss_url' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-rss-url' ) );
-	register_setting( 'beer-slurper-settings', 'beer_slurper_rss_url', array(
-		'type'              => 'string',
-		'sanitize_callback' => 'esc_url_raw',
-	) );
-
-	add_settings_field( 'beer-slurper-scraper-user', __( 'Untappd Username', 'beer_slurper' ), $n( 'setting_scraper_username' ), 'beer-slurper-settings', 'data_source_settings', array( 'label_for' => 'beer-slurper-scraper-user' ) );
-	register_setting( 'beer-slurper-settings', 'beer-slurper-user', array(
-		'type'              => 'string',
-		'sanitize_callback' => 'sanitize_user',
-	) );
-
-	// Import section
+	// Import section - always visible.
 	add_settings_section( 'import_settings', __( 'Import from Untappd Export', 'beer_slurper' ), $n( 'import_section_callback' ), 'beer-slurper-settings' );
 }
 
@@ -209,6 +211,7 @@ function setting_menu() {
  * @return void
  */
 function setting_page(){
+	$current_source = get_option( 'beer_slurper_data_source', 'api' );
 	?>
 	<div class="wrap">
 		<h2><?php _e( 'Beer Slurper Settings', 'beer_slurper' ); ?></h2>
@@ -217,7 +220,45 @@ function setting_page(){
 			do_settings_sections( 'beer-slurper-settings' );
 			submit_button(); ?>
 		</form>
-	</div> <?php
+	</div>
+	<script>
+	jQuery(document).ready(function($) {
+		function updateSectionsVisibility() {
+			var selected = $('input[name="beer_slurper_data_source"]:checked').val() || '<?php echo esc_js( $current_source ); ?>';
+			var isApi = (selected === 'api' || selected === 'hybrid');
+			var isScraper = (selected === 'scraper' || selected === 'hybrid');
+
+			// API-only sections: API Settings, Untappd Connection, API Rate Limit.
+			$('#untappd_settings, #untappd_settings + table').toggle(isApi);
+			$('#untappd_connection, #untappd_connection + div, #untappd_connection + p').toggle(isApi);
+			$('#api_rate_limit, #api_rate_limit + div, #api_rate_limit + p').toggle(isApi);
+
+			// Scraper-only fields: RSS URL and Username.
+			$('.beer-slurper-scraper-field').toggle(isScraper);
+
+			// Handle section headers (h2 elements in WP settings).
+			$('h2').each(function() {
+				var $h2 = $(this);
+				var text = $h2.text().trim();
+
+				if (text === '<?php echo esc_js( __( 'API Settings', 'beer_slurper' ) ); ?>' ||
+				    text === '<?php echo esc_js( __( 'Untappd Connection', 'beer_slurper' ) ); ?>' ||
+				    text === '<?php echo esc_js( __( 'API Rate Limit', 'beer_slurper' ) ); ?>') {
+					$h2.toggle(isApi);
+					// Also toggle the following table or content until next h2.
+					$h2.nextUntil('h2').toggle(isApi);
+				}
+			});
+		}
+
+		// Initial visibility.
+		updateSectionsVisibility();
+
+		// Update on change.
+		$(document).on('change', 'input[name="beer_slurper_data_source"]', updateSectionsVisibility);
+	});
+	</script>
+	<?php
 }
 
 /**
@@ -798,12 +839,7 @@ function ajax_sync_now() {
 function data_source_section_callback() {
 	?>
 	<p class="description">
-		<?php _e( 'Choose how Beer Slurper fetches data from Untappd. API access provides the richest data but requires credentials. Scraping works without credentials but has limitations.', 'beer_slurper' ); ?>
-	</p>
-	<p>
-		<a href="#data-differences" style="text-decoration: underline;">
-			<?php _e( 'See data differences between modes →', 'beer_slurper' ); ?>
-		</a>
+		<?php _e( 'Choose how Beer Slurper fetches data from Untappd.', 'beer_slurper' ); ?>
 	</p>
 	<?php
 }
@@ -817,38 +853,55 @@ function setting_data_source() {
 	$current = get_option( 'beer_slurper_data_source', 'api' );
 	$has_api = \Kraft\Beer_Slurper\OAuth\is_connected() || ( get_option( 'beer-slurper-key' ) && get_option( 'beer-slurper-secret' ) );
 
+	// Allow filter to enable hybrid mode (hidden by default).
+	$show_hybrid = apply_filters( 'beer_slurper_show_hybrid_mode', false );
+
+	// If currently set to hybrid but hybrid is hidden, treat as scraper for display.
+	$display_current = $current;
+	if ( 'hybrid' === $current && ! $show_hybrid ) {
+		$display_current = 'scraper';
+	}
+
 	$options = array(
 		'api'     => array(
-			'label'       => __( 'API Only', 'beer_slurper' ),
+			'label'       => __( 'Untappd API', 'beer_slurper' ),
 			'description' => __( 'Full data including badges, companions, and detailed metadata. Requires API credentials.', 'beer_slurper' ),
 			'disabled'    => ! $has_api,
 		),
-		'hybrid'  => array(
-			'label'       => __( 'API + Scraper Fallback', 'beer_slurper' ),
-			'description' => __( 'Uses API when available, falls back to scraping if API fails. Best of both worlds.', 'beer_slurper' ),
-			'disabled'    => false,
-		),
 		'scraper' => array(
-			'label'       => __( 'Scraper Only (No API Required)', 'beer_slurper' ),
-			'description' => __( 'Works without API credentials. Limited to recent checkins (~25) and basic data.', 'beer_slurper' ),
+			'label'       => __( 'RSS Feed / Scraper', 'beer_slurper' ),
+			'description' => __( 'Works without API credentials using your RSS feed. Limited to recent checkins (~25) and basic data.', 'beer_slurper' ),
 			'disabled'    => false,
 		),
 	);
 
-	echo '<fieldset>';
+	// Add hybrid option if enabled via filter.
+	if ( $show_hybrid ) {
+		$options = array_slice( $options, 0, 1, true )
+			+ array(
+				'hybrid' => array(
+					'label'       => __( 'API + Scraper Fallback', 'beer_slurper' ),
+					'description' => __( 'Uses API when available, falls back to scraping if API fails.', 'beer_slurper' ),
+					'disabled'    => false,
+				),
+			)
+			+ array_slice( $options, 1, null, true );
+	}
+
+	echo '<fieldset id="beer-slurper-data-source-options">';
 
 	foreach ( $options as $value => $option ) {
 		$disabled = $option['disabled'] ? ' disabled' : '';
-		$checked  = checked( $current, $value, false );
+		$checked  = checked( $display_current, $value, false );
 
-		// If current selection is disabled, fall back to hybrid.
-		if ( $option['disabled'] && $current === $value ) {
+		// If current selection is disabled, select scraper.
+		if ( $option['disabled'] && $display_current === $value ) {
 			$checked = '';
 		}
 
 		printf(
 			'<label style="display: block; margin-bottom: 10px;%s">
-				<input type="radio" name="beer_slurper_data_source" value="%s"%s%s />
+				<input type="radio" name="beer_slurper_data_source" value="%s"%s%s class="beer-slurper-data-source-radio" />
 				<strong>%s</strong>
 				<br /><span class="description" style="margin-left: 24px;">%s</span>
 			</label>',
@@ -863,45 +916,11 @@ function setting_data_source() {
 
 	if ( ! $has_api ) {
 		echo '<p class="description" style="color: #d63638; margin-top: 10px;">';
-		_e( '⚠️ API credentials not configured. "API Only" mode is unavailable.', 'beer_slurper' );
+		_e( '⚠️ API credentials not configured. Connect via OAuth below or enter API credentials to use API mode.', 'beer_slurper' );
 		echo '</p>';
 	}
 
 	echo '</fieldset>';
-
-	// Data differences reference.
-	?>
-	<div id="data-differences" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd;">
-		<h4 style="margin-top: 0;"><?php _e( 'Data Availability by Source', 'beer_slurper' ); ?></h4>
-		<table class="widefat" style="margin-top: 10px;">
-			<thead>
-				<tr>
-					<th><?php _e( 'Data', 'beer_slurper' ); ?></th>
-					<th><?php _e( 'API', 'beer_slurper' ); ?></th>
-					<th><?php _e( 'Export Import', 'beer_slurper' ); ?></th>
-					<th><?php _e( 'Scraper', 'beer_slurper' ); ?></th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr><td><?php _e( 'Checkin (rating, comment, date)', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
-				<tr><td><?php _e( 'Beer name & style', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
-				<tr><td><?php _e( 'Beer ABV & IBU', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>❌</td></tr>
-				<tr><td><?php _e( 'Beer description & label', 'beer_slurper' ); ?></td><td>✅</td><td>❌</td><td>❌</td></tr>
-				<tr><td><?php _e( 'Brewery name & location', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
-				<tr><td><?php _e( 'Brewery details (logo, social, coords)', 'beer_slurper' ); ?></td><td>✅</td><td>❌</td><td>❌</td></tr>
-				<tr><td><?php _e( 'Venue name & coordinates', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>⚠️</td></tr>
-				<tr><td><?php _e( 'Venue details (address, category)', 'beer_slurper' ); ?></td><td>✅</td><td>❌</td><td>❌</td></tr>
-				<tr><td><?php _e( 'Photos', 'beer_slurper' ); ?></td><td>✅</td><td>✅</td><td>✅</td></tr>
-				<tr style="background: #fff3cd;"><td><strong><?php _e( 'Badges', 'beer_slurper' ); ?></strong></td><td>✅</td><td>❌</td><td>❌</td></tr>
-				<tr style="background: #fff3cd;"><td><strong><?php _e( 'Tagged Friends (Companions)', 'beer_slurper' ); ?></strong></td><td>✅</td><td>❌</td><td>❌</td></tr>
-				<tr><td><?php _e( 'Historical backfill', 'beer_slurper' ); ?></td><td>✅ <?php _e( 'Full', 'beer_slurper' ); ?></td><td>✅ <?php _e( 'Full', 'beer_slurper' ); ?></td><td>⚠️ ~25</td></tr>
-			</tbody>
-		</table>
-		<p class="description" style="margin-top: 10px;">
-			<?php _e( '⚠️ = Partial data. Highlighted rows show features only available with API access.', 'beer_slurper' ); ?>
-		</p>
-	</div>
-	<?php
 }
 
 /**
