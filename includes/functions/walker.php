@@ -79,7 +79,9 @@ function import_new( $user ) {
 	}
 
 	if ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) {
-		return is_wp_error( $checkins ) ? $checkins : new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
+		$error = is_wp_error( $checkins ) ? $checkins : new \WP_Error( 'invalid_response', __( 'Invalid response from Untappd API.', 'beer_slurper' ) );
+		\Kraft\Beer_Slurper\Sync_Status\record_sync_error( $error );
+		return $error;
 	}
 
 	// Without min_id the API wraps checkins inside a 'checkins' key.
@@ -88,6 +90,7 @@ function import_new( $user ) {
 	}
 
 	if ( ! isset( $checkins['count'] ) || $checkins['count'] == 0 ) {
+		\Kraft\Beer_Slurper\Sync_Status\record_sync_success( time() );
 		return "No new beers here!";
 	}
 
@@ -99,6 +102,9 @@ function import_new( $user ) {
 	// This respects the API rate limit — items that exceed the current budget
 	// are automatically scheduled for the next hourly window.
 	$queued = \Kraft\Beer_Slurper\Queue\queue_checkin_batch( $checkins['items'], 'import_new' );
+
+	// Record successful sync.
+	\Kraft\Beer_Slurper\Sync_Status\record_sync_success( time() );
 
 	$message = $checkins['count'] . " beer(s) queued for import ({$queued} within current budget).";
 	return $message;
@@ -145,10 +151,13 @@ function import_new_via_scraper( $user ) {
 	}
 
 	if ( is_wp_error( $checkins ) ) {
+		\Kraft\Beer_Slurper\Sync_Status\record_sync_error( $checkins );
 		return $checkins;
 	}
 
 	if ( ! isset( $checkins['checkins']['items'] ) || empty( $checkins['checkins']['items'] ) ) {
+		// No new checkins is still a successful sync.
+		\Kraft\Beer_Slurper\Sync_Status\record_sync_success( time() );
 		return __( 'No checkins found via scraper.', 'beer_slurper' );
 	}
 
@@ -181,6 +190,9 @@ function import_new_via_scraper( $user ) {
 	if ( $imported > 0 && ! empty( $items[0]['checkin_id'] ) ) {
 		update_option( 'beer_slurper_' . $user . '_since', $items[0]['checkin_id'], false );
 	}
+
+	// Record successful sync.
+	\Kraft\Beer_Slurper\Sync_Status\record_sync_success( time() );
 
 	$source_label = ( 'rss' === $source ) ? 'RSS feed' : 'scraper';
 	$message = sprintf(
