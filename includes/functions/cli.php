@@ -369,6 +369,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			$items = $response['checkins']['items'];
 			$count = count( $items );
 			$page_matched = 0;
+			$page_companions = 0;
 
 			foreach ( $items as $checkin ) {
 				$cid = (string) $checkin['checkin_id'];
@@ -387,6 +388,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 
 				$friend_count = count( $checkin['tagged_friends']['items'] );
 				$companions  += $friend_count;
+				$page_companions += $friend_count;
 
 				if ( $dry_run ) {
 					\WP_CLI::log( sprintf(
@@ -424,11 +426,11 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			}
 
 			\WP_CLI::log( sprintf(
-				'Page %d: fetched %d, matched %d local, %d with companions',
+				'Page %d: fetched %d, matched %d local, %d companions on page',
 				$page,
 				$count,
 				$page_matched,
-				$companions > 0 ? $companions : 0
+				$page_companions
 			) );
 
 			// Update pagination cursor.

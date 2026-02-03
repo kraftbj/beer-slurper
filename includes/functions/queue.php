@@ -872,6 +872,10 @@ function get_page_spread_params() {
  * @return int|null The action ID, or null if already pending.
  */
 function schedule_next_page_fetch( $hook, $args ) {
+	if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
+		return null;
+	}
+
 	$now        = time();
 	$window_end = get_transient( 'beer_slurper_api_window_end' );
 	$remaining  = get_remaining_budget();
@@ -1041,11 +1045,21 @@ function attach_companions_to_existing( $items ) {
 			continue;
 		}
 
-		// Find the existing post for this checkin.
-		$post_id = \Kraft\Beer_Slurper\Post\find_existing_checkin( $checkin['checkin_id'] );
-		if ( ! $post_id ) {
+		// Find the existing post for this checkin via direct query.
+		// find_existing_checkin() returns boolean, so we query for post_id directly.
+		$posts = get_posts( array(
+			'post_type'      => BEER_SLURPER_CPT,
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'meta_key'       => '_beer_slurper_untappd_id',
+			'meta_value'     => $checkin['checkin_id'],
+		) );
+
+		if ( empty( $posts ) ) {
 			continue;
 		}
+
+		$post_id = $posts[0];
 
 		// Attach companions.
 		\Kraft\Beer_Slurper\Companion\attach_companions( $checkin, $post_id );
