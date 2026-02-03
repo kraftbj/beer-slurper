@@ -639,7 +639,13 @@ function clear_import_progress() {
  * @return void
  */
 function ajax_get_import_progress() {
-	check_ajax_referer( 'beer_slurper_import', 'nonce' );
+	// Accept either import or sync nonce (progress banner appears in both sections).
+	$valid_nonce = wp_verify_nonce( $_POST['nonce'] ?? '', 'beer_slurper_import' )
+		|| wp_verify_nonce( $_POST['nonce'] ?? '', 'beer_slurper_sync_now' );
+
+	if ( ! $valid_nonce ) {
+		wp_send_json_error( array( 'message' => __( 'Invalid nonce.', 'beer_slurper' ) ) );
+	}
 
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'beer_slurper' ) ) );
@@ -665,7 +671,14 @@ function ajax_get_import_progress() {
 		$pending_batches = count( $pending );
 	}
 
-	$is_complete = ( $progress['processed'] >= $progress['total'] ) && 0 === $pending_batches;
+	// Consider complete if:
+	// 1. All items processed, OR
+	// 2. No pending batches and no updates in 5+ minutes (stale/stuck import).
+	$is_stale = 0 === $pending_batches
+		&& isset( $progress['last_update'] )
+		&& ( time() - $progress['last_update'] ) > 300;
+
+	$is_complete = ( $progress['processed'] >= $progress['total'] ) || ( 0 === $pending_batches && $is_stale );
 
 	wp_send_json_success( array(
 		'active'          => ! $is_complete,
@@ -688,7 +701,13 @@ add_action( 'wp_ajax_beer_slurper_import_progress', __NAMESPACE__ . '\ajax_get_i
  * @return void
  */
 function ajax_clear_import_progress() {
-	check_ajax_referer( 'beer_slurper_import', 'nonce' );
+	// Accept either import or sync nonce (dismiss button appears in both sections).
+	$valid_nonce = wp_verify_nonce( $_POST['nonce'] ?? '', 'beer_slurper_import' )
+		|| wp_verify_nonce( $_POST['nonce'] ?? '', 'beer_slurper_sync_now' );
+
+	if ( ! $valid_nonce ) {
+		wp_send_json_error( array( 'message' => __( 'Invalid nonce.', 'beer_slurper' ) ) );
+	}
 
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'beer_slurper' ) ) );
