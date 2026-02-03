@@ -195,8 +195,15 @@ function bs_import( $user = null ){
 	\Kraft\Beer_Slurper\Sync_Status\clear_sync_error();
 
 	$has_error = false;
+	$data_source = \Kraft\Beer_Slurper\Scraper\get_data_source();
 
-	if ( get_option( 'beer_slurper_' . $user . '_import' ) ) {
+	// Scraper mode can't do historical backfill - clear the flag if set.
+	if ( 'scraper' === $data_source && get_option( 'beer_slurper_' . $user . '_import' ) ) {
+		delete_option( 'beer_slurper_' . $user . '_import' );
+	}
+
+	// Only attempt API backfill if not in scraper-only mode.
+	if ( 'scraper' !== $data_source && get_option( 'beer_slurper_' . $user . '_import' ) ) {
 		// If we are still backfilling, call in the next batch of 25 checkins.
 		$result = \Kraft\Beer_Slurper\Walker\import_old( $user );
 		if ( is_wp_error( $result ) ) {
@@ -204,8 +211,9 @@ function bs_import( $user = null ){
 			$has_error = true;
 		}
 	}
-	if ( get_option( 'beer_slurper_' . $user . '_since' ) ) {
-		// If we have pulled in at least one batch of old checkins, check for ones newer than the most recent.
+
+	// Check for new checkins (respects data source setting).
+	if ( get_option( 'beer_slurper_' . $user . '_since' ) || 'scraper' === $data_source ) {
 		$result = \Kraft\Beer_Slurper\Walker\import_new( $user );
 		if ( is_wp_error( $result ) ) {
 			\Kraft\Beer_Slurper\Sync_Status\record_sync_error( $result );
