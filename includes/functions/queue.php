@@ -1303,8 +1303,9 @@ function cleanup() {
 	// Legacy hook names from older versions.
 	cancel_all( 'bs_as_daily_maintenance' );
 
-	// Clean up any session state options.
-	global $wpdb;
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'beer_slurper_prime_state_%'" );
-	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'beer_slurper_backfill_state_%'" );
+	// Session state transients (beer_slurper_prime_state_*, beer_slurper_backfill_state_*)
+	// are not cleaned up here because:
+	// 1. They have DAY_IN_SECONDS TTL and will self-expire
+	// 2. With object caching, transients may not be in the database
+	// 3. Direct SQL queries would miss object-cached transients
 }
