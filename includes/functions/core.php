@@ -438,6 +438,10 @@ function sync_status_section_callback() {
 	$local_checkins = \Kraft\Beer_Slurper\Sync_Status\get_total_checkins();
 	$untappd_checkins = \Kraft\Beer_Slurper\Sync_Status\get_untappd_total_checkins();
 
+	// Check for active import or backfill operations.
+	$import_progress = \Kraft\Beer_Slurper\Import\get_import_progress();
+	$backfill_pct = ( $untappd_checkins > 0 ) ? min( 100, round( ( $local_checkins / $untappd_checkins ) * 100 ) ) : 0;
+
 	?>
 	<style>
 		.beer-slurper-sync-status { margin-top: 10px; }
@@ -447,16 +451,104 @@ function sync_status_section_callback() {
 		.beer-slurper-error { color: #d63638; background: #fcf0f1; border-left: 4px solid #d63638; padding: 10px; margin: 10px 0; }
 		.beer-slurper-warning { color: #996800; background: #fcf9e8; border-left: 4px solid #dba617; padding: 10px; margin: 10px 0; }
 		.beer-slurper-success { color: #00a32a; }
-		.beer-slurper-backfilling { color: #2271b1; }
 		.beer-slurper-stats-table { border-collapse: collapse; margin: 10px 0; }
 		.beer-slurper-stats-table th,
 		.beer-slurper-stats-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #c3c4c7; }
 		.beer-slurper-stats-table th { background: #f0f0f1; }
 		#beer-slurper-sync-now { margin-top: 15px; }
 		#beer-slurper-sync-message { margin-left: 10px; display: inline-block; }
+		.beer-slurper-operation-banner {
+			padding: 15px;
+			border-radius: 4px;
+			margin-bottom: 15px;
+		}
+		.beer-slurper-operation-banner.backfill {
+			background: #e7f5ff;
+			border: 1px solid #74c0fc;
+		}
+		.beer-slurper-operation-banner.import {
+			background: #fff3cd;
+			border: 1px solid #ffecb5;
+		}
+		.beer-slurper-operation-banner.complete {
+			background: #d1e7dd;
+			border: 1px solid #a3cfbb;
+		}
+		.beer-slurper-operation-banner .progress-bar {
+			width: 100%;
+			height: 20px;
+			background: #f0f0f1;
+			border-radius: 3px;
+			overflow: hidden;
+			margin-top: 10px;
+		}
+		.beer-slurper-operation-banner .progress-bar-fill {
+			height: 100%;
+			transition: width 0.3s ease;
+		}
+		.beer-slurper-operation-banner.backfill .progress-bar-fill { background: #339af0; }
+		.beer-slurper-operation-banner.import .progress-bar-fill { background: #ffc107; }
+		.beer-slurper-operation-banner.complete .progress-bar-fill { background: #198754; }
+		.beer-slurper-operation-banner .dismiss-btn { margin-top: 10px; }
 	</style>
 
 	<div class="beer-slurper-sync-status">
+		<?php // Active operation banners - Import takes priority over backfill display. ?>
+		<?php if ( $import_progress && $import_progress['total'] > 0 ) : ?>
+			<?php
+			$import_pct = round( ( $import_progress['processed'] / $import_progress['total'] ) * 100 );
+			$is_import_complete = $import_progress['processed'] >= $import_progress['total'];
+			?>
+			<div class="beer-slurper-operation-banner <?php echo $is_import_complete ? 'complete' : 'import'; ?>" id="beer-slurper-import-banner">
+				<strong><?php echo $is_import_complete ? __( 'Import Complete', 'beer_slurper' ) : __( 'Import in Progress', 'beer_slurper' ); ?></strong>
+				<p id="beer-slurper-import-status">
+					<?php
+					printf(
+						/* translators: 1: processed count, 2: total count, 3: imported count, 4: skipped count */
+						__( 'Processed %1$d of %2$d checkins (%3$d imported, %4$d skipped)', 'beer_slurper' ),
+						$import_progress['processed'],
+						$import_progress['total'],
+						$import_progress['imported'] ?? 0,
+						$import_progress['skipped'] ?? 0
+					);
+					?>
+				</p>
+				<div class="progress-bar">
+					<div class="progress-bar-fill" id="beer-slurper-import-fill" style="width: <?php echo esc_attr( $import_pct ); ?>%;"></div>
+				</div>
+				<?php if ( $is_import_complete ) : ?>
+					<button type="button" class="button dismiss-btn" id="beer-slurper-dismiss-import">
+						<?php _e( 'Dismiss', 'beer_slurper' ); ?>
+					</button>
+				<?php endif; ?>
+			</div>
+		<?php elseif ( $is_backfilling ) : ?>
+			<div class="beer-slurper-operation-banner backfill" id="beer-slurper-backfill-banner">
+				<strong><?php _e( 'Backfilling History', 'beer_slurper' ); ?></strong>
+				<p id="beer-slurper-backfill-status">
+					<?php
+					if ( $untappd_checkins > 0 ) {
+						printf(
+							/* translators: 1: local count, 2: untappd total */
+							__( 'Imported %1$s of %2$s checkins from Untappd', 'beer_slurper' ),
+							number_format_i18n( $local_checkins ),
+							number_format_i18n( $untappd_checkins )
+						);
+					} else {
+						printf(
+							/* translators: %s: local checkin count */
+							__( '%s checkins imported so far', 'beer_slurper' ),
+							number_format_i18n( $local_checkins )
+						);
+					}
+					?>
+				</p>
+				<div class="progress-bar">
+					<div class="progress-bar-fill" style="width: <?php echo esc_attr( $backfill_pct ); ?>%;"></div>
+				</div>
+			</div>
+		<?php endif; ?>
+
 		<dl>
 			<dt><?php _e( 'Untappd User', 'beer_slurper' ); ?></dt>
 			<dd>
@@ -467,31 +559,14 @@ function sync_status_section_callback() {
 				<?php endif; ?>
 			</dd>
 
-			<dt><?php _e( 'Sync Status', 'beer_slurper' ); ?></dt>
+			<dt><?php _e( 'Status', 'beer_slurper' ); ?></dt>
 			<dd>
 				<?php if ( ! $user ) : ?>
 					<em><?php _e( 'No user configured', 'beer_slurper' ); ?></em>
+				<?php elseif ( $import_progress && $import_progress['total'] > 0 && $import_progress['processed'] < $import_progress['total'] ) : ?>
+					<span style="color: #996800;"><?php _e( 'Import running...', 'beer_slurper' ); ?></span>
 				<?php elseif ( $is_backfilling ) : ?>
-					<span class="beer-slurper-backfilling">
-						<?php
-						if ( $untappd_checkins > 0 ) {
-							$pct = min( 100, round( ( $local_checkins / $untappd_checkins ) * 100 ) );
-							printf(
-								/* translators: 1: local count, 2: untappd total, 3: percentage */
-								__( 'Backfilling — %1$s of %2$s checkins (%3$s%%)', 'beer_slurper' ),
-								number_format_i18n( $local_checkins ),
-								number_format_i18n( $untappd_checkins ),
-								$pct
-							);
-						} else {
-							printf(
-								/* translators: %s: local checkin count */
-								__( 'Backfilling — %s checkins imported so far', 'beer_slurper' ),
-								number_format_i18n( $local_checkins )
-							);
-						}
-						?>
-					</span>
+					<span style="color: #2271b1;"><?php _e( 'Backfilling...', 'beer_slurper' ); ?></span>
 				<?php else : ?>
 					<span class="beer-slurper-success"><?php _e( 'Caught up', 'beer_slurper' ); ?></span>
 				<?php endif; ?>
@@ -584,6 +659,65 @@ function sync_status_section_callback() {
 			<?php wp_nonce_field( 'beer_slurper_sync_now', 'beer_slurper_sync_nonce' ); ?>
 		<?php endif; ?>
 	</div>
+
+	<script>
+	jQuery(document).ready(function($) {
+		// Dismiss import banner.
+		$('#beer-slurper-dismiss-import').on('click', function() {
+			$.ajax({
+				url: ajaxurl,
+				type: 'POST',
+				data: {
+					action: 'beer_slurper_clear_import_progress',
+					nonce: $('#beer_slurper_sync_nonce').val()
+				},
+				success: function() {
+					$('#beer-slurper-import-banner').slideUp();
+				}
+			});
+		});
+
+		// Poll for import/backfill progress updates.
+		var pollInterval = null;
+		var hasBanner = $('#beer-slurper-import-banner').length || $('#beer-slurper-backfill-banner').length;
+
+		if (hasBanner) {
+			pollInterval = setInterval(function() {
+				$.ajax({
+					url: ajaxurl,
+					type: 'POST',
+					data: {
+						action: 'beer_slurper_import_progress',
+						nonce: $('#beer_slurper_sync_nonce').val()
+					},
+					success: function(response) {
+						if (response.success && response.data.active) {
+							var pct = response.data.total > 0 ? Math.round((response.data.processed / response.data.total) * 100) : 0;
+							$('#beer-slurper-import-fill').css('width', pct + '%');
+							$('#beer-slurper-import-status').text(
+								'<?php echo esc_js( __( 'Processed', 'beer_slurper' ) ); ?> ' + response.data.processed +
+								' <?php echo esc_js( __( 'of', 'beer_slurper' ) ); ?> ' + response.data.total +
+								' <?php echo esc_js( __( 'checkins', 'beer_slurper' ) ); ?> (' +
+								response.data.imported + ' <?php echo esc_js( __( 'imported', 'beer_slurper' ) ); ?>, ' +
+								response.data.skipped + ' <?php echo esc_js( __( 'skipped', 'beer_slurper' ) ); ?>)'
+							);
+						} else if (response.success && response.data.complete) {
+							$('#beer-slurper-import-banner').removeClass('import backfill').addClass('complete');
+							$('#beer-slurper-import-banner strong').text('<?php echo esc_js( __( 'Import Complete', 'beer_slurper' ) ); ?>');
+							$('#beer-slurper-import-fill').css('width', '100%');
+							if (!$('#beer-slurper-dismiss-import').length) {
+								$('#beer-slurper-import-banner').append(
+									'<button type="button" class="button dismiss-btn" id="beer-slurper-dismiss-import"><?php echo esc_js( __( 'Dismiss', 'beer_slurper' ) ); ?></button>'
+								);
+							}
+							clearInterval(pollInterval);
+						}
+					}
+				});
+			}, 5000);
+		}
+	});
+	</script>
 	<?php
 }
 
@@ -851,7 +985,6 @@ function data_source_section_callback() {
  */
 function setting_data_source() {
 	$current = get_option( 'beer_slurper_data_source', 'api' );
-	$has_api = \Kraft\Beer_Slurper\OAuth\is_connected() || ( get_option( 'beer-slurper-key' ) && get_option( 'beer-slurper-secret' ) );
 
 	// Allow filter to enable hybrid mode (hidden by default).
 	$show_hybrid = apply_filters( 'beer_slurper_show_hybrid_mode', false );
@@ -866,12 +999,10 @@ function setting_data_source() {
 		'api'     => array(
 			'label'       => __( 'Untappd API', 'beer_slurper' ),
 			'description' => __( 'Full data including badges, companions, and detailed metadata. Requires API credentials.', 'beer_slurper' ),
-			'disabled'    => ! $has_api,
 		),
 		'scraper' => array(
 			'label'       => __( 'RSS Feed / Scraper', 'beer_slurper' ),
 			'description' => __( 'Works without API credentials using your RSS feed. Limited to recent checkins (~25) and basic data.', 'beer_slurper' ),
-			'disabled'    => false,
 		),
 	);
 
@@ -882,7 +1013,6 @@ function setting_data_source() {
 				'hybrid' => array(
 					'label'       => __( 'API + Scraper Fallback', 'beer_slurper' ),
 					'description' => __( 'Uses API when available, falls back to scraping if API fails.', 'beer_slurper' ),
-					'disabled'    => false,
 				),
 			)
 			+ array_slice( $options, 1, null, true );
@@ -891,33 +1021,19 @@ function setting_data_source() {
 	echo '<fieldset id="beer-slurper-data-source-options">';
 
 	foreach ( $options as $value => $option ) {
-		$disabled = $option['disabled'] ? ' disabled' : '';
-		$checked  = checked( $display_current, $value, false );
-
-		// If current selection is disabled, select scraper.
-		if ( $option['disabled'] && $display_current === $value ) {
-			$checked = '';
-		}
+		$checked = checked( $display_current, $value, false );
 
 		printf(
-			'<label style="display: block; margin-bottom: 10px;%s">
-				<input type="radio" name="beer_slurper_data_source" value="%s"%s%s class="beer-slurper-data-source-radio" />
+			'<label style="display: block; margin-bottom: 10px;">
+				<input type="radio" name="beer_slurper_data_source" value="%s"%s class="beer-slurper-data-source-radio" />
 				<strong>%s</strong>
 				<br /><span class="description" style="margin-left: 24px;">%s</span>
 			</label>',
-			$option['disabled'] ? ' opacity: 0.5;' : '',
 			esc_attr( $value ),
 			$checked,
-			$disabled,
 			esc_html( $option['label'] ),
 			esc_html( $option['description'] )
 		);
-	}
-
-	if ( ! $has_api ) {
-		echo '<p class="description" style="color: #d63638; margin-top: 10px;">';
-		_e( '⚠️ API credentials not configured. Connect via OAuth below or enter API credentials to use API mode.', 'beer_slurper' );
-		echo '</p>';
 	}
 
 	echo '</fieldset>';
@@ -1074,9 +1190,6 @@ function on_username_added( $option, $value ) {
  * @return void
  */
 function import_section_callback() {
-	$enrichable_count = \Kraft\Beer_Slurper\Import\get_enrichable_count();
-	$import_progress  = \Kraft\Beer_Slurper\Import\get_import_progress();
-
 	?>
 	<style>
 		.beer-slurper-import { margin-top: 10px; }
@@ -1132,63 +1245,9 @@ function import_section_callback() {
 			background: #f8d7da;
 			border: 1px solid #f5c2c7;
 		}
-		.beer-slurper-bg-progress {
-			background: #fff3cd;
-			border: 1px solid #ffecb5;
-			padding: 15px;
-			border-radius: 4px;
-			margin-bottom: 15px;
-		}
-		.beer-slurper-bg-progress .progress-bar {
-			width: 100%;
-			height: 20px;
-			background: #f0f0f1;
-			border-radius: 3px;
-			overflow: hidden;
-			margin-top: 10px;
-		}
-		.beer-slurper-bg-progress .progress-bar-fill {
-			height: 100%;
-			background: #ffc107;
-			transition: width 0.3s ease;
-		}
-		.beer-slurper-bg-progress.complete {
-			background: #d1e7dd;
-			border-color: #a3cfbb;
-		}
-		.beer-slurper-bg-progress.complete .progress-bar-fill {
-			background: #198754;
-		}
-		.beer-slurper-bg-progress .dismiss-btn {
-			margin-top: 10px;
-		}
 	</style>
 
 	<div class="beer-slurper-import">
-		<?php if ( $import_progress ) : ?>
-			<div class="beer-slurper-bg-progress" id="beer-slurper-bg-progress">
-				<strong><?php _e( 'Import in Progress', 'beer_slurper' ); ?></strong>
-				<p id="beer-slurper-bg-status">
-					<?php
-					printf(
-						/* translators: 1: processed count, 2: total count, 3: imported count, 4: skipped count */
-						__( 'Processed %1$d of %2$d checkins (%3$d imported, %4$d skipped)', 'beer_slurper' ),
-						$import_progress['processed'] ?? 0,
-						$import_progress['total'] ?? 0,
-						$import_progress['imported'] ?? 0,
-						$import_progress['skipped'] ?? 0
-					);
-					?>
-				</p>
-				<div class="progress-bar">
-					<div class="progress-bar-fill" id="beer-slurper-bg-fill" style="width: <?php echo $import_progress['total'] > 0 ? esc_attr( round( ( $import_progress['processed'] / $import_progress['total'] ) * 100 ) ) : 0; ?>%;"></div>
-				</div>
-				<button type="button" class="button dismiss-btn" id="beer-slurper-dismiss-progress" style="display: none;">
-					<?php _e( 'Dismiss', 'beer_slurper' ); ?>
-				</button>
-			</div>
-		<?php endif; ?>
-
 		<p class="description">
 			<?php
 			printf(
@@ -1219,20 +1278,6 @@ function import_section_callback() {
 			<p id="beer-slurper-import-message"></p>
 			<div id="beer-slurper-import-errors" style="margin-top: 10px; font-size: 12px;"></div>
 		</div>
-
-		<?php if ( $enrichable_count > 0 ) : ?>
-			<div class="notice notice-info inline" style="margin-top: 15px;">
-				<p>
-					<?php
-					printf(
-						/* translators: %d: Number of imported checkins */
-						__( '%d checkins were imported from export and could be enriched with API data (badges, detailed metadata).', 'beer_slurper' ),
-						$enrichable_count
-					);
-					?>
-				</p>
-			</div>
-		<?php endif; ?>
 
 		<?php wp_nonce_field( 'beer_slurper_import', 'beer_slurper_import_nonce' ); ?>
 	</div>

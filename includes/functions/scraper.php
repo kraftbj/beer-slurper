@@ -191,10 +191,11 @@ function parse_rss_item( $item ) {
 		return null;
 	}
 
-	// Parse title: "Username is drinking Beer Name by Brewery Name"
+	// Parse title: "Username is drinking [a/an] Beer Name by Brewery Name [at Venue]"
+	// Example: "Brandon K. is drinking a Black Cherry by White Claw Seltzer Works at Untappd at Home"
 	$title = (string) $item->title;
-	if ( preg_match( '/^(\w+) is drinking (.+?) by (.+)$/', $title, $matches ) ) {
-		$checkin['user']['user_name']       = $matches[1];
+	if ( preg_match( '/^(.+?) is drinking (?:an? )?(.+?) by (.+?)(?: at .+)?$/', $title, $matches ) ) {
+		$checkin['user']['user_name']       = trim( $matches[1] );
 		$checkin['beer']['beer_name']       = trim( $matches[2] );
 		$checkin['brewery']['brewery_name'] = trim( $matches[3] );
 	}
