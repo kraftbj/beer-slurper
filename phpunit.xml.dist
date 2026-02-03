@@ -1,18 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <phpunit
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
 	bootstrap="bootstrap.php"
 	backupGlobals="false"
+	colors="true"
 	processIsolation="false"
-	colors="false">
+	cacheResult="true"
+>
 	<testsuites>
-		<testsuite name="Default">
+		<testsuite name="all">
 			<directory suffix="Tests.php">./tests/phpunit</directory>
 		</testsuite>
+		<testsuite name="unit">
+			<file>./tests/phpunit/API_Tests.php</file>
+			<file>./tests/phpunit/OAuth_Tests.php</file>
+			<file>./tests/phpunit/Post_Tests.php</file>
+			<file>./tests/phpunit/Checkin_Tests.php</file>
+			<file>./tests/phpunit/Brewery_Tests.php</file>
+			<file>./tests/phpunit/Venue_Tests.php</file>
+			<file>./tests/phpunit/Badge_Tests.php</file>
+			<file>./tests/phpunit/Companion_Tests.php</file>
+			<file>./tests/phpunit/Queue_Tests.php</file>
+		</testsuite>
+		<testsuite name="integration">
+			<directory suffix="Tests.php">./tests/phpunit/Integration</directory>
+		</testsuite>
+		<testsuite name="e2e">
+			<directory suffix="Tests.php">./tests/phpunit/E2E</directory>
+		</testsuite>
+		<testsuite name="cli">
+			<file>./tests/phpunit/CLI_Tests.php</file>
+		</testsuite>
+		<testsuite name="core">
+			<file>./tests/phpunit/Core_Tests.php</file>
+			<file>./tests/phpunit/Sync_Status_Tests.php</file>
+		</testsuite>
 	</testsuites>
-	<filter>
-		<whitelist>
+	<coverage>
+		<include>
 			<directory suffix=".php">./includes</directory>
-		</whitelist>
-	</filter>
+		</include>
+	</coverage>
 	<php>
 		<ini name="error_reporting" value="32767" />
 		<ini name="display_errors" value="1" />

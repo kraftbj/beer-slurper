@@ -22,12 +22,12 @@
     "build:blocks": "wp-scripts build --webpack-src-dir=src/blocks --output-path=build"
   },
   "dependencies": {
-    "@wordpress/scripts": "^30.0.0"
+    "@wordpress/scripts": "^30.27.0"
   },
   "devDependencies": {
     "grunt": "^1.6.1",
     "grunt-cli": "^1.5.0",
-    "grunt-contrib-cssmin": "^0.12.2",
+    "grunt-contrib-cssmin": "^0.12.3",
     "grunt-contrib-jshint": "^3.2.0",
     "grunt-contrib-qunit": "^10.1.1",
     "grunt-contrib-uglify": "^5.2.2",
@@ -35,7 +35,7 @@
     "grunt-phpunit": "^0.3.6",
     "grunt-wp-i18n": "^1.0.4",
     "grunt-wp-readme-to-markdown": "^2.1.0",
-    "load-grunt-tasks": "^3.1.0",
+    "load-grunt-tasks": "^3.5.2",
     "qunitjs": "~1.17.1"
   },
   "keywords": []

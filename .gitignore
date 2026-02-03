@@ -6,3 +6,6 @@ phpunit.xml
 .idea
 config.php
 build
+wordpress
+.phpunit.result.cache
+.phpunit.cache

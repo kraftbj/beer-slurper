@@ -17,18 +17,43 @@
     "prefer-stable": true,
     "config": {
         "allow-plugins": {
-            "automattic/jetpack-autoloader": true
+            "automattic/jetpack-autoloader": true,
+            "roots/wordpress-core-installer": true
         }
     },
 	"require": {
 		"php": ">=7.4",
 		"woocommerce/action-scheduler": "^3.9",
-		"automattic/jetpack-autoloader": "^3.1"
+		"automattic/jetpack-autoloader": "^5.0"
 	},
     "require-dev": {
-	    "antecedent/patchwork": "^2.1",
-        "phpunit/phpunit"     : "*@stable",
-	    "brianium/paratest"   : "*@stable",
-        "10up/wp_mock"        : "dev-trunk"
+        "phpunit/phpunit"         : "^9.6",
+        "brianium/paratest"       : "^6.11",
+        "automattic/wordbless"    : "^0.6",
+        "yoast/phpunit-polyfills" : "^3.0"
+    },
+    "scripts": {
+        "post-install-cmd": "WorDBless\\Composer\\InstallDropin::copy",
+        "post-update-cmd": "WorDBless\\Composer\\InstallDropin::copy",
+        "test": "phpunit",
+        "test:all": "phpunit --testsuite all",
+        "test:unit": "phpunit --testsuite unit",
+        "test:integration": "phpunit --testsuite integration",
+        "test:e2e": "phpunit --testsuite e2e",
+        "test:cli": "phpunit --testsuite cli",
+        "test:core": "phpunit --testsuite core",
+        "test:api": "phpunit --filter API_Tests",
+        "test:oauth": "phpunit --filter OAuth_Tests",
+        "test:post": "phpunit --filter Post_Tests",
+        "test:checkin": "phpunit --filter Checkin_Tests",
+        "test:brewery": "phpunit --filter Brewery_Tests",
+        "test:venue": "phpunit --filter Venue_Tests",
+        "test:badge": "phpunit --filter Badge_Tests",
+        "test:companion": "phpunit --filter Companion_Tests",
+        "test:queue": "phpunit --filter Queue_Tests",
+        "test:import": "phpunit --filter Import_Tests",
+        "test:cpt": "phpunit --filter CPT_Tests",
+        "test:admin": "phpunit --filter Admin_Tests",
+        "test:coverage": "phpunit --coverage-html coverage"
     }
 }
