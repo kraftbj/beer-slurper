@@ -350,6 +350,60 @@ class ApiFixtures {
 	}
 
 	/**
+	 * Returns a single toast (like) data structure.
+	 *
+	 * @param array $overrides Optional. Values to override.
+	 *
+	 * @return array Toast data structure.
+	 */
+	public static function toast( $overrides = array() ) {
+		$defaults = array(
+			'like_id'    => 987654321,
+			'created_at' => '2024-01-15 15:00:00',
+			'user'       => self::user( array(
+				'uid'        => 33333,
+				'user_name'  => 'toastmaster',
+				'first_name' => 'Toast',
+				'last_name'  => 'Master',
+			) ),
+		);
+
+		return array_replace_recursive( $defaults, $overrides );
+	}
+
+	/**
+	 * Returns a toasts array structure for a checkin.
+	 *
+	 * @param int   $count     Number of toasts to generate.
+	 * @param array $overrides Optional. Values to override for each toast.
+	 *
+	 * @return array Toasts structure with count and items.
+	 */
+	public static function toasts( $count = 1, $overrides = array() ) {
+		$items = array();
+
+		for ( $i = 0; $i < $count; $i++ ) {
+			$items[] = self::toast( array_merge(
+				array(
+					'like_id' => 987654321 + $i,
+					'user'    => self::user( array(
+						'uid'        => 33333 + $i,
+						'user_name'  => 'toaster' . ( $i + 1 ),
+						'first_name' => 'Toaster',
+						'last_name'  => (string) ( $i + 1 ),
+					) ),
+				),
+				$overrides
+			) );
+		}
+
+		return array(
+			'count' => $count,
+			'items' => $items,
+		);
+	}
+
+	/**
 	 * Loads a fixture from a JSON file if it exists.
 	 *
 	 * @param string $name Fixture name (without .json extension).

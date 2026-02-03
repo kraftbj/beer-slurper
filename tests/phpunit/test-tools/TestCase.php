@@ -146,6 +146,9 @@ class TestCase extends BaseTestCase {
 		// Delete beer_checkin comments
 		$wpdb->query( "DELETE FROM {$wpdb->comments} WHERE comment_type = 'beer_checkin'" );
 
+		// Delete beer_toast comments
+		$wpdb->query( "DELETE FROM {$wpdb->comments} WHERE comment_type = 'beer_toast'" );
+
 		// Delete orphaned comment meta
 		$wpdb->query(
 			"DELETE cm FROM {$wpdb->commentmeta} cm

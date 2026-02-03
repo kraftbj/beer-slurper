@@ -28,6 +28,7 @@ class Import_Tests extends Base\TestCase {
 		'functions/badge.php',
 		'functions/checkin.php',
 		'functions/companion.php',
+		'functions/toast.php',
 		'functions/queue.php',
 		'functions/walker.php',
 	];

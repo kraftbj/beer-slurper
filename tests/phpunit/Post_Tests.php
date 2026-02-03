@@ -27,6 +27,7 @@ class Post_Tests extends Base\TestCase {
 		'functions/badge.php',
 		'functions/checkin.php',
 		'functions/companion.php',
+		'functions/toast.php',
 	];
 
 	protected $use_mock_http = true;
