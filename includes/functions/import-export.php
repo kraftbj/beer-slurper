@@ -634,6 +634,72 @@ function clear_import_progress() {
 }
 
 /**
+ * AJAX handler for getting import progress.
+ *
+ * @return void
+ */
+function ajax_get_import_progress() {
+	check_ajax_referer( 'beer_slurper_import', 'nonce' );
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'beer_slurper' ) ) );
+	}
+
+	$progress = get_import_progress();
+
+	if ( ! $progress ) {
+		wp_send_json_success( array(
+			'active'   => false,
+			'message'  => __( 'No import in progress.', 'beer_slurper' ),
+		) );
+	}
+
+	// Check if there are pending batches in Action Scheduler.
+	$pending_batches = 0;
+	if ( function_exists( 'as_get_scheduled_actions' ) ) {
+		$pending = as_get_scheduled_actions( array(
+			'hook'   => 'beer_slurper_process_import_batch',
+			'status' => \ActionScheduler_Store::STATUS_PENDING,
+			'group'  => 'beer-slurper',
+		), 'ids' );
+		$pending_batches = count( $pending );
+	}
+
+	$is_complete = ( $progress['processed'] >= $progress['total'] ) && 0 === $pending_batches;
+
+	wp_send_json_success( array(
+		'active'          => ! $is_complete,
+		'complete'        => $is_complete,
+		'total'           => $progress['total'],
+		'processed'       => $progress['processed'],
+		'imported'        => $progress['imported'],
+		'skipped'         => $progress['skipped'],
+		'pending_batches' => $pending_batches,
+		'started'         => $progress['started'] ?? 0,
+		'last_update'     => $progress['last_update'] ?? 0,
+		'errors'          => array_slice( $progress['errors'] ?? array(), 0, 10 ),
+	) );
+}
+add_action( 'wp_ajax_beer_slurper_import_progress', __NAMESPACE__ . '\ajax_get_import_progress' );
+
+/**
+ * AJAX handler to clear/dismiss import progress.
+ *
+ * @return void
+ */
+function ajax_clear_import_progress() {
+	check_ajax_referer( 'beer_slurper_import', 'nonce' );
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'beer_slurper' ) ) );
+	}
+
+	clear_import_progress();
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_beer_slurper_clear_import_progress', __NAMESPACE__ . '\ajax_clear_import_progress' );
+
+/**
  * Gets the count of checkins that could be enriched with API data.
  *
  * These are checkins imported from export that lack full metadata.

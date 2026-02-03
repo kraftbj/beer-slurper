@@ -1056,6 +1056,7 @@ function on_username_added( $option, $value ) {
  */
 function import_section_callback() {
 	$enrichable_count = \Kraft\Beer_Slurper\Import\get_enrichable_count();
+	$import_progress  = \Kraft\Beer_Slurper\Import\get_import_progress();
 
 	?>
 	<style>
@@ -1112,9 +1113,63 @@ function import_section_callback() {
 			background: #f8d7da;
 			border: 1px solid #f5c2c7;
 		}
+		.beer-slurper-bg-progress {
+			background: #fff3cd;
+			border: 1px solid #ffecb5;
+			padding: 15px;
+			border-radius: 4px;
+			margin-bottom: 15px;
+		}
+		.beer-slurper-bg-progress .progress-bar {
+			width: 100%;
+			height: 20px;
+			background: #f0f0f1;
+			border-radius: 3px;
+			overflow: hidden;
+			margin-top: 10px;
+		}
+		.beer-slurper-bg-progress .progress-bar-fill {
+			height: 100%;
+			background: #ffc107;
+			transition: width 0.3s ease;
+		}
+		.beer-slurper-bg-progress.complete {
+			background: #d1e7dd;
+			border-color: #a3cfbb;
+		}
+		.beer-slurper-bg-progress.complete .progress-bar-fill {
+			background: #198754;
+		}
+		.beer-slurper-bg-progress .dismiss-btn {
+			margin-top: 10px;
+		}
 	</style>
 
 	<div class="beer-slurper-import">
+		<?php if ( $import_progress ) : ?>
+			<div class="beer-slurper-bg-progress" id="beer-slurper-bg-progress">
+				<strong><?php _e( 'Import in Progress', 'beer_slurper' ); ?></strong>
+				<p id="beer-slurper-bg-status">
+					<?php
+					printf(
+						/* translators: 1: processed count, 2: total count, 3: imported count, 4: skipped count */
+						__( 'Processed %1$d of %2$d checkins (%3$d imported, %4$d skipped)', 'beer_slurper' ),
+						$import_progress['processed'] ?? 0,
+						$import_progress['total'] ?? 0,
+						$import_progress['imported'] ?? 0,
+						$import_progress['skipped'] ?? 0
+					);
+					?>
+				</p>
+				<div class="progress-bar">
+					<div class="progress-bar-fill" id="beer-slurper-bg-fill" style="width: <?php echo $import_progress['total'] > 0 ? esc_attr( round( ( $import_progress['processed'] / $import_progress['total'] ) * 100 ) ) : 0; ?>%;"></div>
+				</div>
+				<button type="button" class="button dismiss-btn" id="beer-slurper-dismiss-progress" style="display: none;">
+					<?php _e( 'Dismiss', 'beer_slurper' ); ?>
+				</button>
+			</div>
+		<?php endif; ?>
+
 		<p class="description">
 			<?php
 			printf(
@@ -1252,6 +1307,11 @@ function import_section_callback() {
 						} else {
 							errorsEl.html('');
 						}
+
+						// Start polling if items were queued for background processing
+						if (response.data.queued && response.data.queued > 0) {
+							$(document).trigger('beer_slurper_import_queued');
+						}
 					} else {
 						results.removeClass('success').addClass('error').show();
 						messageEl.text(response.data.message || '<?php echo esc_js( __( 'Import failed.', 'beer_slurper' ) ); ?>');
@@ -1267,6 +1327,117 @@ function import_section_callback() {
 				}
 			});
 		}
+
+		// Background import progress polling
+		var bgProgress = $('#beer-slurper-bg-progress');
+		var bgStatus = $('#beer-slurper-bg-status');
+		var bgFill = $('#beer-slurper-bg-fill');
+		var dismissBtn = $('#beer-slurper-dismiss-progress');
+		var pollInterval = null;
+
+		function pollImportProgress() {
+			$.ajax({
+				url: ajaxurl,
+				type: 'POST',
+				data: {
+					action: 'beer_slurper_import_progress',
+					nonce: $('#beer_slurper_import_nonce').val()
+				},
+				success: function(response) {
+					if (!response.success || !response.data.active) {
+						// No active import or complete
+						if (response.data && response.data.complete) {
+							bgProgress.addClass('complete');
+							bgStatus.html(
+								'<?php echo esc_js( __( 'Import complete:', 'beer_slurper' ) ); ?> ' +
+								response.data.imported + ' <?php echo esc_js( __( 'imported', 'beer_slurper' ) ); ?>, ' +
+								response.data.skipped + ' <?php echo esc_js( __( 'skipped', 'beer_slurper' ) ); ?>'
+							);
+							bgFill.css('width', '100%');
+							dismissBtn.show();
+						}
+						if (pollInterval) {
+							clearInterval(pollInterval);
+							pollInterval = null;
+						}
+						return;
+					}
+
+					// Update progress display
+					var pct = response.data.total > 0 ? Math.round((response.data.processed / response.data.total) * 100) : 0;
+					bgFill.css('width', pct + '%');
+					bgStatus.html(
+						'<?php echo esc_js( __( 'Processed', 'beer_slurper' ) ); ?> ' + response.data.processed +
+						' <?php echo esc_js( __( 'of', 'beer_slurper' ) ); ?> ' + response.data.total +
+						' <?php echo esc_js( __( 'checkins', 'beer_slurper' ) ); ?> (' +
+						response.data.imported + ' <?php echo esc_js( __( 'imported', 'beer_slurper' ) ); ?>, ' +
+						response.data.skipped + ' <?php echo esc_js( __( 'skipped', 'beer_slurper' ) ); ?>)' +
+						(response.data.pending_batches > 0 ? ' — ' + response.data.pending_batches + ' <?php echo esc_js( __( 'batches queued', 'beer_slurper' ) ); ?>' : '')
+					);
+				}
+			});
+		}
+
+		// Start polling if there's an active import
+		if (bgProgress.length) {
+			pollImportProgress(); // Immediate check
+			pollInterval = setInterval(pollImportProgress, 5000); // Poll every 5 seconds
+		}
+
+		// Dismiss button handler
+		dismissBtn.on('click', function() {
+			$.ajax({
+				url: ajaxurl,
+				type: 'POST',
+				data: {
+					action: 'beer_slurper_clear_import_progress',
+					nonce: $('#beer_slurper_import_nonce').val()
+				},
+				success: function() {
+					bgProgress.slideUp();
+				}
+			});
+		});
+
+		// Start polling after queuing a new import
+		function startProgressPolling() {
+			if (bgProgress.length === 0) {
+				// Create the progress element if it doesn't exist
+				var progressHtml = '<div class="beer-slurper-bg-progress" id="beer-slurper-bg-progress">' +
+					'<strong><?php echo esc_js( __( 'Import in Progress', 'beer_slurper' ) ); ?></strong>' +
+					'<p id="beer-slurper-bg-status"><?php echo esc_js( __( 'Starting...', 'beer_slurper' ) ); ?></p>' +
+					'<div class="progress-bar"><div class="progress-bar-fill" id="beer-slurper-bg-fill" style="width: 0%;"></div></div>' +
+					'<button type="button" class="button dismiss-btn" id="beer-slurper-dismiss-progress" style="display: none;"><?php echo esc_js( __( 'Dismiss', 'beer_slurper' ) ); ?></button>' +
+					'</div>';
+				$('.beer-slurper-import .description').first().before(progressHtml);
+				bgProgress = $('#beer-slurper-bg-progress');
+				bgStatus = $('#beer-slurper-bg-status');
+				bgFill = $('#beer-slurper-bg-fill');
+				dismissBtn = $('#beer-slurper-dismiss-progress');
+				dismissBtn.on('click', function() {
+					$.ajax({
+						url: ajaxurl,
+						type: 'POST',
+						data: {
+							action: 'beer_slurper_clear_import_progress',
+							nonce: $('#beer_slurper_import_nonce').val()
+						},
+						success: function() {
+							bgProgress.slideUp();
+						}
+					});
+				});
+			}
+			bgProgress.removeClass('complete').show();
+			dismissBtn.hide();
+			if (!pollInterval) {
+				pollInterval = setInterval(pollImportProgress, 5000);
+			}
+			pollImportProgress();
+		}
+
+		// Hook into successful import queue response
+		$(document).on('beer_slurper_import_queued', startProgressPolling);
 	});
 	</script>
 	<?php
