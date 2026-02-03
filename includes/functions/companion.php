@@ -54,28 +54,49 @@ function get_companion_term_id( $uid = null, $user_data = null ) {
  * @return int|false The term ID on success, or false on failure.
  */
 function add_companion( $uid, $user_data = null ) {
-	if ( ! is_array( $user_data ) || empty( $user_data['user_name'] ) ) {
+	// Require at minimum a UID.
+	if ( empty( $uid ) ) {
 		return false;
 	}
 
+	// Normalize user_data to an array.
+	if ( ! is_array( $user_data ) ) {
+		$user_data = array();
+	}
+
+	// Build display name from available data.
 	$display_name = trim(
 		( isset( $user_data['first_name'] ) ? $user_data['first_name'] : '' ) . ' ' .
 		( isset( $user_data['last_name'] ) ? $user_data['last_name'] : '' )
 	);
+
+	// Fall back to user_name, then to UID-based placeholder.
 	if ( empty( $display_name ) ) {
-		$display_name = $user_data['user_name'];
+		$display_name = ! empty( $user_data['user_name'] )
+			? $user_data['user_name']
+			: 'Untappd User ' . $uid;
 	}
+
+	// Determine slug: prefer user_name, fall back to uid-based slug.
+	$slug = ! empty( $user_data['user_name'] )
+		? sanitize_title( $user_data['user_name'] )
+		: 'untappd-user-' . $uid;
 
 	$term = wp_insert_term(
 		$display_name,
 		BEER_SLURPER_TAX_COMPANION,
-		array( 'slug' => sanitize_title( $user_data['user_name'] ) )
+		array( 'slug' => $slug )
 	);
 
 	if ( is_wp_error( $term ) ) {
 		if ( $term->get_error_code() === 'term_exists' ) {
-			$existing = get_term_by( 'slug', sanitize_title( $user_data['user_name'] ), BEER_SLURPER_TAX_COMPANION );
+			$existing = get_term_by( 'slug', $slug, BEER_SLURPER_TAX_COMPANION );
 			if ( $existing ) {
+				// Update the UID meta in case it was missing.
+				$existing_uid = get_term_meta( $existing->term_id, 'untappd_uid', true );
+				if ( empty( $existing_uid ) ) {
+					update_term_meta( $existing->term_id, 'untappd_uid', $uid );
+				}
 				return $existing->term_id;
 			}
 		}

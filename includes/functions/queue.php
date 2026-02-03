@@ -806,6 +806,458 @@ function maybe_accelerate_next_checkin() {
 }
 
 /**
+ * Calculates spreading parameters for page-fetch operations.
+ *
+ * Unlike get_spread_params() which calculates for checkin processing (5 API calls each),
+ * this calculates for page fetches which cost 1 API call each.
+ *
+ * @return array {
+ *     @type int $per_hour          Pages per full hourly window.
+ *     @type int $interval          Seconds between pages in a full window.
+ *     @type int $current_slots     Slots available in the active window.
+ *     @type int $current_interval  Seconds between current-window slots.
+ *     @type int $full_start        Timestamp where full-rate windows begin.
+ * }
+ */
+function get_page_spread_params() {
+	$cost_per = 1; // 1 API call per page fetch.
+	$per_hour = (int) floor( API_BUDGET_PER_HOUR / $cost_per );
+	$interval = (int) floor( 3600 / $per_hour ); // 40 seconds per page.
+	$now      = time();
+
+	$window_end = get_transient( 'beer_slurper_api_window_end' );
+	$remaining  = get_remaining_budget();
+
+	$current_slots    = 0;
+	$current_interval = $interval;
+
+	if ( $window_end && (int) $window_end > $now && $remaining >= $cost_per ) {
+		$secs_left = (int) ( (int) $window_end - $now );
+
+		$current_slots = min(
+			(int) floor( $remaining / $cost_per ),
+			(int) floor( $secs_left / $interval )
+		);
+
+		if ( $current_slots > 1 ) {
+			$current_interval = (int) floor( $secs_left / $current_slots );
+		} elseif ( 1 === $current_slots ) {
+			$current_interval = 0;
+		}
+	}
+
+	$full_start = ( $window_end && (int) $window_end > $now )
+		? (int) $window_end
+		: $now;
+
+	return array(
+		'per_hour'         => $per_hour,
+		'interval'         => $interval,
+		'current_slots'    => $current_slots,
+		'current_interval' => $current_interval,
+		'full_start'       => $full_start,
+	);
+}
+
+/**
+ * Schedules the next page fetch action with rate limiting.
+ *
+ * If budget is available, schedules soon. Otherwise, schedules at the
+ * start of the next budget window. If already scheduled more than an
+ * hour away, reschedules to an hour from now.
+ *
+ * @param string $hook The action hook name.
+ * @param array  $args The action arguments.
+ *
+ * @return int|null The action ID, or null if already pending.
+ */
+function schedule_next_page_fetch( $hook, $args ) {
+	$now        = time();
+	$window_end = get_transient( 'beer_slurper_api_window_end' );
+	$remaining  = get_remaining_budget();
+
+	if ( $remaining >= 1 ) {
+		// Budget available — schedule in 5 seconds.
+		$delay = 5;
+	} else {
+		// No budget — schedule at window reset.
+		$delay = $window_end ? max( 1, (int) $window_end - $now ) : HOUR_IN_SECONDS;
+	}
+
+	// Check if an action is already pending.
+	$existing = as_get_scheduled_actions( array(
+		'hook'     => $hook,
+		'args'     => $args,
+		'status'   => \ActionScheduler_Store::STATUS_PENDING,
+		'group'    => AS_GROUP,
+		'per_page' => 1,
+	), 'ids' );
+
+	if ( ! empty( $existing ) ) {
+		// Existing action found — check if it needs rescheduling.
+		global $wpdb;
+		$table = $wpdb->prefix . 'actionscheduler_actions';
+		$row   = $wpdb->get_row( $wpdb->prepare(
+			"SELECT action_id, scheduled_date_gmt FROM {$table} WHERE action_id = %d",
+			$existing[0]
+		) );
+
+		if ( $row ) {
+			$scheduled_time = strtotime( $row->scheduled_date_gmt . ' UTC' );
+			$one_hour_out   = $now + HOUR_IN_SECONDS;
+
+			// If scheduled more than an hour away and we have budget, pull it closer.
+			if ( $scheduled_time > $one_hour_out && $remaining >= 1 ) {
+				reschedule_action_by_id( $row->action_id, $now + 5 );
+			} elseif ( $scheduled_time > $one_hour_out && ! $remaining ) {
+				// No budget but scheduled too far — reschedule to window reset.
+				$reset_time = $window_end ? (int) $window_end : $one_hour_out;
+				reschedule_action_by_id( $row->action_id, $reset_time );
+			}
+		}
+		return null;
+	}
+
+	return schedule_action( $hook, $args, $delay );
+}
+
+/**
+ * Processes a single page of the prime-queue operation.
+ *
+ * Fetches one page of checkins from the API, queues them for processing,
+ * and schedules the next page if needed.
+ *
+ * @param string $user       The Untappd username.
+ * @param int    $page       Current page number (1-indexed).
+ * @param int    $max_pages  Maximum pages to fetch (0 = unlimited).
+ * @param string $session_id Unique session ID for this prime-queue run.
+ *
+ * @return void
+ */
+function process_prime_queue_page( $user, $page, $max_pages, $session_id ) {
+	$option_prefix = 'beer_slurper_' . $user;
+	$state_key     = 'beer_slurper_prime_state_' . $session_id;
+
+	// Initialize or retrieve session state.
+	$state = get_option( $state_key, array(
+		'total_fetched' => 0,
+		'total_queued'  => 0,
+		'started'       => time(),
+	) );
+
+	// Check budget.
+	if ( ! has_budget( 1 ) ) {
+		// Reschedule for next window.
+		schedule_next_page_fetch( 'bs_prime_queue_page', array(
+			'user'       => $user,
+			'page'       => $page,
+			'max_pages'  => $max_pages,
+			'session_id' => $session_id,
+		) );
+		return;
+	}
+
+	// Check page limit.
+	if ( $max_pages > 0 && $page > $max_pages ) {
+		finalize_prime_queue_session( $user, $state, $state_key, 'Reached page limit.' );
+		return;
+	}
+
+	$max_id   = get_option( $option_prefix . '_max' );
+	$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, $max_id, null, '25' );
+
+	if ( is_wp_error( $checkins ) ) {
+		error_log( 'Beer Slurper: prime-queue page ' . $page . ' API error: ' . $checkins->get_error_message() );
+		finalize_prime_queue_session( $user, $state, $state_key, 'API error: ' . $checkins->get_error_message() );
+		return;
+	}
+
+	if ( ! is_array( $checkins ) || ! isset( $checkins['checkins']['items'] ) || empty( $checkins['checkins']['items'] ) ) {
+		delete_option( $option_prefix . '_import' );
+		finalize_prime_queue_session( $user, $state, $state_key, 'Reached end of checkin history.' );
+		return;
+	}
+
+	$items = $checkins['checkins']['items'];
+	$count = count( $items );
+
+	// Update pagination cursor.
+	$new_max_id = $checkins['pagination']['max_id'] ?? null;
+	if ( $new_max_id ) {
+		update_option( $option_prefix . '_max', $new_max_id, false );
+	}
+
+	if ( ! get_option( $option_prefix . '_since' ) ) {
+		$since_url = wp_parse_args( parse_url( $checkins['pagination']['since_url'] ?? '', PHP_URL_QUERY ) );
+		$since_id  = isset( $since_url['min_id'] ) ? intval( $since_url['min_id'] ) : 0;
+		if ( $since_id ) {
+			update_option( $option_prefix . '_since', $since_id, false );
+		}
+	}
+
+	// Queue for processing — this also attaches companions via transients.
+	$queued = queue_checkin_batch( $items, 'import_old' );
+
+	// Also attach companions to any already-imported checkins found in this page.
+	attach_companions_to_existing( $items );
+
+	// Update state.
+	$state['total_fetched'] += $count;
+	$state['total_queued']  += $queued;
+	update_option( $state_key, $state, false );
+
+	// Check if we've reached the end.
+	if ( $count < 25 || empty( $new_max_id ) ) {
+		delete_option( $option_prefix . '_import' );
+		finalize_prime_queue_session( $user, $state, $state_key, 'Reached end of checkin history.' );
+		return;
+	}
+
+	// Schedule next page.
+	schedule_next_page_fetch( 'bs_prime_queue_page', array(
+		'user'       => $user,
+		'page'       => $page + 1,
+		'max_pages'  => $max_pages,
+		'session_id' => $session_id,
+	) );
+}
+add_action( 'bs_prime_queue_page', __NAMESPACE__ . '\process_prime_queue_page', 10, 4 );
+
+/**
+ * Attaches companions to already-imported checkins from a page of results.
+ *
+ * When fetching checkin history, some checkins may already be imported
+ * (from previous runs). This attaches their companions without re-importing.
+ *
+ * @param array $items Array of checkin data from the API.
+ *
+ * @return int Number of checkins that had companions attached.
+ */
+function attach_companions_to_existing( $items ) {
+	$attached = 0;
+
+	foreach ( $items as $checkin ) {
+		if ( empty( $checkin['checkin_id'] ) || empty( $checkin['tagged_friends']['items'] ) ) {
+			continue;
+		}
+
+		// Find the existing post for this checkin.
+		$post_id = \Kraft\Beer_Slurper\Post\find_existing_checkin( $checkin['checkin_id'] );
+		if ( ! $post_id ) {
+			continue;
+		}
+
+		// Attach companions.
+		\Kraft\Beer_Slurper\Companion\attach_companions( $checkin, $post_id );
+		$attached++;
+	}
+
+	return $attached;
+}
+
+/**
+ * Finalizes a prime-queue session and logs the result.
+ *
+ * @param string $user      The Untappd username.
+ * @param array  $state     Session state with totals.
+ * @param string $state_key Option key for the session state.
+ * @param string $reason    Reason for completion.
+ *
+ * @return void
+ */
+function finalize_prime_queue_session( $user, $state, $state_key, $reason ) {
+	$elapsed = time() - ( $state['started'] ?? time() );
+
+	error_log( sprintf(
+		'Beer Slurper: prime-queue complete for %s. %s Fetched %d checkins, queued %d in %d seconds.',
+		$user,
+		$reason,
+		$state['total_fetched'],
+		$state['total_queued'],
+		$elapsed
+	) );
+
+	delete_option( $state_key );
+}
+
+/**
+ * Processes a single page of the backfill-companions operation.
+ *
+ * Fetches one page of checkins from the API, matches to local posts,
+ * and attaches companions.
+ *
+ * @param string $user       The Untappd username.
+ * @param int    $page       Current page number (1-indexed).
+ * @param int    $max_pages  Maximum pages to fetch (0 = unlimited).
+ * @param string $session_id Unique session ID for this run.
+ * @param string $max_id     Pagination cursor (max_id from previous page).
+ *
+ * @return void
+ */
+function process_backfill_companions_page( $user, $page, $max_pages, $session_id, $max_id = null ) {
+	$state_key = 'beer_slurper_backfill_state_' . $session_id;
+
+	// Initialize or retrieve session state.
+	$state = get_option( $state_key, array(
+		'total_matched'    => 0,
+		'total_companions' => 0,
+		'total_attached'   => 0,
+		'total_skipped'    => 0,
+		'started'          => time(),
+		'checkin_lookup'   => null,
+	) );
+
+	// Build lookup on first page (or if not cached).
+	if ( null === $state['checkin_lookup'] ) {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			"SELECT c.comment_post_ID AS post_id, cm.meta_value AS checkin_id
+			FROM {$wpdb->comments} c
+			INNER JOIN {$wpdb->commentmeta} cm ON c.comment_ID = cm.comment_id
+			WHERE c.comment_type = 'beer_checkin'
+			AND cm.meta_key = '_beer_slurper_checkin_id'"
+		);
+
+		$state['checkin_lookup'] = array();
+		foreach ( $rows as $row ) {
+			$state['checkin_lookup'][ $row->checkin_id ] = (int) $row->post_id;
+		}
+
+		if ( empty( $state['checkin_lookup'] ) ) {
+			error_log( 'Beer Slurper: backfill-companions - no local checkins found.' );
+			delete_option( $state_key );
+			return;
+		}
+
+		update_option( $state_key, $state, false );
+	}
+
+	// Check budget.
+	if ( ! has_budget( 1 ) ) {
+		schedule_next_page_fetch( 'bs_backfill_companions_page', array(
+			'user'       => $user,
+			'page'       => $page,
+			'max_pages'  => $max_pages,
+			'session_id' => $session_id,
+			'max_id'     => $max_id,
+		) );
+		return;
+	}
+
+	// Check page limit.
+	if ( $max_pages > 0 && $page > $max_pages ) {
+		finalize_backfill_companions_session( $user, $state, $state_key, 'Reached page limit.' );
+		return;
+	}
+
+	$response = \Kraft\Beer_Slurper\API\get_checkins( $user, $max_id, null, '25' );
+
+	if ( is_wp_error( $response ) ) {
+		error_log( 'Beer Slurper: backfill-companions page ' . $page . ' API error: ' . $response->get_error_message() );
+		finalize_backfill_companions_session( $user, $state, $state_key, 'API error: ' . $response->get_error_message() );
+		return;
+	}
+
+	if ( ! is_array( $response ) || empty( $response['checkins']['items'] ) ) {
+		finalize_backfill_companions_session( $user, $state, $state_key, 'Reached end of checkin history.' );
+		return;
+	}
+
+	$items = $response['checkins']['items'];
+	$count = count( $items );
+
+	foreach ( $items as $checkin ) {
+		$cid = (string) ( $checkin['checkin_id'] ?? '' );
+
+		if ( ! isset( $state['checkin_lookup'][ $cid ] ) ) {
+			continue;
+		}
+
+		$post_id = $state['checkin_lookup'][ $cid ];
+		$state['total_matched']++;
+
+		if ( empty( $checkin['tagged_friends']['items'] ) ) {
+			continue;
+		}
+
+		$friend_count = count( $checkin['tagged_friends']['items'] );
+		$state['total_companions'] += $friend_count;
+
+		// Try to attach each companion and track success/failure.
+		$attached_this = 0;
+		foreach ( $checkin['tagged_friends']['items'] as $item ) {
+			if ( empty( $item['user']['uid'] ) ) {
+				$state['total_skipped']++;
+				continue;
+			}
+
+			$term_id = \Kraft\Beer_Slurper\Companion\get_companion_term_id( $item['user']['uid'], $item['user'] );
+			if ( $term_id ) {
+				wp_set_object_terms( $post_id, (int) $term_id, BEER_SLURPER_TAX_COMPANION, true );
+				$attached_this++;
+			} else {
+				$state['total_skipped']++;
+				// Log the failure for debugging.
+				error_log( sprintf(
+					'Beer Slurper: Failed to create companion for uid %s (user_name: %s) on checkin %s',
+					$item['user']['uid'] ?? 'unknown',
+					$item['user']['user_name'] ?? 'missing',
+					$cid
+				) );
+			}
+		}
+		$state['total_attached'] += $attached_this;
+	}
+
+	update_option( $state_key, $state, false );
+
+	// Update pagination cursor.
+	$new_max_id = $response['pagination']['max_id'] ?? null;
+
+	if ( $count < 25 || empty( $new_max_id ) ) {
+		finalize_backfill_companions_session( $user, $state, $state_key, 'Reached end of checkin history.' );
+		return;
+	}
+
+	// Schedule next page.
+	schedule_next_page_fetch( 'bs_backfill_companions_page', array(
+		'user'       => $user,
+		'page'       => $page + 1,
+		'max_pages'  => $max_pages,
+		'session_id' => $session_id,
+		'max_id'     => $new_max_id,
+	) );
+}
+add_action( 'bs_backfill_companions_page', __NAMESPACE__ . '\process_backfill_companions_page', 10, 5 );
+
+/**
+ * Finalizes a backfill-companions session and logs the result.
+ *
+ * @param string $user      The Untappd username.
+ * @param array  $state     Session state with totals.
+ * @param string $state_key Option key for the session state.
+ * @param string $reason    Reason for completion.
+ *
+ * @return void
+ */
+function finalize_backfill_companions_session( $user, $state, $state_key, $reason ) {
+	$elapsed = time() - ( $state['started'] ?? time() );
+
+	error_log( sprintf(
+		'Beer Slurper: backfill-companions complete for %s. %s Matched %d checkins, found %d companions, attached %d, skipped %d in %d seconds.',
+		$user,
+		$reason,
+		$state['total_matched'],
+		$state['total_companions'],
+		$state['total_attached'],
+		$state['total_skipped'],
+		$elapsed
+	) );
+
+	delete_option( $state_key );
+}
+
+/**
  * Cleans up all Action Scheduler actions on deactivation or reset.
  *
  * @return void
@@ -817,6 +1269,8 @@ function cleanup() {
 
 	cancel_all( 'bs_process_checkin' );
 	cancel_all( 'bs_backfill_companion' );
+	cancel_all( 'bs_prime_queue_page' );
+	cancel_all( 'bs_backfill_companions_page' );
 	cancel_all( 'bs_hourly_import' );
 	cancel_all( 'bs_daily_maintenance' );
 	cancel_all( 'bs_maintenance_stats' );
@@ -828,4 +1282,9 @@ function cleanup() {
 
 	// Legacy hook names from older versions.
 	cancel_all( 'bs_as_daily_maintenance' );
+
+	// Clean up any session state options.
+	global $wpdb;
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'beer_slurper_prime_state_%'" );
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'beer_slurper_backfill_state_%'" );
 }

@@ -233,18 +233,26 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	 * local beer posts. The checkin/view endpoint does NOT return tagged
 	 * friends, so this is the only way to backfill.
 	 *
+	 * By default, schedules page fetches via Action Scheduler to respect
+	 * API rate limits. Use --sync to run immediately (may exhaust budget).
+	 *
 	 * ## OPTIONS
 	 *
 	 * [--pages=<number>]
 	 * : Maximum pages to fetch (25 checkins each). Default: unlimited.
 	 *
+	 * [--sync]
+	 * : Run synchronously instead of scheduling via Action Scheduler.
+	 *   Warning: may exhaust API budget quickly.
+	 *
 	 * [--dry-run]
-	 * : Show what would be attached without making changes.
+	 * : Show what would be attached without making changes (implies --sync).
 	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp beer-slurper backfill-companions
 	 *     wp beer-slurper backfill-companions --pages=10
+	 *     wp beer-slurper backfill-companions --sync
 	 *     wp beer-slurper backfill-companions --dry-run
 	 *
 	 * @subcommand backfill-companions
@@ -260,6 +268,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 
 		$max_pages = isset( $assoc_args['pages'] ) ? (int) $assoc_args['pages'] : 0;
 		$dry_run   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'dry-run', false );
+		$sync      = \WP_CLI\Utils\get_flag_value( $assoc_args, 'sync', false ) || $dry_run;
 
 		// Build a lookup of checkin_id => post_id from existing checkin comments.
 		$rows = $wpdb->get_results(
@@ -280,12 +289,57 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			return;
 		}
 
-		\WP_CLI::log( sprintf( 'Found %d local checkins. Fetching from Untappd...', count( $checkin_to_post ) ) );
+		\WP_CLI::log( sprintf( 'Found %d local checkins.', count( $checkin_to_post ) ) );
+
+		// Use Action Scheduler for rate-limited execution unless --sync is specified.
+		if ( ! $sync ) {
+			$session_id = substr( md5( uniqid( 'backfill', true ) ), 0, 8 );
+			$remaining  = \Kraft\Beer_Slurper\Queue\get_remaining_budget();
+			$params     = \Kraft\Beer_Slurper\Queue\get_page_spread_params();
+
+			\WP_CLI::log( '' );
+			\WP_CLI::log( sprintf( 'API budget remaining: %d calls', $remaining ) );
+			\WP_CLI::log( sprintf( 'Rate: %d pages/hour (%ds between pages)', $params['per_hour'], $params['interval'] ) );
+
+			if ( $max_pages > 0 ) {
+				$hours_needed = ceil( $max_pages / $params['per_hour'] );
+				\WP_CLI::log( sprintf( 'Estimated time for %d pages: ~%d hour(s)', $max_pages, $hours_needed ) );
+			} else {
+				\WP_CLI::log( 'Pages: unlimited (will process until end of history)' );
+			}
+
+			\WP_CLI::log( '' );
+			\WP_CLI::log( 'Scheduling first page fetch...' );
+
+			\Kraft\Beer_Slurper\Queue\schedule_action(
+				'bs_backfill_companions_page',
+				array(
+					'user'       => $user,
+					'page'       => 1,
+					'max_pages'  => $max_pages,
+					'session_id' => $session_id,
+					'max_id'     => null,
+				),
+				0
+			);
+
+			\WP_CLI::success( sprintf(
+				'Backfill companions job scheduled (session: %s). Progress will be logged to error_log.',
+				$session_id
+			) );
+			\WP_CLI::log( 'Run `wp action-scheduler run` to process immediately, or wait for WP-Cron.' );
+			return;
+		}
+
+		// Synchronous mode (original behavior).
+		\WP_CLI::log( 'Running in synchronous mode. Fetching from Untappd...' );
 
 		$page       = 0;
 		$max_id     = null;
 		$matched    = 0;
 		$companions = 0;
+		$attached   = 0;
+		$skipped    = 0;
 
 		while ( true ) {
 			$page++;
@@ -314,6 +368,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 
 			$items = $response['checkins']['items'];
 			$count = count( $items );
+			$page_matched = 0;
 
 			foreach ( $items as $checkin ) {
 				$cid = (string) $checkin['checkin_id'];
@@ -324,6 +379,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 
 				$post_id = $checkin_to_post[ $cid ];
 				$matched++;
+				$page_matched++;
 
 				if ( empty( $checkin['tagged_friends']['items'] ) ) {
 					continue;
@@ -340,11 +396,40 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 						$friend_count
 					) );
 				} else {
-					\Kraft\Beer_Slurper\Companion\attach_companions( $checkin, $post_id );
+					// Track individual attachment success/failure.
+					foreach ( $checkin['tagged_friends']['items'] as $item ) {
+						if ( empty( $item['user']['uid'] ) ) {
+							$skipped++;
+							continue;
+						}
+
+						$term_id = \Kraft\Beer_Slurper\Companion\get_companion_term_id(
+							$item['user']['uid'],
+							$item['user']
+						);
+
+						if ( $term_id ) {
+							wp_set_object_terms( $post_id, (int) $term_id, BEER_SLURPER_TAX_COMPANION, true );
+							$attached++;
+						} else {
+							$skipped++;
+							\WP_CLI::debug( sprintf(
+								'Failed to create companion for uid %s (user_name: %s)',
+								$item['user']['uid'] ?? 'unknown',
+								$item['user']['user_name'] ?? 'missing'
+							) );
+						}
+					}
 				}
 			}
 
-			\WP_CLI::log( sprintf( 'Page %d: fetched %d, matched %d local', $page, $count, $matched ) );
+			\WP_CLI::log( sprintf(
+				'Page %d: fetched %d, matched %d local, %d with companions',
+				$page,
+				$count,
+				$page_matched,
+				$companions > 0 ? $companions : 0
+			) );
 
 			// Update pagination cursor.
 			$max_id = $response['pagination']['max_id'] ?? null;
@@ -353,11 +438,9 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 				\WP_CLI::log( 'Reached end of checkin history.' );
 				break;
 			}
-
-			// Reset matched count for next page logging.
-			$matched = 0;
 		}
 
+		\WP_CLI::log( '' );
 		if ( $dry_run ) {
 			\WP_CLI::success( sprintf(
 				'Dry run complete. Would have attached %d companion(s) across %d page(s).',
@@ -366,8 +449,11 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			) );
 		} else {
 			\WP_CLI::success( sprintf(
-				'Backfill complete. Attached %d companion(s) across %d page(s).',
+				'Backfill complete. Matched %d checkins, found %d companions, attached %d, skipped %d across %d page(s).',
+				$matched,
 				$companions,
+				$attached,
+				$skipped,
 				$page
 			) );
 		}
@@ -376,20 +462,32 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 	/**
 	 * Fetch all outstanding checkins and queue them for processing.
 	 *
-	 * Rapidly pages through the Untappd checkin history, spending API
-	 * budget on list fetches (1 call per 25 checkins) and queuing every
-	 * discovered checkin via Action Scheduler. Processing then happens
-	 * automatically over subsequent hours as budget allows.
+	 * Pages through the Untappd checkin history, spending API budget on
+	 * list fetches (1 call per 25 checkins) and queuing every discovered
+	 * checkin via Action Scheduler. Processing then happens automatically
+	 * over subsequent hours as budget allows.
+	 *
+	 * By default, schedules page fetches via Action Scheduler to respect
+	 * API rate limits. Use --sync to run immediately (may exhaust budget).
+	 *
+	 * This command also attaches companions to any already-imported checkins
+	 * found in each page, so you don't need to run backfill-companions
+	 * separately for missing companions on existing checkins.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--pages=<number>]
 	 * : Maximum pages to fetch (25 checkins each). Default: all remaining.
 	 *
+	 * [--sync]
+	 * : Run synchronously instead of scheduling via Action Scheduler.
+	 *   Warning: may exhaust API budget quickly.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp beer-slurper prime-queue
 	 *     wp beer-slurper prime-queue --pages=10
+	 *     wp beer-slurper prime-queue --sync
 	 *
 	 * @subcommand prime-queue
 	 */
@@ -401,6 +499,7 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 		}
 
 		$max_pages = isset( $assoc_args['pages'] ) ? (int) $assoc_args['pages'] : 0;
+		$sync      = \WP_CLI\Utils\get_flag_value( $assoc_args, 'sync', false );
 		$is_backfilling = \Kraft\Beer_Slurper\Sync_Status\is_backfilling( $user );
 
 		if ( ! $is_backfilling ) {
@@ -411,10 +510,54 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			return;
 		}
 
-		\WP_CLI::log( "Fetching historical checkins for {$user}..." );
+		// Use Action Scheduler for rate-limited execution unless --sync is specified.
+		if ( ! $sync ) {
+			$session_id = substr( md5( uniqid( 'prime', true ) ), 0, 8 );
+			$remaining  = \Kraft\Beer_Slurper\Queue\get_remaining_budget();
+			$params     = \Kraft\Beer_Slurper\Queue\get_page_spread_params();
+
+			\WP_CLI::log( "Scheduling historical checkin fetch for {$user}..." );
+			\WP_CLI::log( '' );
+			\WP_CLI::log( sprintf( 'API budget remaining: %d calls', $remaining ) );
+			\WP_CLI::log( sprintf( 'Rate: %d pages/hour (%ds between pages)', $params['per_hour'], $params['interval'] ) );
+
+			if ( $max_pages > 0 ) {
+				$hours_needed = ceil( $max_pages / $params['per_hour'] );
+				\WP_CLI::log( sprintf( 'Estimated time for %d pages: ~%d hour(s)', $max_pages, $hours_needed ) );
+			} else {
+				\WP_CLI::log( 'Pages: unlimited (will process until end of history)' );
+			}
+
+			\WP_CLI::log( '' );
+			\WP_CLI::log( 'Note: This will also attach companions to any already-imported checkins found.' );
+			\WP_CLI::log( '' );
+			\WP_CLI::log( 'Scheduling first page fetch...' );
+
+			\Kraft\Beer_Slurper\Queue\schedule_action(
+				'bs_prime_queue_page',
+				array(
+					'user'       => $user,
+					'page'       => 1,
+					'max_pages'  => $max_pages,
+					'session_id' => $session_id,
+				),
+				0
+			);
+
+			\WP_CLI::success( sprintf(
+				'Prime queue job scheduled (session: %s). Progress will be logged to error_log.',
+				$session_id
+			) );
+			\WP_CLI::log( 'Run `wp action-scheduler run` to process immediately, or wait for WP-Cron.' );
+			return;
+		}
+
+		// Synchronous mode (original behavior).
+		\WP_CLI::log( "Fetching historical checkins for {$user} (synchronous mode)..." );
 
 		$total_fetched = 0;
 		$total_queued  = 0;
+		$companions_attached = 0;
 		$page          = 0;
 
 		while ( true ) {
@@ -450,30 +593,40 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 			$total_fetched += $count;
 
 			// Update pagination cursor.
-			$max_id = $checkins['pagination']['max_id'];
-			update_option( 'beer_slurper_' . $user . '_max', $max_id, false );
+			$new_max_id = $checkins['pagination']['max_id'] ?? null;
+			if ( $new_max_id ) {
+				update_option( 'beer_slurper_' . $user . '_max', $new_max_id, false );
+			}
 
 			if ( ! get_option( 'beer_slurper_' . $user . '_since' ) ) {
-				$since_url = wp_parse_args( parse_url( $checkins['pagination']['since_url'], PHP_URL_QUERY ) );
-				$since_id = intval( $since_url['min_id'] );
-				update_option( 'beer_slurper_' . $user . '_since', $since_id, false );
+				$since_url = wp_parse_args( parse_url( $checkins['pagination']['since_url'] ?? '', PHP_URL_QUERY ) );
+				$since_id = isset( $since_url['min_id'] ) ? intval( $since_url['min_id'] ) : 0;
+				if ( $since_id ) {
+					update_option( 'beer_slurper_' . $user . '_since', $since_id, false );
+				}
 			}
 
 			// Queue for processing.
 			$queued = \Kraft\Beer_Slurper\Queue\queue_checkin_batch( $items, 'import_old' );
 			$total_queued += $queued;
 
+			// Also attach companions to any already-imported checkins.
+			$attached = \Kraft\Beer_Slurper\Queue\attach_companions_to_existing( $items );
+			$companions_attached += $attached;
+
 			\WP_CLI::log( sprintf(
-				'Page %d: fetched %d checkins, queued %d (%d fetched / %d queued total)',
+				'Page %d: fetched %d checkins, queued %d, attached companions to %d existing (%d/%d/%d total)',
 				$page,
 				$count,
 				$queued,
+				$attached,
 				$total_fetched,
-				$total_queued
+				$total_queued,
+				$companions_attached
 			) );
 
 			// End of history?
-			if ( $count < 25 ) {
+			if ( $count < 25 || empty( $new_max_id ) ) {
 				\WP_CLI::log( 'Reached end of checkin history.' );
 				delete_option( 'beer_slurper_' . $user . '_import' );
 				break;
@@ -489,10 +642,11 @@ class Beer_Slurper_Command extends \WP_CLI_Command {
 		}
 
 		\WP_CLI::success( sprintf(
-			'Fetched %d checkins across %d pages, %d queued for processing.',
+			'Fetched %d checkins across %d pages, %d queued for processing, companions attached to %d existing.',
 			$total_fetched,
 			$page,
-			$total_queued
+			$total_queued,
+			$companions_attached
 		) );
 	}
 
