@@ -62,6 +62,8 @@ function insert_toast( $toast, $post_id ) {
 
 	if ( $toaster_term_id ) {
 		update_comment_meta( $comment_id, '_beer_slurper_toaster_term_id', $toaster_term_id );
+		// Attach toaster to the beer post for easy querying/display.
+		wp_set_object_terms( $post_id, (int) $toaster_term_id, BEER_SLURPER_TAX_COMPANION, true );
 	}
 
 	if ( isset( $toast['created_at'] ) ) {
