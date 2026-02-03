@@ -123,7 +123,7 @@ function handle_callback( $request ) {
 	$response = wp_remote_get( $token_url );
 
 	if ( is_wp_error( $response ) ) {
-		error_log( 'Beer Slurper OAuth: Token exchange failed - ' . $response->get_error_message() );
+		\beer_slurper_log( 'Beer Slurper OAuth: Token exchange failed - ' . $response->get_error_message() );
 		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'exchange_failed', get_settings_url() ) );
 		exit;
 	}
@@ -132,7 +132,7 @@ function handle_callback( $request ) {
 	$decoded = json_decode( $body, true );
 
 	if ( ! is_array( $decoded ) || empty( $decoded['response']['access_token'] ) ) {
-		error_log( 'Beer Slurper OAuth: Invalid token response - ' . substr( $body, 0, 500 ) );
+		\beer_slurper_log( 'Beer Slurper OAuth: Invalid token response - ' . substr( $body, 0, 500 ) );
 		wp_safe_redirect( add_query_arg( 'beer-slurper-oauth-error', 'invalid_response', get_settings_url() ) );
 		exit;
 	}

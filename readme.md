@@ -2,8 +2,8 @@
 **Contributors:** [kraftbj](https://profiles.wordpress.org/kraftbj/)  
 **Donate link:**       https://kraft.im/donate/  
 **Tags:**              beer, untappd  
-**Requires at least:** 4.3.0  
-**Tested up to:**      4.3.0  
+**Requires at least:** 5.9  
+**Tested up to:**      7.0  
 **Stable tag:**        0.1.0  
 **License:**           GPLv2 or later  
 **License URI:**       http://www.gnu.org/licenses/gpl-2.0.html  
@@ -34,7 +34,42 @@ For now, to start the whole shebang, need to run bs_start_import( $user ) someho
 1. Upload the entire `/beer-slurper` directory to the `/wp-content/plugins/` directory.
 2. Activate Beer Slurper through the 'Plugins' menu in WordPress.
 
+## Data Sources ##
+
+Beer Slurper supports multiple ways to get your Untappd data:
+
+### With API Access (Full Features)
+If you have Untappd API credentials, you get complete data including badges, tagged friends, beer descriptions, brewery details, and more.
+
+### Without API Access
+If you don't have API credentials (Untappd has limited new API access since ~2023), you can still use Beer Slurper:
+
+1. **Import from Untappd Export**: Download your data from Untappd (requires Untappd Insider subscription or GDPR request) and import the CSV/JSON file.
+
+2. **Scraper Mode**: Automatically fetches your recent public checkins (~25 at a time) without needing API access.
+
+### Data Comparison
+
+| Data | API | Export | Scraper |
+|------|-----|--------|---------|
+| Checkins (rating, comment, date) | ✅ | ✅ | ✅ |
+| Beer name, style, ABV, IBU | ✅ | ✅ | ⚠️ Partial |
+| Beer description & label | ✅ | ❌ | ❌ |
+| Brewery name & location | ✅ | ✅ | ✅ |
+| Brewery details (logo, social) | ✅ | ❌ | ❌ |
+| Venue name & coordinates | ✅ | ✅ | ⚠️ Partial |
+| Photos | ✅ | ✅ | ✅ |
+| **Badges** | ✅ | ❌ | ❌ |
+| **Tagged Friends** | ✅ | ❌ | ❌ |
+| Historical backfill | ✅ Full | ✅ Full | ⚠️ ~25 recent |
+
+See [docs/DATA-SOURCES.md](docs/DATA-SOURCES.md) for detailed documentation.
+
 ## Frequently Asked Questions ##
+
+Q. Can I use Beer Slurper without API access?
+A. Yes! Set the Data Source to "Scraper Only" in Settings → Beer. For historical data, export your checkins from Untappd and import the file.
+
 Q. Can I set my Untappd credentials by code?
 A. Yes!
 define( 'UNTAPPD_KEY',    'XYZ' );

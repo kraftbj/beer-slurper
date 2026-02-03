@@ -456,7 +456,7 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 			$result = \Kraft\Beer_Slurper\Post\insert_beer( $checkin );
 
 			if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
-				error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
+				\beer_slurper_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
 			} else {
 				// Success — check if we can accelerate the next action.
 				maybe_accelerate_next_checkin();
@@ -483,14 +483,14 @@ function process_checkin( $checkin_or_id, $source = 'import' ) {
 
 		if ( is_wp_error( $response ) || ! is_array( $response ) || empty( $response['checkin'] ) ) {
 			$msg = is_wp_error( $response ) ? $response->get_error_message() : 'Empty response';
-			error_log( 'Beer Slurper Queue: Failed to fetch checkin ' . $checkin_id . ' - ' . $msg );
+			\beer_slurper_log( 'Beer Slurper Queue: Failed to fetch checkin ' . $checkin_id . ' - ' . $msg );
 			return;
 		}
 
 		$result = \Kraft\Beer_Slurper\Post\insert_beer( $response['checkin'] );
 
 		if ( is_wp_error( $result ) && 'already_done' !== $result->get_error_code() ) {
-			error_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
+			\beer_slurper_log( 'Beer Slurper Queue: Failed to process checkin ' . $checkin_id . ' - ' . $result->get_error_message() );
 		} else {
 			// Attach toasts from the transient we saved during queueing.
 			// checkin/view doesn't return toasts, so we stash it earlier.
@@ -1041,7 +1041,7 @@ function process_prime_queue_page( $user, $page, $max_pages, $session_id ) {
 	$checkins = \Kraft\Beer_Slurper\API\get_checkins( $user, $max_id, null, '25' );
 
 	if ( is_wp_error( $checkins ) ) {
-		error_log( 'Beer Slurper: prime-queue page ' . $page . ' API error: ' . $checkins->get_error_message() );
+		\beer_slurper_log( 'Beer Slurper: prime-queue page ' . $page . ' API error: ' . $checkins->get_error_message() );
 		finalize_prime_queue_session( $user, $state, $state_key, 'API error: ' . $checkins->get_error_message() );
 		return;
 	}

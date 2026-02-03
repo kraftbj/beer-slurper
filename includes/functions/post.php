@@ -180,31 +180,55 @@ function setup_post( $checkin ){
 		return new \WP_Error( 'no_checkin', __( "No information provided.", 'beer_slurper' ) );
 	}
 
-	$beer     = $checkin['beer'];
-	$beer_all = \Kraft\Beer_Slurper\API\get_beer_info( $beer['bid'] );
+	$beer        = $checkin['beer'];
+	$beer_all    = null;
+	$data_source = get_option( 'beer_slurper_data_source', 'api' );
 
-	if ( is_wp_error( $beer_all ) ) {
-		return $beer_all;
+	// Try to enrich with API data if:
+	// 1. Data source is 'api' or 'hybrid' (not 'scraper')
+	// 2. We have API credentials
+	// 3. We have a beer ID to look up
+	$should_use_api = 'scraper' !== $data_source
+		&& ! empty( $beer['bid'] )
+		&& \Kraft\Beer_Slurper\Walker\has_api_credentials();
+
+	if ( $should_use_api ) {
+		$beer_all = \Kraft\Beer_Slurper\API\get_beer_info( $beer['bid'] );
+
+		// If API call failed, log but continue with checkin data.
+		if ( is_wp_error( $beer_all ) ) {
+			\beer_slurper_log( 'Beer Slurper: API enrichment failed for beer ' . $beer['bid'] . ' - ' . $beer_all->get_error_message() );
+			$beer_all = null;
+		}
 	}
 
-	if ( ! is_array( $beer_all ) ) {
-		return new \WP_Error( 'invalid_beer_data', __( 'Invalid beer data from API.', 'beer_slurper' ) );
+	// Use API data if available, otherwise fall back to checkin data.
+	if ( is_array( $beer_all ) ) {
+		$brewery     = isset( $beer_all['brewery'] ) ? $beer_all['brewery'] : null;
+		$style       = isset( $beer_all['beer_style'] ) ? $beer_all['beer_style'] : 'Unknown';
+		$collabs     = isset( $beer_all['collaborations_with'] ) ? $beer_all['collaborations_with'] : array( 'count' => 0, 'items' => array() );
+		$description = isset( $beer_all['beer_description'] ) ? $beer_all['beer_description'] : '';
+		$beer_ibu    = isset( $beer_all['beer_ibu'] ) ? $beer_all['beer_ibu'] : '';
+		$beer_slug   = isset( $beer_all['beer_slug'] ) ? $beer_all['beer_slug'] : sanitize_title( $beer['beer_name'] );
+	} else {
+		// Fall back to checkin data (from export file, RSS, or scraper).
+		$brewery     = isset( $checkin['brewery'] ) ? $checkin['brewery'] : null;
+		$style       = isset( $beer['beer_style'] ) ? $beer['beer_style'] : 'Unknown';
+		$collabs     = array( 'count' => 0, 'items' => array() );
+		$description = '';
+		$beer_ibu    = isset( $beer['beer_ibu'] ) ? $beer['beer_ibu'] : '';
+		$beer_slug   = isset( $beer['beer_slug'] ) ? $beer['beer_slug'] : sanitize_title( $beer['beer_name'] );
 	}
-
-	$brewery  = isset( $beer_all['brewery'] ) ? $beer_all['brewery'] : null;
-	$style    = isset( $beer_all['beer_style'] ) ? $beer_all['beer_style'] : 'Unknown';
-	$collabs  = isset( $beer_all['collaborations_with'] ) ? $beer_all['collaborations_with'] : array( 'count' => 0, 'items' => array() );
-	$description = isset( $beer_all['beer_description'] ) ? $beer_all['beer_description'] : '';
 	$post_info = array(
 		'title'         => $beer['beer_name'],
-		'slug'          => isset( $beer_all['beer_slug'] ) ? $beer_all['beer_slug'] : sanitize_title( $beer['beer_name'] ),
+		'slug'          => $beer_slug,
 		'content'       => $description,
 		'excerpt'       => $description ? wp_trim_words( wp_strip_all_tags( $description ), 55 ) : '',
 		'date'          => date( "Y-m-d H:i:s", strtotime( $checkin['created_at'] ) ), // Untappd returns UTC.
 		'meta'          => array(
-			'_beer_slurper_id'   => $beer['bid'],
+			'_beer_slurper_id'   => isset( $beer['bid'] ) ? $beer['bid'] : 0,
 			'_beer_slurper_abv'  => isset( $beer['beer_abv'] ) ? $beer['beer_abv'] : '',
-			'_beer_slurper_ibu'  => isset( $beer_all['beer_ibu'] ) ? $beer_all['beer_ibu'] : '',
+			'_beer_slurper_ibu'  => $beer_ibu,
 			'_beer_slurper_desc' => $description,
 			'_beer_slurper_brew' => is_array( $brewery ) && isset( $brewery['brewery_id'] ) ? $brewery['brewery_id'] : '',
 			),

@@ -89,6 +89,22 @@ if ( ! defined( 'BEER_SLURPER_TAX_COMPANION' ) ) {
 	define( 'BEER_SLURPER_TAX_COMPANION', 'beerlog_companion' );
 }
 
+/**
+ * Logs a debug message to the error log.
+ *
+ * This function wraps error_log() and suppresses output during tests
+ * to keep test output clean.
+ *
+ * @param string $message The message to log.
+ * @return void
+ */
+function beer_slurper_log( $message ) {
+	if ( defined( 'BEER_SLURPER_TESTING' ) && BEER_SLURPER_TESTING ) {
+		return;
+	}
+	error_log( $message );
+}
+
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
 require_once BEER_SLURPER_INC . 'functions/cpt.php';
@@ -100,12 +116,15 @@ require_once BEER_SLURPER_INC . 'functions/companion.php';
 require_once BEER_SLURPER_INC . 'functions/toast.php';
 require_once BEER_SLURPER_INC . 'functions/stats.php';
 require_once BEER_SLURPER_INC . 'functions/oauth.php';
+require_once BEER_SLURPER_INC . 'functions/http.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';
 require_once BEER_SLURPER_INC . 'functions/sync-status.php';
 require_once BEER_SLURPER_INC . 'functions/queue.php';
 require_once BEER_SLURPER_INC . 'functions/taxonomy-admin.php';
+require_once BEER_SLURPER_INC . 'functions/scraper.php';
+require_once BEER_SLURPER_INC . 'functions/import-export.php';
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	require_once BEER_SLURPER_INC . 'functions/cli.php';
@@ -176,8 +195,15 @@ function bs_import( $user = null ){
 	\Kraft\Beer_Slurper\Sync_Status\clear_sync_error();
 
 	$has_error = false;
+	$data_source = \Kraft\Beer_Slurper\Scraper\get_data_source();
 
-	if ( get_option( 'beer_slurper_' . $user . '_import' ) ) {
+	// Scraper mode can't do historical backfill - clear the flag if set.
+	if ( 'scraper' === $data_source && get_option( 'beer_slurper_' . $user . '_import' ) ) {
+		delete_option( 'beer_slurper_' . $user . '_import' );
+	}
+
+	// Only attempt API backfill if not in scraper-only mode.
+	if ( 'scraper' !== $data_source && get_option( 'beer_slurper_' . $user . '_import' ) ) {
 		// If we are still backfilling, call in the next batch of 25 checkins.
 		$result = \Kraft\Beer_Slurper\Walker\import_old( $user );
 		if ( is_wp_error( $result ) ) {
@@ -185,8 +211,9 @@ function bs_import( $user = null ){
 			$has_error = true;
 		}
 	}
-	if ( get_option( 'beer_slurper_' . $user . '_since' ) ) {
-		// If we have pulled in at least one batch of old checkins, check for ones newer than the most recent.
+
+	// Check for new checkins (respects data source setting).
+	if ( get_option( 'beer_slurper_' . $user . '_since' ) || 'scraper' === $data_source ) {
 		$result = \Kraft\Beer_Slurper\Walker\import_new( $user );
 		if ( is_wp_error( $result ) ) {
 			\Kraft\Beer_Slurper\Sync_Status\record_sync_error( $result );

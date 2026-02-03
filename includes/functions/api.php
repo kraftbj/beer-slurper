@@ -59,15 +59,14 @@ function get_untappd_data_raw( $endpoint, $parameter = null, ?array $args = null
 		$args['client_id']     = $untappd_key;
 		$args['client_secret'] = $untappd_secret;
 	} else {
-		error_log( 'Beer Slurper: API credentials missing' );
+		\beer_slurper_log( 'Beer Slurper: API credentials missing' );
 		return new \WP_Error( 'lacking_creds', __( "Somehow, you got to this point without API creds.", "beer_slurper" ) );
 	}
 
 	$untappd_url = $untappd_url . $endpoint . '/' . $parameter;
 	$untappd_url = add_query_arg( $args, $untappd_url );
-	$request_hash = md5( $untappd_url );
 
-	$response = get_transient( 'beer_slurper_' . $request_hash ); // Just got under the 45 character limit!
+	$response = \Kraft\Beer_Slurper\HTTP\get_cached( 'api', $untappd_url );
 
 	if ( $response === false ) {
 
@@ -77,7 +76,7 @@ function get_untappd_data_raw( $endpoint, $parameter = null, ?array $args = null
 			$api_calls = 0;
 		}
 		if ( $api_calls >= 90 ) {
-			error_log( 'Beer Slurper: API rate limit exceeded' );
+			\beer_slurper_log( 'Beer Slurper: API rate limit exceeded' );
 			return new \WP_Error( 'rate_limited', __( 'API rate limit exceeded. Please try again later.', 'beer_slurper' ) );
 		}
 
@@ -112,11 +111,11 @@ function get_untappd_data_raw( $endpoint, $parameter = null, ?array $args = null
 		$ttl = max( 1, (int) $window_end - $now );
 		set_transient( 'beer_slurper_api_calls', $used, $ttl );
 
-		set_transient( 'beer_slurper_' . $request_hash, $response, HOUR_IN_SECONDS );
+		\Kraft\Beer_Slurper\HTTP\set_cached( 'api', $untappd_url, $response, \Kraft\Beer_Slurper\HTTP\CACHE_DURATION_API );
 	}
 
 	if ( is_wp_error( $response ) ) {
-		error_log( 'Beer Slurper: API request failed - ' . $response->get_error_message() );
+		\beer_slurper_log( 'Beer Slurper: API request failed - ' . $response->get_error_message() );
 		return $response;
 	}
 
@@ -125,16 +124,16 @@ function get_untappd_data_raw( $endpoint, $parameter = null, ?array $args = null
 	$decoded = json_decode( $body, true );
 
 	if ( ! is_array( $decoded ) ){
-		error_log( 'Beer Slurper: Invalid JSON response from API' );
-		error_log( 'Beer Slurper: HTTP Status: ' . $status_code );
-		error_log( 'Beer Slurper: Response body (first 500 chars): ' . substr( $body, 0, 500 ) );
+		\beer_slurper_log( 'Beer Slurper: Invalid JSON response from API' );
+		\beer_slurper_log( 'Beer Slurper: HTTP Status: ' . $status_code );
+		\beer_slurper_log( 'Beer Slurper: Response body (first 500 chars): ' . substr( $body, 0, 500 ) );
 		return false;
 	}
 
 	// Check for API-level errors in the response
 	if ( isset( $decoded['meta']['error_type'] ) ) {
 		$error_detail = $decoded['meta']['error_detail'] ?? $decoded['meta']['error_type'];
-		error_log( 'Beer Slurper: API error - ' . $decoded['meta']['error_type'] . ': ' . $error_detail );
+		\beer_slurper_log( 'Beer Slurper: API error - ' . $decoded['meta']['error_type'] . ': ' . $error_detail );
 		return new \WP_Error( $decoded['meta']['error_type'], $error_detail );
 	}
 
