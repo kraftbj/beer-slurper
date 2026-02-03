@@ -671,26 +671,33 @@ function ajax_get_import_progress() {
 		$pending_batches = count( $pending );
 	}
 
-	// Consider complete if:
-	// 1. All items processed, OR
-	// 2. No pending batches and no updates in 5+ minutes (stale/stuck import).
-	$is_stale = 0 === $pending_batches
-		&& isset( $progress['last_update'] )
-		&& ( time() - $progress['last_update'] ) > 300;
+	// Get actual checkin count from database for validation.
+	$actual_checkins = \Kraft\Beer_Slurper\Sync_Status\get_total_checkins();
 
-	$is_complete = ( $progress['processed'] >= $progress['total'] ) || ( 0 === $pending_batches && $is_stale );
+	// Consider complete if:
+	// 1. No pending batches AND (tracked processed >= total OR actual DB count >= total).
+	// This handles cases where tracking got out of sync with reality.
+	$is_complete = 0 === $pending_batches && (
+		$progress['processed'] >= $progress['total'] ||
+		$actual_checkins >= $progress['total']
+	);
+
+	// Use actual counts for display when they're higher than tracked.
+	$display_processed = max( $progress['processed'], $actual_checkins );
+	$display_imported  = max( $progress['imported'] ?? 0, $actual_checkins );
 
 	wp_send_json_success( array(
 		'active'          => ! $is_complete,
 		'complete'        => $is_complete,
 		'total'           => $progress['total'],
-		'processed'       => $progress['processed'],
-		'imported'        => $progress['imported'],
+		'processed'       => $display_processed,
+		'imported'        => $display_imported,
 		'skipped'         => $progress['skipped'],
 		'pending_batches' => $pending_batches,
 		'started'         => $progress['started'] ?? 0,
 		'last_update'     => $progress['last_update'] ?? 0,
 		'errors'          => array_slice( $progress['errors'] ?? array(), 0, 10 ),
+		'actual_checkins' => $actual_checkins,
 	) );
 }
 add_action( 'wp_ajax_beer_slurper_import_progress', __NAMESPACE__ . '\ajax_get_import_progress' );

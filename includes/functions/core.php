@@ -442,6 +442,17 @@ function sync_status_section_callback() {
 	$import_progress = \Kraft\Beer_Slurper\Import\get_import_progress();
 	$backfill_pct = ( $untappd_checkins > 0 ) ? min( 100, round( ( $local_checkins / $untappd_checkins ) * 100 ) ) : 0;
 
+	// Check for pending import batches to determine if import is truly active.
+	$pending_import_batches = 0;
+	if ( $import_progress && function_exists( 'as_get_scheduled_actions' ) ) {
+		$pending = as_get_scheduled_actions( array(
+			'hook'   => 'beer_slurper_process_import_batch',
+			'status' => \ActionScheduler_Store::STATUS_PENDING,
+			'group'  => 'beer-slurper',
+		), 'ids' );
+		$pending_import_batches = count( $pending );
+	}
+
 	?>
 	<style>
 		.beer-slurper-sync-status { margin-top: 10px; }
@@ -496,21 +507,36 @@ function sync_status_section_callback() {
 		<?php // Active operation banners - Import takes priority over backfill display. ?>
 		<?php if ( $import_progress && $import_progress['total'] > 0 ) : ?>
 			<?php
-			$import_pct = round( ( $import_progress['processed'] / $import_progress['total'] ) * 100 );
-			$is_import_complete = $import_progress['processed'] >= $import_progress['total'];
+			// Use actual DB count if higher than tracked (handles tracking sync issues).
+			$tracked_processed = $import_progress['processed'] ?? 0;
+			$display_processed = max( $tracked_processed, $local_checkins );
+			$import_pct = round( ( $display_processed / $import_progress['total'] ) * 100 );
+
+			// Complete if no pending batches AND (tracked OR actual count) meets total.
+			$is_import_complete = 0 === $pending_import_batches && (
+				$tracked_processed >= $import_progress['total'] ||
+				$local_checkins >= $import_progress['total']
+			);
 			?>
 			<div class="beer-slurper-operation-banner <?php echo $is_import_complete ? 'complete' : 'import'; ?>" id="beer-slurper-import-banner">
 				<strong><?php echo $is_import_complete ? __( 'Import Complete', 'beer_slurper' ) : __( 'Import in Progress', 'beer_slurper' ); ?></strong>
 				<p id="beer-slurper-import-status">
 					<?php
-					printf(
-						/* translators: 1: processed count, 2: total count, 3: imported count, 4: skipped count */
-						__( 'Processed %1$d of %2$d checkins (%3$d imported, %4$d skipped)', 'beer_slurper' ),
-						$import_progress['processed'],
-						$import_progress['total'],
-						$import_progress['imported'] ?? 0,
-						$import_progress['skipped'] ?? 0
-					);
+					if ( $is_import_complete ) {
+						printf(
+							/* translators: %d: total checkins imported */
+							__( '%d checkins imported successfully', 'beer_slurper' ),
+							$local_checkins
+						);
+					} else {
+						printf(
+							/* translators: 1: processed count, 2: total count, 3: pending batches */
+							__( 'Processed %1$d of %2$d checkins (%3$d batches remaining)', 'beer_slurper' ),
+							$display_processed,
+							$import_progress['total'],
+							$pending_import_batches
+						);
+					}
 					?>
 				</p>
 				<div class="progress-bar">
@@ -563,7 +589,7 @@ function sync_status_section_callback() {
 			<dd>
 				<?php if ( ! $user ) : ?>
 					<em><?php _e( 'No user configured', 'beer_slurper' ); ?></em>
-				<?php elseif ( $import_progress && $import_progress['total'] > 0 && $import_progress['processed'] < $import_progress['total'] ) : ?>
+				<?php elseif ( $import_progress && $import_progress['total'] > 0 && ! $is_import_complete ) : ?>
 					<span style="color: #996800;"><?php _e( 'Import running...', 'beer_slurper' ); ?></span>
 				<?php elseif ( $is_backfilling ) : ?>
 					<span style="color: #2271b1;"><?php _e( 'Backfilling...', 'beer_slurper' ); ?></span>
