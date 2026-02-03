@@ -822,7 +822,7 @@ function maybe_accelerate_next_checkin() {
 function get_page_spread_params() {
 	$cost_per = 1; // 1 API call per page fetch.
 	$per_hour = (int) floor( API_BUDGET_PER_HOUR / $cost_per );
-	$interval = (int) floor( 3600 / $per_hour ); // 40 seconds per page.
+	$interval = (int) floor( 3600 / $per_hour ); // Seconds per page (e.g., 40 seconds with 90/hour budget).
 	$now      = time();
 
 	$window_end = get_transient( 'beer_slurper_api_window_end' );
@@ -913,7 +913,7 @@ function schedule_next_page_fetch( $hook, $args ) {
 			// If scheduled more than an hour away and we have budget, pull it closer.
 			if ( $scheduled_time > $one_hour_out && $remaining >= 1 ) {
 				reschedule_action_by_id( $row->action_id, $now + 5 );
-			} elseif ( $scheduled_time > $one_hour_out && ! $remaining ) {
+			} elseif ( $scheduled_time > $one_hour_out && $remaining < 1 ) {
 				// No budget but scheduled too far — reschedule to window reset.
 				$reset_time = $window_end ? (int) $window_end : $one_hour_out;
 				reschedule_action_by_id( $row->action_id, $reset_time );
