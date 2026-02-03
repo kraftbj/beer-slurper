@@ -25,6 +25,30 @@ if ( ! file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 require_once __DIR__ . '/vendor/autoload.php';
 
 /*
+ * Define testing mode constant.
+ *
+ * This suppresses debug logging during tests to keep output clean.
+ */
+if ( ! defined( 'BEER_SLURPER_TESTING' ) ) {
+	define( 'BEER_SLURPER_TESTING', true );
+}
+
+/**
+ * Logging helper function for tests.
+ *
+ * Defined here in bootstrap so it's available before plugin files are loaded.
+ * In production, this function is defined in beer-slurper.php.
+ */
+if ( ! function_exists( 'beer_slurper_log' ) ) {
+	function beer_slurper_log( $message ) {
+		if ( defined( 'BEER_SLURPER_TESTING' ) && BEER_SLURPER_TESTING ) {
+			return;
+		}
+		error_log( $message );
+	}
+}
+
+/*
  * Define ABSPATH before loading WorDBless.
  * WorDBless expects WordPress to be in vendor/wordpress directory.
  */
@@ -100,5 +124,10 @@ if ( ! defined( 'BEER_SLURPER_TAX_BADGE' ) ) {
 if ( ! defined( 'BEER_SLURPER_TAX_COMPANION' ) ) {
 	define( 'BEER_SLURPER_TAX_COMPANION', 'beerlog_companion' );
 }
+
+/*
+ * Load shared HTTP helpers before other files that depend on them.
+ */
+require_once __DIR__ . '/includes/functions/http.php';
 
 require_once __DIR__ . '/tests/phpunit/test-tools/TestCase.php';

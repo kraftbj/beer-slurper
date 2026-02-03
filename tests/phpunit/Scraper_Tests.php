@@ -799,11 +799,8 @@ class Scraper_Tests extends Base\TestCase {
 			'source'   => 'rss',
 		);
 
-		\WP_Mock::userFunction( 'get_transient', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_rss_' . md5( $url ) ),
-			'return' => $cached_data,
-		) );
+		// Set up cached data using real WordPress transient.
+		set_transient( 'beer_slurper_rss_' . md5( $url ), $cached_data, HOUR_IN_SECONDS );
 
 		$result = get_checkins_from_rss( $url );
 
@@ -822,12 +819,7 @@ class Scraper_Tests extends Base\TestCase {
 	 * Verifies that the function validates the username parameter.
 	 */
 	public function test_get_user_checkins_returns_error_for_empty_username() {
-		\WP_Mock::userFunction( 'sanitize_user', array(
-			'times'  => 1,
-			'args'   => array( '' ),
-			'return' => '',
-		) );
-
+		// No mocking needed - sanitize_user() is a real WP function in WorDBless.
 		$result = get_user_checkins( '' );
 
 		$this->assertInstanceOf( '\WP_Error', $result );
@@ -844,17 +836,8 @@ class Scraper_Tests extends Base\TestCase {
 			'checkins' => array( 'count' => 1, 'items' => array() ),
 		);
 
-		\WP_Mock::userFunction( 'sanitize_user', array(
-			'times'  => 1,
-			'args'   => array( 'testuser' ),
-			'return' => 'testuser',
-		) );
-
-		\WP_Mock::userFunction( 'get_transient', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_scrape_' . md5( 'testuser' ) ),
-			'return' => $cached_data,
-		) );
+		// Set up cached data using real WordPress transient.
+		set_transient( 'beer_slurper_scrape_' . md5( 'testuser' ), $cached_data, HOUR_IN_SECONDS );
 
 		$result = get_user_checkins( 'testuser' );
 
@@ -875,11 +858,8 @@ class Scraper_Tests extends Base\TestCase {
 	public function test_get_rss_url_returns_option() {
 		$url = 'https://untappd.com/rss/user/testuser?key=abc123';
 
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_rss_url', '' ),
-			'return' => $url,
-		) );
+		// Set up option using real WordPress function.
+		update_option( 'beer_slurper_rss_url', $url );
 
 		$result = get_rss_url();
 
@@ -892,11 +872,8 @@ class Scraper_Tests extends Base\TestCase {
 	 * Verifies that the function detects scraper data source configuration.
 	 */
 	public function test_is_enabled_returns_true_for_scraper_mode() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_data_source', 'api' ),
-			'return' => 'scraper',
-		) );
+		// Set up option using real WordPress function.
+		update_option( 'beer_slurper_data_source', 'scraper' );
 
 		$result = is_enabled();
 
@@ -909,11 +886,8 @@ class Scraper_Tests extends Base\TestCase {
 	 * Verifies that the function returns true when hybrid mode is active.
 	 */
 	public function test_is_enabled_returns_true_for_hybrid_mode() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_data_source', 'api' ),
-			'return' => 'hybrid',
-		) );
+		// Set up option using real WordPress function.
+		update_option( 'beer_slurper_data_source', 'hybrid' );
 
 		$result = is_enabled();
 
@@ -926,11 +900,8 @@ class Scraper_Tests extends Base\TestCase {
 	 * Verifies that the function returns false when API mode is active.
 	 */
 	public function test_is_enabled_returns_false_for_api_mode() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_data_source', 'api' ),
-			'return' => 'api',
-		) );
+		// Set up option using real WordPress function.
+		update_option( 'beer_slurper_data_source', 'api' );
 
 		$result = is_enabled();
 
@@ -943,11 +914,8 @@ class Scraper_Tests extends Base\TestCase {
 	 * Verifies that the function detects when scraper is the primary source.
 	 */
 	public function test_is_primary_returns_true_for_scraper_mode() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_data_source', 'api' ),
-			'return' => 'scraper',
-		) );
+		// Set up option using real WordPress function.
+		update_option( 'beer_slurper_data_source', 'scraper' );
 
 		$result = is_primary();
 
@@ -960,11 +928,8 @@ class Scraper_Tests extends Base\TestCase {
 	 * Verifies that the function returns false when hybrid mode is active.
 	 */
 	public function test_is_primary_returns_false_for_hybrid_mode() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_data_source', 'api' ),
-			'return' => 'hybrid',
-		) );
+		// Set up option using real WordPress function.
+		update_option( 'beer_slurper_data_source', 'hybrid' );
 
 		$result = is_primary();
 
@@ -977,11 +942,8 @@ class Scraper_Tests extends Base\TestCase {
 	 * Verifies that the function retrieves the data source option.
 	 */
 	public function test_get_data_source_returns_option() {
-		\WP_Mock::userFunction( 'get_option', array(
-			'times'  => 1,
-			'args'   => array( 'beer_slurper_data_source', 'api' ),
-			'return' => 'scraper',
-		) );
+		// Set up option using real WordPress function.
+		update_option( 'beer_slurper_data_source', 'scraper' );
 
 		$result = get_data_source();
 

@@ -25,25 +25,9 @@
 namespace Kraft\Beer_Slurper\Scraper;
 
 /**
- * User agent string identifying this as a personal beer log backup tool.
- * This makes the non-commercial, personal use nature clear.
- */
-const USER_AGENT = 'personal-beerlog-backup/1.0 (WordPress plugin for personal beer history; non-commercial; https://github.com/kraftbj/beer-slurper)';
-
-/**
  * Base URL for Untappd website.
  */
 const UNTAPPD_BASE_URL = 'https://untappd.com';
-
-/**
- * Cache duration for scraped data (15 minutes).
- */
-const CACHE_DURATION = 900;
-
-/**
- * Cache duration for RSS feed (5 minutes - more frequent polling).
- */
-const RSS_CACHE_DURATION = 300;
 
 /*
  * =============================================================================
@@ -78,8 +62,7 @@ function get_checkins_from_rss( $rss_url ) {
 	}
 
 	// Check cache first.
-	$cache_key = 'beer_slurper_rss_' . md5( $rss_url );
-	$cached    = get_transient( $cache_key );
+	$cached = \Kraft\Beer_Slurper\HTTP\get_cached( 'rss', $rss_url );
 
 	if ( false !== $cached ) {
 		return $cached;
@@ -100,7 +83,7 @@ function get_checkins_from_rss( $rss_url ) {
 	}
 
 	// Cache the results.
-	set_transient( $cache_key, $checkins, RSS_CACHE_DURATION );
+	\Kraft\Beer_Slurper\HTTP\set_cached( 'rss', $rss_url, $checkins, \Kraft\Beer_Slurper\HTTP\CACHE_DURATION_RSS );
 
 	return $checkins;
 }
@@ -113,37 +96,7 @@ function get_checkins_from_rss( $rss_url ) {
  * @return array|WP_Error Response array with 'body', or WP_Error on failure.
  */
 function fetch_rss( $url ) {
-	$args = array(
-		'timeout'     => 30,
-		'redirection' => 5,
-		'user-agent'  => USER_AGENT,
-		'headers'     => array(
-			'Accept'       => 'application/rss+xml, application/xml, text/xml, */*',
-			'Cache-Control' => 'no-cache',
-		),
-	);
-
-	$response = wp_remote_get( $url, $args );
-
-	if ( is_wp_error( $response ) ) {
-		error_log( 'Beer Slurper RSS: Request failed - ' . $response->get_error_message() );
-		return $response;
-	}
-
-	$status_code = wp_remote_retrieve_response_code( $response );
-
-	if ( 200 !== $status_code ) {
-		error_log( 'Beer Slurper RSS: HTTP ' . $status_code . ' for RSS feed' );
-		return new \WP_Error(
-			'http_error',
-			sprintf( __( 'HTTP error %d when fetching RSS feed. Check your RSS URL and key.', 'beer_slurper' ), $status_code )
-		);
-	}
-
-	return array(
-		'body'    => wp_remote_retrieve_body( $response ),
-		'headers' => wp_remote_retrieve_headers( $response ),
-	);
+	return \Kraft\Beer_Slurper\HTTP\fetch_url( $url, 'rss', 'RSS' );
 }
 
 /**
@@ -166,7 +119,7 @@ function parse_rss_feed( $xml_content ) {
 	if ( false === $xml ) {
 		$errors = libxml_get_errors();
 		libxml_clear_errors();
-		error_log( 'Beer Slurper RSS: XML parse error - ' . ( $errors ? $errors[0]->message : 'unknown' ) );
+		\beer_slurper_log( 'Beer Slurper RSS: XML parse error - ' . ( $errors ? $errors[0]->message : 'unknown' ) );
 		return new \WP_Error( 'xml_parse_error', __( 'Failed to parse RSS feed XML.', 'beer_slurper' ) );
 	}
 
@@ -392,39 +345,7 @@ function is_valid_rss_url( $url ) {
  * @return array|WP_Error Response array with 'body' and 'headers', or WP_Error on failure.
  */
 function fetch_page( $url ) {
-	$args = array(
-		'timeout'     => 30,
-		'redirection' => 5,
-		'user-agent'  => USER_AGENT,
-		'headers'     => array(
-			'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-			'Accept-Language' => 'en-US,en;q=0.5',
-			'Cache-Control'   => 'no-cache',
-			'DNT'             => '1',
-		),
-	);
-
-	$response = wp_remote_get( $url, $args );
-
-	if ( is_wp_error( $response ) ) {
-		error_log( 'Beer Slurper Scraper: Request failed - ' . $response->get_error_message() );
-		return $response;
-	}
-
-	$status_code = wp_remote_retrieve_response_code( $response );
-
-	if ( 200 !== $status_code ) {
-		error_log( 'Beer Slurper Scraper: HTTP ' . $status_code . ' for ' . $url );
-		return new \WP_Error(
-			'http_error',
-			sprintf( __( 'HTTP error %d when fetching %s', 'beer_slurper' ), $status_code, $url )
-		);
-	}
-
-	return array(
-		'body'    => wp_remote_retrieve_body( $response ),
-		'headers' => wp_remote_retrieve_headers( $response ),
-	);
+	return \Kraft\Beer_Slurper\HTTP\fetch_url( $url, 'html', 'Scraper' );
 }
 
 /**
@@ -442,8 +363,7 @@ function get_user_checkins( $username ) {
 	}
 
 	// Check cache first.
-	$cache_key = 'beer_slurper_scrape_' . md5( $username );
-	$cached    = get_transient( $cache_key );
+	$cached = \Kraft\Beer_Slurper\HTTP\get_cached( 'scrape', $username );
 
 	if ( false !== $cached ) {
 		return $cached;
@@ -463,7 +383,7 @@ function get_user_checkins( $username ) {
 	}
 
 	// Cache the results.
-	set_transient( $cache_key, $checkins, CACHE_DURATION );
+	\Kraft\Beer_Slurper\HTTP\set_cached( 'scrape', $username, $checkins, \Kraft\Beer_Slurper\HTTP\CACHE_DURATION_SCRAPE );
 
 	return $checkins;
 }
@@ -500,7 +420,7 @@ function parse_user_checkins( $html, $username ) {
 	}
 
 	if ( 0 === $checkin_nodes->length ) {
-		error_log( 'Beer Slurper Scraper: No checkins found for user ' . $username );
+		\beer_slurper_log( 'Beer Slurper Scraper: No checkins found for user ' . $username );
 		return new \WP_Error( 'no_checkins', __( 'No checkins found. The profile may be private or the page structure has changed.', 'beer_slurper' ) );
 	}
 
@@ -754,8 +674,7 @@ function get_beer_info( $beer_id ) {
 	}
 
 	// Check cache.
-	$cache_key = 'beer_slurper_scrape_beer_' . $beer_id;
-	$cached    = get_transient( $cache_key );
+	$cached = \Kraft\Beer_Slurper\HTTP\get_cached( 'scrape_beer', $beer_id, false );
 
 	if ( false !== $cached ) {
 		return $cached;
@@ -773,7 +692,7 @@ function get_beer_info( $beer_id ) {
 	$beer = parse_beer_page( $response['body'], $beer_id );
 
 	if ( ! is_wp_error( $beer ) ) {
-		set_transient( $cache_key, $beer, CACHE_DURATION * 4 ); // Cache beer info longer.
+		\Kraft\Beer_Slurper\HTTP\set_cached( 'scrape_beer', $beer_id, $beer, \Kraft\Beer_Slurper\HTTP\CACHE_DURATION_ENTITY, false );
 	}
 
 	return $beer;

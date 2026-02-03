@@ -30,6 +30,7 @@ class Import_Tests extends Base\TestCase {
 		'functions/companion.php',
 		'functions/toast.php',
 		'functions/queue.php',
+		'functions/scraper.php',
 		'functions/walker.php',
 	];
 

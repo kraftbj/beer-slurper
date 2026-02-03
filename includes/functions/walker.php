@@ -74,7 +74,7 @@ function import_new( $user ) {
 
 	// Hybrid mode: fall back to scraper if API fails completely.
 	if ( 'hybrid' === $data_source && ( is_wp_error( $checkins ) || ! is_array( $checkins ) ) ) {
-		error_log( 'Beer Slurper: API failed, falling back to scraper for user ' . $user );
+		\beer_slurper_log( 'Beer Slurper: API failed, falling back to scraper for user ' . $user );
 		return import_new_via_scraper( $user );
 	}
 
@@ -135,7 +135,7 @@ function import_new_via_scraper( $user ) {
 
 		// If RSS fails, fall back to page scraping.
 		if ( is_wp_error( $checkins ) ) {
-			error_log( 'Beer Slurper: RSS fetch failed, falling back to scraper - ' . $checkins->get_error_message() );
+			\beer_slurper_log( 'Beer Slurper: RSS fetch failed, falling back to scraper - ' . $checkins->get_error_message() );
 			$checkins = \Kraft\Beer_Slurper\Scraper\get_user_checkins( $user );
 			$source   = 'scraper';
 		}

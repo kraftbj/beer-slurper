@@ -86,7 +86,7 @@ function add_brewery( $breweryid, $brewery_data = null ){
 
 	if ( isset( $processing[ $breweryid ] ) ) {
 		// Already processing this brewery - break the cycle.
-		error_log( 'Beer Slurper: Circular brewery ownership detected for brewery ' . $breweryid );
+		\beer_slurper_log( 'Beer Slurper: Circular brewery ownership detected for brewery ' . $breweryid );
 		return new \WP_Error( 'circular_ownership', __( 'Circular brewery ownership detected.', 'beer_slurper' ) );
 	}
 
@@ -98,17 +98,17 @@ function add_brewery( $breweryid, $brewery_data = null ){
 	if ( is_wp_error( $brewery ) || ! is_array( $brewery ) ) {
 		// API failed - fall back to pre-fetched data from beer response if available
 		if ( is_array( $brewery_data ) && isset( $brewery_data['brewery_name'] ) ) {
-			error_log( 'Beer Slurper: Brewery API failed, using fallback data for brewery ' . $breweryid );
+			\beer_slurper_log( 'Beer Slurper: Brewery API failed, using fallback data for brewery ' . $breweryid );
 			$brewery = $brewery_data;
 		} else {
-			error_log( 'Beer Slurper: Failed to get brewery info - ' . ( is_wp_error( $brewery ) ? $brewery->get_error_message() : 'invalid response' ) );
+			\beer_slurper_log( 'Beer Slurper: Failed to get brewery info - ' . ( is_wp_error( $brewery ) ? $brewery->get_error_message() : 'invalid response' ) );
 			unset( $processing[ $breweryid ] );
 			return is_wp_error( $brewery ) ? $brewery : new \WP_Error( 'invalid_brewery', __( 'Invalid brewery data from API.', 'beer_slurper' ) );
 		}
 	}
 
 	if ( ! is_array( $brewery ) || ! isset( $brewery['brewery_name'] ) ) {
-		error_log( 'Beer Slurper: Invalid brewery data structure' );
+		\beer_slurper_log( 'Beer Slurper: Invalid brewery data structure' );
 		unset( $processing[ $breweryid ] );
 		return new \WP_Error( 'invalid_brewery', __( 'Invalid brewery data from API.', 'beer_slurper' ) );
 	}
@@ -136,7 +136,7 @@ function add_brewery( $breweryid, $brewery_data = null ){
 				return $existing_term->term_id;
 			}
 		}
-		error_log( 'Beer Slurper: Failed to insert brewery term - ' . $term->get_error_message() );
+		\beer_slurper_log( 'Beer Slurper: Failed to insert brewery term - ' . $term->get_error_message() );
 		unset( $processing[ $breweryid ] );
 		return $term;
 	}

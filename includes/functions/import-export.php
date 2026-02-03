@@ -183,7 +183,7 @@ function import_csv( $file_path ) {
  */
 function import_json( $file_path ) {
 	if ( filesize( $file_path ) > 10485760 ) {
-		error_log( 'Beer Slurper: Large JSON import file (' . size_format( filesize( $file_path ) ) . '). This may use significant memory.' );
+		\beer_slurper_log( 'Beer Slurper: Large JSON import file (' . size_format( filesize( $file_path ) ) . '). This may use significant memory.' );
 	}
 
 	$content = file_get_contents( $file_path );

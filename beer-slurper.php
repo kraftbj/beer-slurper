@@ -89,6 +89,22 @@ if ( ! defined( 'BEER_SLURPER_TAX_COMPANION' ) ) {
 	define( 'BEER_SLURPER_TAX_COMPANION', 'beerlog_companion' );
 }
 
+/**
+ * Logs a debug message to the error log.
+ *
+ * This function wraps error_log() and suppresses output during tests
+ * to keep test output clean.
+ *
+ * @param string $message The message to log.
+ * @return void
+ */
+function beer_slurper_log( $message ) {
+	if ( defined( 'BEER_SLURPER_TESTING' ) && BEER_SLURPER_TESTING ) {
+		return;
+	}
+	error_log( $message );
+}
+
 // Include files
 require_once BEER_SLURPER_INC . 'functions/core.php';
 require_once BEER_SLURPER_INC . 'functions/cpt.php';
@@ -100,6 +116,7 @@ require_once BEER_SLURPER_INC . 'functions/companion.php';
 require_once BEER_SLURPER_INC . 'functions/toast.php';
 require_once BEER_SLURPER_INC . 'functions/stats.php';
 require_once BEER_SLURPER_INC . 'functions/oauth.php';
+require_once BEER_SLURPER_INC . 'functions/http.php';
 require_once BEER_SLURPER_INC . 'functions/api.php';
 require_once BEER_SLURPER_INC . 'functions/post.php';
 require_once BEER_SLURPER_INC . 'functions/walker.php';

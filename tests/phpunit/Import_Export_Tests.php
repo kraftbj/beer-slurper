@@ -28,7 +28,17 @@ use Kraft\Beer_Slurper as Base;
 class Import_Export_Tests extends Base\TestCase {
 
 	protected $testFiles = [
-		'functions/import-export.php'
+		'functions/sync-status.php',
+		'functions/api.php',
+		'functions/oauth.php',
+		'functions/post.php',
+		'functions/brewery.php',
+		'functions/venue.php',
+		'functions/badge.php',
+		'functions/checkin.php',
+		'functions/companion.php',
+		'functions/toast.php',
+		'functions/import-export.php',
 	];
 
 	/**
@@ -43,8 +53,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 *
 	 * @return void
 	 */
-	public function setUp(): void {
-		parent::setUp();
+	protected function set_up(): void {
+		parent::set_up();
 
 		$this->temp_dir = sys_get_temp_dir() . '/beer-slurper-tests-' . uniqid();
 		mkdir( $this->temp_dir );
@@ -55,7 +65,7 @@ class Import_Export_Tests extends Base\TestCase {
 	 *
 	 * @return void
 	 */
-	public function tearDown(): void {
+	protected function tear_down(): void {
 		// Clean up temporary files.
 		if ( is_dir( $this->temp_dir ) ) {
 			$files = glob( $this->temp_dir . '/*' );
@@ -67,7 +77,7 @@ class Import_Export_Tests extends Base\TestCase {
 			rmdir( $this->temp_dir );
 		}
 
-		parent::tearDown();
+		parent::tear_down();
 	}
 
 	/**
@@ -105,10 +115,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 * correctly transformed into the nested checkin format.
 	 */
 	public function test_csv_row_to_checkin_transforms_complete_row() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$row = array(
 			'beer_name'       => 'Test IPA',
@@ -190,16 +198,9 @@ class Import_Export_Tests extends Base\TestCase {
 	 * (beer_name and checkin_id).
 	 */
 	public function test_csv_row_to_checkin_handles_minimal_fields() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => null,
-		) );
-
-		\WP_Mock::userFunction( 'current_time', array(
-			'times'  => 1,
-			'args'   => array( 'mysql', true ),
-			'return' => '2024-01-20 12:00:00',
-		) );
+		// No configured user - delete the option to ensure null return.
+		delete_option( 'beer-slurper-user' );
+		// current_time() works natively in WorDBless.
 
 		$row = array(
 			'beer_name'  => 'Minimal Beer',
@@ -211,7 +212,8 @@ class Import_Export_Tests extends Base\TestCase {
 		$this->assertIsArray( $result );
 		$this->assertEquals( 999, $result['checkin_id'] );
 		$this->assertEquals( 'Minimal Beer', $result['beer']['beer_name'] );
-		$this->assertEquals( '2024-01-20 12:00:00', $result['created_at'] );
+		// Verify created_at is a valid MySQL datetime (Y-m-d H:i:s format).
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $result['created_at'] );
 		$this->assertEquals( 'imported', $result['user']['user_name'] );
 		$this->assertArrayNotHasKey( 'venue', $result );
 		$this->assertEmpty( $result['media']['items'] );
@@ -272,10 +274,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that venue is not added when venue_name is empty.
 	 */
 	public function test_csv_row_to_checkin_no_venue_when_empty() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$row = array(
 			'beer_name'    => 'Test Beer',
@@ -298,10 +298,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that media items are not added when photo_url is empty.
 	 */
 	public function test_csv_row_to_checkin_no_photo_when_empty() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$row = array(
 			'beer_name'  => 'Test Beer',
@@ -322,10 +320,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that venue_id is extracted from the venue_url field.
 	 */
 	public function test_csv_row_to_checkin_extracts_venue_id_from_url() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$row = array(
 			'beer_name'  => 'Test Beer',
@@ -347,10 +343,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that lat/lng are set to null when not provided.
 	 */
 	public function test_csv_row_to_checkin_handles_null_coordinates() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$row = array(
 			'beer_name'    => 'Test Beer',
@@ -374,10 +368,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that flavor_profiles are stored in _import_meta.
 	 */
 	public function test_csv_row_to_checkin_stores_flavor_profiles() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$row = array(
 			'beer_name'       => 'Test Beer',
@@ -399,10 +391,8 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that _import_meta is not added when flavor_profiles is empty.
 	 */
 	public function test_csv_row_to_checkin_no_import_meta_when_no_flavors() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'times'  => 1,
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
 		$row = array(
 			'beer_name'       => 'Test Beer',
@@ -518,13 +508,12 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that column names are normalized (lowercase, trimmed).
 	 */
 	public function test_import_csv_normalizes_header_names() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'return' => true,
-		) );
+		// Create existing post so find_existing_checkin returns true (skipped).
+		$post_id = $this->create_beer_post();
+		add_post_meta( $post_id, '_beer_slurper_untappd_id', '123' );
 
 		$csv_content = "Beer_Name,CHECKIN_ID, Created_At \nTest Beer,123,2024-01-20 12:00:00\n";
 		$path = $this->create_temp_csv( $csv_content );
@@ -541,13 +530,14 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that empty rows in the CSV are skipped.
 	 */
 	public function test_import_csv_skips_empty_rows() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'return' => true,
-		) );
+		// Create existing posts so find_existing_checkin returns true (skipped).
+		$post1 = $this->create_beer_post();
+		add_post_meta( $post1, '_beer_slurper_untappd_id', '123' );
+		$post2 = $this->create_beer_post();
+		add_post_meta( $post2, '_beer_slurper_untappd_id', '456' );
 
 		$csv_content = "beer_name,checkin_id,created_at\nTest Beer,123,2024-01-20 12:00:00\n,,,\nAnother Beer,456,2024-01-21 12:00:00\n";
 		$path = $this->create_temp_csv( $csv_content );
@@ -641,13 +631,12 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that the function correctly parses the standard Untappd export format.
 	 */
 	public function test_import_json_handles_standard_export_format() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'return' => true,
-		) );
+		// Create existing post so find_existing_checkin returns true (skipped).
+		$post_id = $this->create_beer_post();
+		add_post_meta( $post_id, '_beer_slurper_untappd_id', '123' );
 
 		$path = $this->create_temp_json( array(
 			'checkins' => array(
@@ -671,13 +660,14 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that the function correctly parses an array of flat checkin objects.
 	 */
 	public function test_import_json_handles_array_format() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Sync_Status\get_configured_user', array(
-			'return' => 'testuser',
-		) );
+		// Set up configured user using real WordPress option.
+		update_option( 'beer-slurper-user', 'testuser' );
 
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'return' => true,
-		) );
+		// Create existing posts so find_existing_checkin returns true (skipped).
+		$post1 = $this->create_beer_post();
+		add_post_meta( $post1, '_beer_slurper_untappd_id', '123' );
+		$post2 = $this->create_beer_post();
+		add_post_meta( $post2, '_beer_slurper_untappd_id', '456' );
 
 		$path = $this->create_temp_json( array(
 			array(
@@ -704,9 +694,9 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that the function correctly parses API-style nested response format.
 	 */
 	public function test_import_json_handles_api_response_format() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'return' => true,
-		) );
+		// Create existing post so find_existing_checkin returns true (skipped).
+		$post_id = $this->create_beer_post();
+		add_post_meta( $post_id, '_beer_slurper_untappd_id', '123' );
 
 		$path = $this->create_temp_json( array(
 			'response' => array(
@@ -740,9 +730,9 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that checkins with nested 'beer' key are used as-is.
 	 */
 	public function test_import_json_uses_nested_format_as_is() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'return' => true,
-		) );
+		// Create existing post so find_existing_checkin returns true (skipped).
+		$post_id = $this->create_beer_post();
+		add_post_meta( $post_id, '_beer_slurper_untappd_id', '123' );
 
 		$checkin_data = array(
 			'checkin_id' => 123,
@@ -772,11 +762,9 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that checkins that already exist are skipped.
 	 */
 	public function test_process_checkin_batch_skips_duplicates() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'times'  => 1,
-			'args'   => array( 123 ),
-			'return' => 456, // Returns post ID if exists.
-		) );
+		// Create existing post so find_existing_checkin returns true.
+		$post_id = $this->create_beer_post();
+		add_post_meta( $post_id, '_beer_slurper_untappd_id', '123' );
 
 		$checkins = array(
 			array( 'checkin_id' => 123 ),
@@ -795,29 +783,32 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that new checkins are imported successfully.
 	 */
 	public function test_process_checkin_batch_imports_new_checkins() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'times'  => 1,
-			'args'   => array( 123 ),
-			'return' => false,
-		) );
+		// Enable mock HTTP for API calls.
+		$this->use_mock_http = true;
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::init();
 
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\insert_beer', array(
-			'times'  => 1,
-			'return' => 789, // Returns post ID on success.
-		) );
+		// Set up API credentials.
+		$this->set_api_credentials( 'key', 'secret', 'token' );
 
-		$checkins = array(
-			array(
-				'checkin_id'     => 123,
-				'_import_source' => 'untappd_export',
-			),
+		// Mock beer info API response.
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::mock_json(
+			'*api.untappd.com*/v4/beer/info/*',
+			\Kraft\Beer_Slurper\Tests\ApiFixtures::beer_info()
 		);
 
-		\WP_Mock::userFunction( 'update_post_meta', array(
-			'times'  => 1,
-			'args'   => array( 789, '_beer_slurper_import_source', 'untappd_export' ),
-			'return' => true,
-		) );
+		// Mock brewery info API response.
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::mock_json(
+			'*api.untappd.com*/v4/brewery/info/*',
+			\Kraft\Beer_Slurper\Tests\ApiFixtures::brewery_info()
+		);
+
+		// Create a complete checkin for import.
+		$checkins = array(
+			\Kraft\Beer_Slurper\Tests\ApiFixtures::checkin( array(
+				'checkin_id'     => wp_rand( 900000, 999999 ),
+				'_import_source' => 'untappd_export',
+			) ),
+		);
 
 		$result = process_checkin_batch( $checkins );
 
@@ -832,23 +823,32 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that already_done errors are counted as skipped, not errors.
 	 */
 	public function test_process_checkin_batch_handles_already_done_error() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'times'  => 1,
-			'args'   => array( 123 ),
-			'return' => false,
-		) );
+		// Enable mock HTTP for API calls.
+		$this->use_mock_http = true;
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::init();
 
-		$wp_error = new \WP_Error( 'already_done', 'Checkin already exists' );
+		// Set up API credentials.
+		$this->set_api_credentials( 'key', 'secret', 'token' );
 
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\insert_beer', array(
-			'times'  => 1,
-			'return' => $wp_error,
-		) );
-
-		$checkins = array(
-			array( 'checkin_id' => 123 ),
+		// Mock beer info API response.
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::mock_json(
+			'*api.untappd.com*/v4/beer/info/*',
+			\Kraft\Beer_Slurper\Tests\ApiFixtures::beer_info()
 		);
 
+		// Mock brewery info API response.
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::mock_json(
+			'*api.untappd.com*/v4/brewery/info/*',
+			\Kraft\Beer_Slurper\Tests\ApiFixtures::brewery_info()
+		);
+
+		// Create a checkin and import it first to create the "already done" scenario.
+		$checkin_id = wp_rand( 800000, 899999 );
+		$checkin = \Kraft\Beer_Slurper\Tests\ApiFixtures::checkin( array( 'checkin_id' => $checkin_id ) );
+		\Kraft\Beer_Slurper\Post\insert_beer( $checkin );
+
+		// Now try to import the same checkin again - should get already_done.
+		$checkins = array( $checkin );
 		$result = process_checkin_batch( $checkins );
 
 		$this->assertEquals( 0, $result['imported'] );
@@ -862,19 +862,11 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that non-already_done errors are recorded in the errors array.
 	 */
 	public function test_process_checkin_batch_records_other_errors() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'times'  => 1,
-			'args'   => array( 123 ),
-			'return' => false,
-		) );
+		// Don't enable mock HTTP - API calls will fail, causing insert_beer to return error.
+		// Set up API credentials so the code attempts to make API calls.
+		$this->set_api_credentials( 'key', 'secret', 'token' );
 
-		$wp_error = new \WP_Error( 'insert_failed', 'Failed to insert post' );
-
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\insert_beer', array(
-			'times'  => 1,
-			'return' => $wp_error,
-		) );
-
+		// Incomplete checkin missing required data will cause errors.
 		$checkins = array(
 			array( 'checkin_id' => 123 ),
 		);
@@ -893,42 +885,51 @@ class Import_Export_Tests extends Base\TestCase {
 	 * Verifies that _import_meta values are stored as post meta.
 	 */
 	public function test_process_checkin_batch_stores_import_metadata() {
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\find_existing_checkin', array(
-			'times'  => 1,
-			'return' => false,
-		) );
+		// Enable mock HTTP for API calls.
+		$this->use_mock_http = true;
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::init();
 
-		\WP_Mock::userFunction( 'Kraft\Beer_Slurper\Post\insert_beer', array(
-			'times'  => 1,
-			'return' => 789,
-		) );
+		// Set up API credentials.
+		$this->set_api_credentials( 'key', 'secret', 'token' );
 
-		\WP_Mock::userFunction( 'update_post_meta', array(
-			'times'  => 1,
-			'args'   => array( 789, '_beer_slurper_flavor_profiles', 'hoppy, citrus' ),
-			'return' => true,
-		) );
-
-		\WP_Mock::userFunction( 'update_post_meta', array(
-			'times'  => 1,
-			'args'   => array( 789, '_beer_slurper_import_source', 'untappd_export' ),
-			'return' => true,
-		) );
-
-		$checkins = array(
-			array(
-				'checkin_id'     => 123,
-				'_import_meta'   => array(
-					'flavor_profiles' => 'hoppy, citrus',
-				),
-				'_import_source' => 'untappd_export',
-			),
+		// Mock beer info API response.
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::mock_json(
+			'*api.untappd.com*/v4/beer/info/*',
+			\Kraft\Beer_Slurper\Tests\ApiFixtures::beer_info()
 		);
 
-		$result = process_checkin_batch( $checkins );
+		// Mock brewery info API response.
+		\Kraft\Beer_Slurper\Tests\MockHttpClient::mock_json(
+			'*api.untappd.com*/v4/brewery/info/*',
+			\Kraft\Beer_Slurper\Tests\ApiFixtures::brewery_info()
+		);
+
+		$checkin_id = wp_rand( 700000, 799999 );
+		$checkin = \Kraft\Beer_Slurper\Tests\ApiFixtures::checkin( array(
+			'checkin_id' => $checkin_id,
+		) );
+		$checkin['_import_meta'] = array(
+			'flavor_profiles' => 'hoppy, citrus',
+		);
+		$checkin['_import_source'] = 'untappd_export';
+
+		$result = process_checkin_batch( array( $checkin ) );
 
 		$this->assertEquals( 1, $result['imported'] );
-		$this->assertConditionsMet();
+
+		// Verify the metadata was stored.
+		$posts = get_posts( array(
+			'post_type'  => BEER_SLURPER_CPT,
+			'meta_key'   => '_beer_slurper_untappd_id',
+			'meta_value' => $checkin_id,
+		) );
+		$this->assertCount( 1, $posts );
+
+		$flavor = get_post_meta( $posts[0]->ID, '_beer_slurper_flavor_profiles', true );
+		$this->assertEquals( 'hoppy, citrus', $flavor );
+
+		$source = get_post_meta( $posts[0]->ID, '_beer_slurper_import_source', true );
+		$this->assertEquals( 'untappd_export', $source );
 	}
 
 	// =========================================================================
