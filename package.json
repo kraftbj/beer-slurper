@@ -22,7 +22,7 @@
     "build:blocks": "wp-scripts build --webpack-src-dir=src/blocks --output-path=build"
   },
   "dependencies": {
-    "@wordpress/scripts": "^30.27.0"
+    "@wordpress/scripts": "^31.6.0"
   },
   "devDependencies": {
     "grunt": "^1.6.1",
