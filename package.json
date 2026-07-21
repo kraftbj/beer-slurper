@@ -22,12 +22,12 @@
     "build:blocks": "wp-scripts build --webpack-src-dir=src/blocks --output-path=build"
   },
   "dependencies": {
-    "@wordpress/scripts": "^31.6.0"
+    "@wordpress/scripts": "^33.0.0"
   },
   "devDependencies": {
     "grunt": "^1.6.1",
     "grunt-cli": "^1.5.0",
-    "grunt-contrib-cssmin": "^0.12.3",
+    "grunt-contrib-cssmin": "^5.0.0",
     "grunt-contrib-jshint": "^3.2.0",
     "grunt-contrib-qunit": "^10.1.1",
     "grunt-contrib-uglify": "^5.2.2",
@@ -37,6 +37,33 @@
     "grunt-wp-readme-to-markdown": "^2.1.0",
     "load-grunt-tasks": "^3.5.2",
     "qunitjs": "~1.17.1"
+  },
+  "overrides": {
+    "adm-zip": "^0.6.0",
+    "body-parser": "^1.20.6",
+    "brace-expansion": "^2.1.2",
+    "http-proxy-middleware": "^2.0.10",
+    "shell-quote": "^1.9.0",
+    "uuid": "^11.1.1",
+    "webpack-dev-server": "^5.2.6",
+    "markdown-it": "^14.2.0",
+    "linkify-it": "^5.0.1",
+    "serialize-javascript": "^7.0.7",
+    "lodash": "^4.18.1",
+    "@babel/core": "^7.29.6",
+    "@opentelemetry/core": "^2.8.0",
+    "grunt": {
+      "js-yaml": "^3.15.0"
+    },
+    "markdownlint-cli": {
+      "minimatch": "^3.1.5"
+    },
+    "jshint": {
+      "minimatch": "^3.1.5"
+    },
+    "globule": {
+      "minimatch": "^3.1.5"
+    }
   },
   "keywords": []
 }
