@@ -39,7 +39,7 @@
     "qunitjs": "~1.17.1"
   },
   "overrides": {
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "body-parser": "^1.20.6",
     "brace-expansion": "^2.1.4",
     "http-proxy-middleware": "^2.0.10",
