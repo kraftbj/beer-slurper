@@ -43,7 +43,6 @@ npm run build:blocks
 EXCLUDES=(
     ".git"
     ".gitignore"
-    ".jshintrc"
     ".bowerrc"
     ".claude"
     "node_modules"

@@ -1,7 +1,7 @@
 /**
  * @file Gruntfile.js
  * @description Grunt build configuration for the Beer Slurper WordPress plugin.
- *              Defines tasks for linting, CSS minification, file watching,
+ *              Defines tasks for CSS minification, file watching,
  *              internationalization, and test execution.
  *
  *              For release packaging, use: npm run build:zip
@@ -17,14 +17,6 @@ module.exports = function( grunt ) {
 	// Project configuration - defines all task options and file patterns
 	grunt.initConfig( {
 		pkg:    grunt.file.readJSON( 'package.json' ),
-
-		// JSHint - JavaScript code quality and syntax checking
-		jshint: {
-			all: [
-				'Gruntfile.js',
-				'assets/js/test/**/*.js'
-			]
-		},
 
 		// CSS Minification - compresses CSS with version banner header
 		cssmin: {
@@ -128,8 +120,8 @@ module.exports = function( grunt ) {
 
 	// Register tasks - defines composite task aliases
 
-	// Default task: lint, minify CSS, convert readme, and generate POT
-	grunt.registerTask( 'default', ['jshint', 'cssmin', 'wp_readme_to_markdown', 'makepot' ] );
+	// Default task: minify CSS, convert readme, and generate POT
+	grunt.registerTask( 'default', ['cssmin', 'wp_readme_to_markdown', 'makepot' ] );
 
 	// Test task: runs PHPUnit and QUnit test suites
 	grunt.registerTask( 'test', ['phpunit', 'qunit'] );
